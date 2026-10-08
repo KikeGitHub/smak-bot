@@ -14,11 +14,43 @@ export class StorageFacade {
 
   static initialize() {
     const data = this.read();
-    // Validate if data has v2 structure with products array and rules
-    const isValidV2 = data && data.tenants && Object.values(data.tenants).every(t => Array.isArray(t.products) && Array.isArray(t.rules));
-    if (!isValidV2) {
+    // Validate if data has v3 structure with products array and rules
+    const isValidV3 = data && data.tenants && Object.values(data.tenants).every(t => Array.isArray(t.products) && t.products.length >= 6 && Array.isArray(t.rules));
+    if (!isValidV3) {
       const tenants = Object.fromEntries(TENANTS.map(t => [t.id, clone(t)]));
-      this.write({ activeTenantId: "smak", tenants, orders: [] });
+      const initialOrders = [
+        { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "EST-01", daysAgo: 0 },
+        { tenantId: "smak", name: "Carlos Mendoza", address: "Residencial Las Uvas, Comayagüela", phone: "+504 9452-6810", sku: "ESC-02", daysAgo: 1 },
+        { tenantId: "smak", name: "Andrea Pineda", address: "Barrio El Centro, San Pedro Sula", phone: "+504 9981-3472", sku: "MESA-04", daysAgo: 2 },
+        { tenantId: "smak", name: "Roberto Cálix", address: "Col. El Toronjal, La Ceiba", phone: "+504 9711-4402", sku: "LAMP-05", daysAgo: 3 },
+        { tenantId: "smak", name: "Elena Ramos", address: "Lomas del Guijarro, Tegucigalpa", phone: "+504 8820-9150", sku: "REP-06", daysAgo: 4 },
+        { tenantId: "smak", name: "David Banegas", address: "Col. Los Álamos, San Pedro Sula", phone: "+504 9500-3321", sku: "CLO-07", daysAgo: 5 },
+        { tenantId: "calzado", name: "José David Rivera", address: "Col. Trejo, San Pedro Sula", phone: "+504 9630-1175", sku: "TEN-01", daysAgo: 0 },
+        { tenantId: "calzado", name: "Sofía Castellanos", address: "Barrio Río de Piedras, San Pedro Sula", phone: "+504 9714-8206", sku: "BOT-02", daysAgo: 1 },
+        { tenantId: "calzado", name: "Marlon Aguilar", address: "Col. Kennedy, Tegucigalpa", phone: "+504 9460-7719", sku: "MOC-04", daysAgo: 2 },
+        { tenantId: "calzado", name: "Daniela Flores", address: "Res. Plaza, Tegucigalpa", phone: "+504 8890-5316", sku: "DEP-05", daysAgo: 3 },
+        { tenantId: "calzado", name: "Gabriela Santos", address: "Col. Miramar, La Ceiba", phone: "+504 9811-6624", sku: "TAC-06", daysAgo: 4 },
+        { tenantId: "calzado", name: "Cristian Orellana", address: "Barrio El Centro, Choluteca", phone: "+504 9322-1088", sku: "CAS-07", daysAgo: 5 }
+      ];
+
+      const orders = initialOrders.map(sample => {
+        const tenant = tenants[sample.tenantId];
+        const prod = tenant?.products?.find(p => p.sku === sample.sku) || tenant?.products?.[0];
+        return {
+          id: crypto.randomUUID(),
+          tenantId: sample.tenantId,
+          name: sample.name,
+          address: sample.address,
+          phone: sample.phone,
+          productName: prod ? `${prod.name} (${prod.sku})` : "Producto",
+          sku: prod ? prod.sku : "",
+          total: prod ? Number(prod.salePrice) : 0,
+          isDemo: true,
+          createdAt: new Date(Date.now() - sample.daysAgo * 86400000).toISOString()
+        };
+      });
+
+      this.write({ activeTenantId: "smak", tenants, orders });
     }
   }
 
@@ -193,18 +225,16 @@ export class StorageFacade {
 
   static seedDemoOrders() {
     const state = this.getState();
-    if (state.orders.some(order => order.isDemo)) return 0;
-    const samples = [
-      { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "EST-01", daysAgo: 0 },
-      { tenantId: "smak", name: "Carlos Mendoza", address: "Residencial Las Uvas, Comayagüela", phone: "+504 9452-6810", sku: "ESC-02", daysAgo: 1 },
-      { tenantId: "smak", name: "Andrea Pineda", address: "Barrio El Centro, San Pedro Sula", phone: "+504 9981-3472", sku: "EST-01", daysAgo: 2 },
-      { tenantId: "calzado", name: "José David Rivera", address: "Col. Trejo, San Pedro Sula", phone: "+504 9630-1175", sku: "TEN-01", daysAgo: 0 },
-      { tenantId: "calzado", name: "Sofía Castellanos", address: "Barrio Río de Piedras, San Pedro Sula", phone: "+504 9714-8206", sku: "BOT-02", daysAgo: 1 }
+    const extraSamples = [
+      { tenantId: "smak", name: "Karla Barahona", address: "Col. Trejo, San Pedro Sula", phone: "+504 9812-4011", sku: "EST-01" },
+      { tenantId: "smak", name: "Javier Moncada", address: "Res. El Molinón, Tegucigalpa", phone: "+504 9740-8822", sku: "ESC-02" },
+      { tenantId: "calzado", name: "Lorena Varela", address: "Barrio Medina, San Pedro Sula", phone: "+504 9600-5541", sku: "TEN-01" }
     ];
-    for (const sample of samples) {
+    let count = 0;
+    for (const sample of extraSamples) {
       const tenant = state.tenants[sample.tenantId];
       const prod = tenant?.products?.find(p => p.sku === sample.sku) || tenant?.products?.[0];
-      state.orders.push({
+      state.orders.unshift({
         id: crypto.randomUUID(),
         tenantId: sample.tenantId,
         name: sample.name,
@@ -214,11 +244,12 @@ export class StorageFacade {
         sku: prod ? prod.sku : "",
         total: prod ? Number(prod.salePrice) : 0,
         isDemo: true,
-        createdAt: new Date(Date.now() - sample.daysAgo * 86400000).toISOString()
+        createdAt: new Date().toISOString()
       });
+      count++;
     }
     this.write(state);
-    return samples.length;
+    return count;
   }
 
   static resetToDefaults() {
