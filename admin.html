@@ -1,12 +1,460 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SMAKBOT · Administración</title><script src="https://cdn.tailwindcss.com"></script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>body{font-family:'DM Sans',sans-serif}h1,h2,h3{font-family:Manrope,sans-serif}input,textarea{outline:none}input:focus,textarea:focus{border-color:#20a284!important;box-shadow:0 0 0 3px #20a28420}</style></head>
-<body class="min-h-screen bg-[#f5f7f6] text-slate-800">
-<div class="min-h-screen lg:grid lg:grid-cols-[250px_1fr]"><aside class="flex flex-col bg-[#102d29] px-5 py-6 text-white lg:min-h-screen"><a href="index.html" class="flex items-center gap-3"><span class="grid h-10 w-10 place-items-center rounded-2xl bg-[#23a587] font-bold">S</span><div><p class="font-bold tracking-tight">SMAKBOT</p><p class="text-[11px] text-emerald-100/60">Centro de control</p></div></a><div class="mt-10"><label class="text-[10px] font-bold uppercase tracking-[.18em] text-emerald-100/50">Espacio de trabajo</label><select id="tenant-select" class="mt-2 w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-sm text-white"></select></div><div class="mt-7 rounded-2xl border border-white/10 bg-white/[.06] p-4"><div class="flex items-center gap-3"><span class="grid h-10 w-10 place-items-center rounded-full bg-emerald-300/15 font-bold text-emerald-200">✦</span><div><p id="tenant-title" class="text-sm font-semibold">SMAK Muebles</p><p id="tenant-category" class="text-xs text-emerald-100/60">Muebles y hogar</p></div></div><div class="mt-4 flex items-center gap-2 text-xs text-emerald-100/70"><i class="h-2 w-2 rounded-full bg-emerald-400"></i>Datos sincronizados</div></div><nav class="mt-8 grid gap-2 text-sm"><a href="#catalogo" class="rounded-xl bg-white/10 px-3 py-2.5 font-medium">▦ &nbsp; Catálogo</a><a href="#politicas" class="rounded-xl px-3 py-2.5 text-emerald-100/70 hover:bg-white/5">⌁ &nbsp; Envíos y políticas</a><a href="#sinonimos" class="rounded-xl px-3 py-2.5 text-emerald-100/70 hover:bg-white/5">Aa &nbsp; Diccionario</a><a href="#pedidos" class="rounded-xl px-3 py-2.5 text-emerald-100/70 hover:bg-white/5">▤ &nbsp; Pedidos</a></nav><div class="mt-auto hidden rounded-2xl bg-white/[.06] p-4 text-xs leading-5 text-emerald-100/60 lg:block">Cambios guardados en el almacenamiento local de este navegador.</div></aside>
-<main class="min-w-0 px-4 py-6 sm:px-8 lg:px-10"><header class="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[.18em] text-emerald-700">Administración</p><h1 class="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">Panel de negocio</h1><p class="mt-2 text-sm text-slate-500">Gestiona tu catálogo y prepara respuestas precisas del asistente.</p></div><a href="index.html" class="rounded-xl bg-[#087e67] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#066a58]">← Volver al chat</a></header><div id="notice" class="fixed right-5 top-5 z-10 hidden rounded-xl bg-[#102d29] px-4 py-3 text-sm font-semibold text-white shadow-xl"></div>
-<div class="grid gap-5 xl:grid-cols-2"><section id="catalogo" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div class="mb-5 flex items-center justify-between"><div><h2 class="font-bold">Catálogo de productos</h2><p class="mt-1 text-xs text-slate-500">La respuesta del bot se actualiza al guardar.</p></div><span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Producto activo</span></div>
-<form id="product-form" class="grid gap-4 sm:grid-cols-2"><label class="field sm:col-span-2">Nombre del producto<input id="product-name" required class="control"></label><label class="field">Precio regular (L.)<input id="regular-price" type="number" min="0" required class="control"></label><label class="field">Precio de oferta (L.)<input id="sale-price" type="number" min="0" required class="control"></label><label class="field">Stock disponible<input id="stock" type="number" min="0" required class="control"></label><label class="field">Medidas / tallas<input id="dimensions" required class="control"></label><label class="field sm:col-span-2">Peso máximo / uso<input id="weight-limit" required class="control"></label><label class="field sm:col-span-2">Palabras clave <span class="font-normal text-slate-400">(separadas por coma)</span><input id="keywords" class="control"></label><label class="field sm:col-span-2">URLs de imágenes <span class="font-normal text-slate-400">(una por línea)</span><textarea id="image-urls" rows="3" class="control font-mono text-xs"></textarea></label><div class="sm:col-span-2"><label for="image-file" class="inline-flex cursor-pointer items-center rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50">＋ Agregar imagen desde dispositivo</label><input id="image-file" type="file" accept="image/*" class="hidden"><div id="image-preview" class="mt-3 flex flex-wrap gap-2"></div></div><div class="sm:col-span-2"><button class="rounded-xl bg-[#087e67] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#066a58]">Guardar catálogo</button></div></form></section>
-<section id="politicas" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div class="mb-5"><h2 class="font-bold">Envíos y políticas</h2><p class="mt-1 text-xs text-slate-500">Información que utilizará el asistente al responder.</p></div><form id="faq-form" class="grid gap-4"><label class="field">Envíos y tiempos<textarea id="faq-shipping" rows="2" class="control"></textarea></label><label class="field">Métodos de pago<textarea id="faq-payment" rows="2" class="control"></textarea></label><label class="field">Ubicación<textarea id="faq-location" rows="2" class="control"></textarea></label><label class="field">Regla para Roatán e Islas de la Bahía<textarea id="faq-islands" rows="3" class="control"></textarea></label><button class="justify-self-start rounded-xl bg-[#087e67] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#066a58]">Guardar políticas</button></form></section>
-<section id="sinonimos" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div class="mb-5"><h2 class="font-bold">Diccionario de sinónimos</h2><p class="mt-1 text-xs text-slate-500">Añade expresiones que el bot reconocerá. Sepáralas con comas.</p></div><form id="synonyms-form" class="grid gap-4 sm:grid-cols-2"><label class="field">Precio<input id="syn-precio" class="control"></label><label class="field">Peso y resistencia<input id="syn-peso" class="control"></label><label class="field">Medidas<input id="syn-dimensiones" class="control"></label><label class="field">Fotos<input id="syn-fotos" class="control"></label><button class="justify-self-start rounded-xl bg-[#087e67] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#066a58] sm:col-span-2">Guardar diccionario</button></form></section>
-<section id="pedidos" class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div class="flex flex-wrap items-center justify-between gap-3 p-5 sm:px-6"><div><h2 class="font-bold">Pedidos recientes</h2><p class="mt-1 text-xs text-slate-500">Ventas confirmadas desde el chat.</p></div><div class="flex items-center gap-2"><button id="seed-orders" type="button" class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">＋ Cargar pedidos demo</button><span id="order-count" class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">0</span></div></div><div class="overflow-x-auto"><table class="w-full min-w-[600px] text-left text-xs"><thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Cliente</th><th class="px-4 py-3">Producto</th><th class="px-4 py-3">Teléfono</th><th class="px-4 py-3">Total</th><th class="px-4 py-3">Fecha</th></tr></thead><tbody id="orders"></tbody></table></div></section></div><p class="mt-6 text-center text-[11px] text-slate-400">SMAKBOT demo · datos locales en este navegador</p></main></div>
-<style>.field{display:grid;gap:6px;font-size:12px;font-weight:600;color:#425466}.control{width:100%;border:1px solid #dfe6e8;border-radius:12px;background:#fff;padding:10px 12px;font-size:13px;font-weight:400;color:#1e293b}.control:focus{outline:none;border-color:#20a284}.field textarea{resize:vertical}</style><script type="module" src="app-admin.js"></script></body></html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMAKBOT · Administración y Base de Conocimiento</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'DM Sans', sans-serif; }
+    h1, h2, h3, h4 { font-family: 'Manrope', sans-serif; }
+    input, textarea, select { outline: none; }
+    input:focus, textarea:focus, select:focus {
+      border-color: #20a284 !important;
+      box-shadow: 0 0 0 3px rgba(32, 162, 132, 0.15);
+    }
+    .field { display: grid; gap: 6px; font-size: 12px; font-weight: 600; color: #334155; }
+    .control { width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; background: #fff; padding: 9px 12px; font-size: 13px; font-weight: 400; color: #0f172a; transition: all 0.15s; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+  </style>
+</head>
+<body class="min-h-screen bg-[#f3f6f5] text-slate-800">
 
+<div class="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">
+
+  <!-- SIDEBAR -->
+  <aside class="flex flex-col bg-[#0b2420] px-5 py-6 text-white lg:min-h-screen border-r border-white/5">
+    <a href="index.html" class="flex items-center gap-3">
+      <span class="grid h-10 w-10 place-items-center rounded-2xl bg-[#23a587] font-extrabold text-white shadow-lg shadow-emerald-950/40">S</span>
+      <div>
+        <p class="font-extrabold tracking-tight text-base">SMAKBOT</p>
+        <p class="text-[11px] text-emerald-200/70">Panel de Negocio v2.0</p>
+      </div>
+    </a>
+
+    <!-- WORKSPACE SELECTOR -->
+    <div class="mt-8">
+      <label class="text-[10px] font-bold uppercase tracking-[.18em] text-emerald-200/50">Comercio Activo</label>
+      <select id="tenant-select" class="mt-2 w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-sm text-white focus:bg-[#123933] cursor-pointer"></select>
+    </div>
+
+    <!-- TENANT CARD -->
+    <div class="mt-5 rounded-2xl border border-white/10 bg-white/[.06] p-3.5 backdrop-blur-sm">
+      <div class="flex items-center gap-3">
+        <span id="tenant-badge-icon" class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-300/20 font-bold text-emerald-300 text-sm">✦</span>
+        <div class="min-w-0">
+          <p id="tenant-title" class="text-sm font-bold truncate">SMAK Muebles</p>
+          <p id="tenant-category" class="text-xs text-emerald-100/60 truncate">Muebles y hogar</p>
+        </div>
+      </div>
+      <div class="mt-3 flex items-center justify-between text-[11px] text-emerald-200/80 pt-2 border-t border-white/10">
+        <span class="flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></i>Sincronizado</span>
+        <span id="sidebar-products-count" class="font-medium text-white/90">0 productos</span>
+      </div>
+    </div>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="mt-7 grid gap-1.5 text-sm">
+      <a href="#catalogo" class="nav-item flex items-center justify-between rounded-xl bg-white/10 px-3.5 py-2.5 font-medium transition hover:bg-white/15">
+        <span class="flex items-center gap-2.5"><span>📦</span> Catálogo de Productos</span>
+        <span id="nav-count-products" class="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">0</span>
+      </a>
+      <a href="#preguntas" class="nav-item flex items-center justify-between rounded-xl px-3.5 py-2.5 text-emerald-100/80 transition hover:bg-white/10 hover:text-white">
+        <span class="flex items-center gap-2.5"><span>💬</span> Preguntas y Respuestas</span>
+        <span id="nav-count-rules" class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold">0</span>
+      </a>
+      <a href="#sinonimos" class="nav-item flex items-center justify-between rounded-xl px-3.5 py-2.5 text-emerald-100/80 transition hover:bg-white/10 hover:text-white">
+        <span class="flex items-center gap-2.5"><span>📚</span> Diccionario de Sinónimos</span>
+        <span id="nav-count-synonyms" class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold">0</span>
+      </a>
+      <a href="#simulador" class="nav-item flex items-center justify-between rounded-xl px-3.5 py-2.5 text-emerald-100/80 transition hover:bg-white/10 hover:text-white">
+        <span class="flex items-center gap-2.5"><span>🧪</span> Probador en Vivo</span>
+        <span class="rounded-full bg-emerald-400/20 text-emerald-300 px-2 py-0.5 text-[10px] font-bold">Test</span>
+      </a>
+      <a href="#pedidos" class="nav-item flex items-center justify-between rounded-xl px-3.5 py-2.5 text-emerald-100/80 transition hover:bg-white/10 hover:text-white">
+        <span class="flex items-center gap-2.5"><span>📋</span> Pedidos Registrados</span>
+        <span id="nav-count-orders" class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold">0</span>
+      </a>
+    </nav>
+
+    <!-- FOOTER ACTIONS -->
+    <div class="mt-auto pt-6 space-y-3">
+      <button id="btn-reset-demo" type="button" class="w-full text-left rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-emerald-100/60 hover:bg-white/10 hover:text-white transition">
+        ↺ Restablecer datos demo de fábrica
+      </button>
+      <div class="rounded-2xl bg-white/[.04] p-3 text-[11px] leading-5 text-emerald-100/60">
+        Fuente de verdad local simulando base de datos persistente.
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="min-w-0 px-4 py-6 sm:px-8 lg:px-10 max-w-7xl">
+
+    <!-- TOP HEADER -->
+    <header class="mb-7 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-[.18em] text-emerald-700">Centro de Control de Inteligencia</span>
+          <span class="badge bg-emerald-100 text-emerald-800">Modo Administrador</span>
+        </div>
+        <h1 class="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl text-slate-900">Panel de Negocio y Automatización</h1>
+        <p class="mt-1 text-sm text-slate-500">Configura qué productos vendes, qué preguntas debe responder el bot y qué reglas no debe romper.</p>
+      </div>
+      <div class="flex items-center gap-2.5">
+        <a href="index.html" class="inline-flex items-center gap-2 rounded-xl bg-[#087e67] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#066a58] transition">
+          <span>Abrir Simulador Chat</span>
+          <span>→</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- NOTIFICATION TOAST -->
+    <div id="notice" class="fixed right-6 top-6 z-50 hidden rounded-2xl bg-[#0e302a] px-5 py-3.5 text-sm font-semibold text-white shadow-2xl border border-emerald-500/30 transition-all flex items-center gap-3">
+      <span class="text-emerald-400">✓</span>
+      <span id="notice-msg">Cambios guardados con éxito</span>
+    </div>
+
+    <!-- SECTIONS CONTAINER -->
+    <div class="space-y-8">
+
+      <!-- SECTION 1: CATALOGO DE PRODUCTOS (MULTI-SKU) -->
+      <section id="catalogo" class="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-7">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-slate-900">Catálogo de Productos y SKUs</h2>
+              <span id="badge-total-products" class="badge bg-emerald-50 text-emerald-700 font-bold">3 artículos</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">El bot utiliza estos SKUs y datos reales para responder sobre stock, precios y cerrar compras.</p>
+          </div>
+          <button id="btn-open-new-product" type="button" class="inline-flex items-center gap-2 rounded-xl bg-[#087e67] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#066a58] transition shadow-sm">
+            <span>＋</span>
+            <span>Nuevo Producto</span>
+          </button>
+        </div>
+
+        <!-- PRODUCTS TABLE -->
+        <div class="mt-5 overflow-x-auto">
+          <table class="w-full min-w-[700px] text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <th class="py-3 px-4 rounded-l-xl">Foto</th>
+                <th class="py-3 px-4">SKU</th>
+                <th class="py-3 px-4">Producto</th>
+                <th class="py-3 px-4">Precio Regular</th>
+                <th class="py-3 px-4">Precio Oferta</th>
+                <th class="py-3 px-4">Stock</th>
+                <th class="py-3 px-4">Especificaciones</th>
+                <th class="py-3 px-4 text-right rounded-r-xl">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="products-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered via app-admin.js -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 2: GESTOR DE PREGUNTAS Y RESPUESTAS (Q&A / REGLAS) -->
+      <section id="preguntas" class="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-7">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-slate-900">Base de Preguntas, Respuestas y Reglas</h2>
+              <span id="badge-total-rules" class="badge bg-indigo-50 text-indigo-700 font-bold">8 reglas</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">Programa qué dice el bot ante consultas de stock con SKU, dudas frecuentes y qué temas están restringidos.</p>
+          </div>
+          <button id="btn-open-new-rule" type="button" class="inline-flex items-center gap-2 rounded-xl bg-[#087e67] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#066a58] transition shadow-sm">
+            <span>＋</span>
+            <span>Nueva Pregunta / Regla</span>
+          </button>
+        </div>
+
+        <!-- CATEGORY FILTERS -->
+        <div class="mt-4 flex flex-wrap gap-2 text-xs">
+          <button class="rule-filter-btn rounded-xl bg-slate-900 text-white px-3 py-1.5 font-medium transition" data-category="all">Todas</button>
+          <button class="rule-filter-btn rounded-xl bg-slate-100 text-slate-600 px-3 py-1.5 font-medium hover:bg-slate-200 transition" data-category="Inventario">Inventario / SKU</button>
+          <button class="rule-filter-btn rounded-xl bg-slate-100 text-slate-600 px-3 py-1.5 font-medium hover:bg-slate-200 transition" data-category="Catálogo">Catálogo</button>
+          <button class="rule-filter-btn rounded-xl bg-slate-100 text-slate-600 px-3 py-1.5 font-medium hover:bg-slate-200 transition" data-category="Envíos">Envíos</button>
+          <button class="rule-filter-btn rounded-xl bg-slate-100 text-slate-600 px-3 py-1.5 font-medium hover:bg-slate-200 transition" data-category="Pagos">Pagos</button>
+          <button class="rule-filter-btn rounded-xl bg-slate-100 text-slate-600 px-3 py-1.5 font-medium hover:bg-slate-200 transition" data-category="Políticas">Políticas</button>
+          <button class="rule-filter-btn rounded-xl bg-slate-100 text-slate-600 px-3 py-1.5 font-medium hover:bg-slate-200 transition" data-category="Restricciones">Restricciones (Qué NO decir)</button>
+        </div>
+
+        <!-- RULES LIST -->
+        <div id="rules-container" class="mt-5 grid gap-4">
+          <!-- Rendered via app-admin.js -->
+        </div>
+      </section>
+
+      <!-- SECTION 3: DICCIONARIO DE SINÓNIMOS (N PALABRAS DINÁMICAS) -->
+      <section id="sinonimos" class="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-7">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-slate-900">Diccionario de Sinónimos Generales</h2>
+              <span id="badge-total-synonyms" class="badge bg-amber-50 text-amber-700 font-bold">8 conceptos</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">Entrena al bot para comprender cómo se expresan tus clientes (variaciones, modismos y abreviaciones).</p>
+          </div>
+          <button id="btn-open-new-synonym" type="button" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+            <span>＋</span>
+            <span>Nuevo Grupo de Sinónimos</span>
+          </button>
+        </div>
+
+        <!-- SYNONYMS GRID -->
+        <div id="synonyms-container" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <!-- Rendered via app-admin.js -->
+        </div>
+      </section>
+
+      <!-- SECTION 4: PROBADOR EN VIVO / TESTER SANDBOX -->
+      <section id="simulador" class="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-900 to-[#0e302a] p-5 shadow-sm sm:p-7 text-white">
+        <div class="max-w-3xl">
+          <div class="flex items-center gap-2 text-emerald-300">
+            <span>🧪</span>
+            <span class="text-xs font-bold uppercase tracking-wider">Simulador de Preguntas y Detección de SKU</span>
+          </div>
+          <h2 class="mt-1 text-xl font-bold">Prueba tu configuración en tiempo real</h2>
+          <p class="mt-1 text-xs text-emerald-100/70">Ingresa preguntas como <span class="font-mono text-emerald-200">"¿Tienen stock para el SKU EST-01?"</span> o <span class="font-mono text-emerald-200">"¿Tienen stock del SKU XXX?"</span> para verificar cómo responde el bot antes de ir al chat.</p>
+
+          <form id="tester-form" class="mt-5 flex gap-2">
+            <input id="tester-input" placeholder="Ej: ¿Tienen stock para el SKU EST-01? o ¿Tienen garantía?" class="flex-1 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-emerald-100/40 focus:bg-white/15 focus:border-emerald-400">
+            <button class="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 transition shrink-0">Probar</button>
+          </form>
+
+          <!-- TEST RESULT CARD -->
+          <div id="tester-result" class="mt-4 hidden rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6">
+            <div class="flex items-center justify-between text-emerald-300 pb-2 border-b border-white/10 font-bold">
+              <span id="tester-rule-name">Regla activada: —</span>
+              <span id="tester-sku-badge" class="badge bg-white/20 text-white font-mono">SKU: Ninguno</span>
+            </div>
+            <p id="tester-response-text" class="mt-3 text-sm text-white font-medium whitespace-pre-wrap"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 5: PEDIDOS RECIENTES -->
+      <section id="pedidos" class="rounded-3xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 p-5 sm:p-7 border-b border-slate-100">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Pedidos Confirmados desde el Chat</h2>
+            <p class="mt-1 text-xs text-slate-500">Ventas cerradas automáticamente a través del flujo conversacional.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="seed-orders" type="button" class="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">＋ Cargar pedidos de prueba</button>
+            <span id="order-count" class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">0</span>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[650px] text-left text-xs">
+            <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
+              <tr>
+                <th class="px-5 py-3.5">Cliente</th>
+                <th class="px-5 py-3.5">Producto y SKU</th>
+                <th class="px-5 py-3.5">Teléfono</th>
+                <th class="px-5 py-3.5">Total</th>
+                <th class="px-5 py-3.5">Fecha</th>
+              </tr>
+            </thead>
+            <tbody id="orders" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <p class="mt-8 text-center text-xs text-slate-400">SMAKBOT Demo · Fuente de verdad interactiva para arquitectura fullstack</p>
+  </main>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- MODAL: PRODUCTO (NUEVO / EDITAR) -->
+<div id="modal-product" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto">
+  <div class="w-full max-w-xl rounded-3xl bg-white p-6 sm:p-8 shadow-2xl my-8">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div>
+        <h3 id="modal-product-title" class="text-lg font-bold text-slate-900">Agregar Producto al Catálogo</h3>
+        <p class="text-xs text-slate-500">Registra el SKU y las especificaciones que el bot consultará.</p>
+      </div>
+      <button type="button" class="btn-close-modal text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form id="form-product" class="mt-5 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" id="prod-id">
+      
+      <label class="field">
+        Código SKU <span class="text-red-500">*</span>
+        <input id="prod-sku" required placeholder="Ej: EST-01 o ZAP-20" class="control font-mono font-bold uppercase">
+      </label>
+
+      <label class="field">
+        Nombre del producto <span class="text-red-500">*</span>
+        <input id="prod-name" required placeholder="Ej: Estante Organizador Premium" class="control">
+      </label>
+
+      <label class="field">
+        Precio Regular (L.) <span class="text-red-500">*</span>
+        <input id="prod-reg-price" type="number" min="0" required placeholder="1200" class="control">
+      </label>
+
+      <label class="field">
+        Precio Oferta (L.) <span class="text-red-500">*</span>
+        <input id="prod-sale-price" type="number" min="0" required placeholder="1050" class="control">
+      </label>
+
+      <label class="field">
+        Stock disponible <span class="text-red-500">*</span>
+        <input id="prod-stock" type="number" min="0" required placeholder="18" class="control">
+      </label>
+
+      <label class="field">
+        Medidas o Tallas
+        <input id="prod-dimensions" placeholder="Ej: 120 × 60 cm o Tallas 36-44" class="control">
+      </label>
+
+      <label class="field sm:col-span-2">
+        Peso máximo / Resistencia / Material
+        <input id="prod-weight" placeholder="Ej: Soporta hasta 150 lbs, madera tratada" class="control">
+      </label>
+
+      <label class="field sm:col-span-2">
+        Palabras clave del producto <span class="font-normal text-slate-400">(separadas por comas)</span>
+        <input id="prod-keywords" placeholder="estante, repisa, organizador, madera" class="control">
+      </label>
+
+      <label class="field sm:col-span-2">
+        URLs de imágenes <span class="font-normal text-slate-400">(una por línea)</span>
+        <textarea id="prod-images" rows="2" placeholder="https://..." class="control font-mono text-xs"></textarea>
+      </label>
+
+      <div class="sm:col-span-2 flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+        <button type="button" class="btn-close-modal rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 transition">Cancelar</button>
+        <button type="submit" class="rounded-xl bg-[#087e67] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#066a58] transition">Guardar Producto</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: PREGUNTA / REGLA (NUEVA / EDITAR) -->
+<div id="modal-rule" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto">
+  <div class="w-full max-w-xl rounded-3xl bg-white p-6 sm:p-8 shadow-2xl my-8">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div>
+        <h3 id="modal-rule-title" class="text-lg font-bold text-slate-900">Crear Pregunta / Regla Automatizada</h3>
+        <p class="text-xs text-slate-500">Configura la intención, frases disparadoras y la lógica de respuesta.</p>
+      </div>
+      <button type="button" class="btn-close-modal text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form id="form-rule" class="mt-5 grid gap-4">
+      <input type="hidden" id="rule-id">
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <label class="field">
+          Nombre descriptivo <span class="text-red-500">*</span>
+          <input id="rule-name" required placeholder="Ej: Consulta de Stock por SKU o Garantía" class="control">
+        </label>
+
+        <label class="field">
+          Categoría <span class="text-red-500">*</span>
+          <select id="rule-category" class="control">
+            <option value="Inventario">Inventario / SKU</option>
+            <option value="Catálogo">Catálogo</option>
+            <option value="Envíos">Envíos</option>
+            <option value="Pagos">Pagos</option>
+            <option value="Políticas">Políticas y Garantías</option>
+            <option value="Ubicación">Ubicación</option>
+            <option value="Restricciones">Restricción (Qué NO decir)</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        Tipo de Regla
+        <select id="rule-type" class="control">
+          <option value="static">FAQ Estática (Texto directo)</option>
+          <option value="parametric">Paramétrica por SKU (Evalúa inventario en tiempo real)</option>
+          <option value="restriction">Restricción / Bloqueo (Delimita lo que NO debe decir)</option>
+        </select>
+      </label>
+
+      <label class="field">
+        Frases de entrenamiento / disparadores <span class="text-red-500">*</span>
+        <span class="font-normal text-[11px] text-slate-500">Escribe cómo preguntarían los clientes. Una frase por línea o separadas por comas. (Para SKU usa <code class="bg-slate-100 px-1 py-0.5 rounded text-emerald-700">{sku}</code>)</span>
+        <textarea id="rule-phrases" rows="3" required placeholder="tienen stock para el sku {sku}&#10;hay stock del sku {sku}&#10;disponibilidad de {sku}" class="control text-xs"></textarea>
+      </label>
+
+      <!-- STATIC / RESTRICTION RESPONSE -->
+      <div id="rule-static-box" class="field">
+        <label class="field">
+          Respuesta del bot <span class="text-red-500">*</span>
+          <textarea id="rule-response" rows="3" placeholder="Escribe la respuesta exacta que entregará el asistente..." class="control text-xs"></textarea>
+        </label>
+      </div>
+
+      <!-- PARAMETRIC RESPONSES (FOR SKU STOCK) -->
+      <div id="rule-parametric-box" class="hidden space-y-3 p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 text-xs">
+        <p class="font-bold text-emerald-900">Respuestas Dinámicas según Inventario del SKU:</p>
+        <label class="field">
+          Cuando hay Stock disponible:
+          <textarea id="rule-in-stock" rows="2" placeholder="¡Sí! Del SKU {sku} ({name}) nos quedan {stock} unidades..." class="control text-xs"></textarea>
+        </label>
+        <label class="field">
+          Cuando el Stock es 0 (Agotado):
+          <textarea id="rule-out-stock" rows="2" placeholder="El producto {name} (SKU: {sku}) se encuentra agotado..." class="control text-xs"></textarea>
+        </label>
+        <label class="field">
+          Cuando el SKU NO existe en el catálogo:
+          <textarea id="rule-not-found" rows="2" placeholder="No encontramos ningún producto con el SKU {sku}..." class="control text-xs"></textarea>
+        </label>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+        <button type="button" class="btn-close-modal rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 transition">Cancelar</button>
+        <button type="submit" class="rounded-xl bg-[#087e67] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#066a58] transition">Guardar Regla</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: NUEVO GRUPO DE SINÓNIMOS -->
+<div id="modal-synonym" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm grid place-items-center p-4">
+  <div class="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Nuevo Grupo de Sinónimos</h3>
+        <p class="text-xs text-slate-500">Agrega un concepto y N palabras equivalentes.</p>
+      </div>
+      <button type="button" class="btn-close-modal text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form id="form-synonym" class="mt-5 grid gap-4">
+      <label class="field">
+        Nombre del Concepto <span class="text-red-500">*</span>
+        <input id="syn-concept" required placeholder="Ej: garantia, colores, devolucion" class="control lowercase">
+      </label>
+
+      <label class="field">
+        Palabras o frases sinónimas <span class="font-normal text-slate-400">(separadas por comas)</span>
+        <textarea id="syn-words" rows="3" required placeholder="garantía, devolución, reclamo, cambio, seguro" class="control text-xs"></textarea>
+      </label>
+
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+        <button type="button" class="btn-close-modal rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 transition">Cancelar</button>
+        <button type="submit" class="rounded-xl bg-[#087e67] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#066a58] transition">Guardar Grupo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module" src="app-admin.js"></script>
+</body>
+</html>
