@@ -180,16 +180,113 @@ $("#audio-button").addEventListener("click", async () => {
   await send("Audio del cliente", { audio: true });
 });
 
+function renderMetaAdCard(referral) {
+  const adRow = document.createElement("div");
+  adRow.className = "flex justify-start animate-fadeIn";
+
+  const adBox = document.createElement("div");
+  adBox.className = "max-w-[88%] sm:max-w-[80%] rounded-2xl bg-[#03594b] text-white p-3 shadow-md border border-emerald-500/40";
+
+  const inner = document.createElement("div");
+  inner.className = "flex items-start gap-3";
+
+  const img = document.createElement("img");
+  img.src = referral.image_url || "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg";
+  img.className = "h-14 w-14 rounded-xl object-cover shrink-0 border border-emerald-400/40";
+  inner.append(img);
+
+  const info = document.createElement("div");
+  info.className = "min-w-0 flex-1";
+  info.innerHTML = `
+    <div class="flex items-center justify-between">
+      <span class="text-[11px] font-bold text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
+        <svg class="h-3 w-3 fill-current text-blue-300" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Anuncio de Facebook
+      </span>
+      <span class="text-[10px] text-emerald-200/90 underline cursor-pointer hover:text-white">Ver detalles</span>
+    </div>
+    <p class="mt-1 text-xs font-semibold leading-snug line-clamp-2">${referral.headline || "Producto en Anuncio"}</p>
+    <p class="text-[10px] text-emerald-300/80 mt-0.5">Saludo automático</p>
+  `;
+  inner.append(info);
+  adBox.append(inner);
+  adRow.append(adBox);
+  thread.append(adRow);
+
+  // System Notice Bubble (WhatsApp Meta CTWA banner)
+  const sysRow = document.createElement("div");
+  sysRow.className = "flex justify-center my-1.5 animate-fadeIn";
+  sysRow.innerHTML = `
+    <div class="max-w-[92%] rounded-xl bg-slate-900/85 backdrop-blur-sm text-slate-200 px-3.5 py-2 text-[11px] leading-relaxed text-center shadow-md flex items-center gap-2 border border-slate-700/80">
+      <span class="text-xs">↩️</span>
+      <span>Este chat se inició a partir de un anuncio en <b>Meta</b>. El uso compartido de datos para las actividades relacionadas con el cliente está activado. <span class="font-bold underline cursor-pointer text-emerald-300">Administrar</span></span>
+    </div>
+  `;
+  thread.append(sysRow);
+  thread.scrollTop = thread.scrollHeight;
+}
+
 document.querySelectorAll("[data-scenario]").forEach(btn => {
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
     engine.reset();
     const text = btn.dataset.scenario;
+
     if (text === "__checkout") {
       bubble("Quiero hacer un pedido", true);
       const answer = engine.startCheckout();
       setTimeout(() => bubble(answer.text, false, answer), 220);
       return;
     }
+
+    // SCENARIO 1: META ADS REFERRAL (EXACT REPRODUCTION OF USER SCREENSHOT)
+    if (text === "__facebook_ad") {
+      thread.replaceChildren();
+      const t = StorageFacade.getTenant();
+      const firstProd = t.products?.[0] || { name: "Estante Rack Plegable Metálico", sku: "EST-01" };
+      const referral = {
+        source_type: "ad",
+        source_id: "12020584738290123",
+        headline: firstProd.name || "Estante Rack Plegable Metálico",
+        body: `Hola, tenemos el ${firstProd.name}. ¿Te interesa saber más?`,
+        image_url: firstProd.images?.[0] || "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg"
+      };
+
+      // 1. Render green Ad card & Meta disclaimer
+      renderMetaAdCard(referral);
+
+      // 2. Client sends greeting as shown in the screenshot
+      setTimeout(() => {
+        bubble("Hola", true);
+      }, 250);
+
+      setTimeout(() => {
+        bubble("Buen dia", true);
+      }, 500);
+
+      // 3. Bot responds recognizing ad referral & SKU immediately
+      setTimeout(async () => {
+        const answer = await engine.reply("Hola, buen dia", { referral });
+        bubble(answer.text, false, answer);
+      }, 950);
+      return;
+    }
+
+    // SCENARIO 2: USER SENDS FACEBOOK SHARE URL
+    if (text === "__facebook_link") {
+      thread.replaceChildren();
+      const sampleUrl = "Hola, me interesa este producto: https://www.facebook.com/share/p/196jarUnqz/?mibextid=wwXIfr";
+      send(sampleUrl);
+      return;
+    }
+
+    // SCENARIO 3: DEEP LINK WA.ME WITH SKU IN BRACKETS
+    if (text === "__deep_link") {
+      thread.replaceChildren();
+      const sampleDeep = "Hola, vi su publicación en Instagram y quiero ordenar [SKU: ESC-02]";
+      send(sampleDeep);
+      return;
+    }
+
     send(text, { audio: text === "__audio" });
   });
 });

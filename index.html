@@ -122,6 +122,38 @@
       </div>
 
       <div class="mt-4 grid gap-2">
+        <!-- SCENARIO NUEVO 1: ANUNCIO META ADS (EXACTO COMO EN LA FOTO DEL USUARIO) -->
+        <button data-scenario="__facebook_ad" class="scenario border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 hover:border-emerald-500">
+          <span class="text-base">📢</span>
+          <span>
+            <b class="text-emerald-950 flex items-center gap-1.5">
+              <span>Anuncio Facebook Ads (CTWA)</span>
+              <span class="rounded bg-emerald-700 text-white text-[9px] px-1.5 py-0.2 font-bold uppercase">Foto</span>
+            </b>
+            <small>Simula llegada de anuncio Meta + cliente dice "Hola"</small>
+          </span>
+        </button>
+
+        <!-- SCENARIO NUEVO 2: CLIENTE COMPARTE LINK DE FACEBOOK -->
+        <button data-scenario="__facebook_link" class="scenario border-blue-200 bg-blue-50/30 hover:bg-blue-50 hover:border-blue-400">
+          <span class="text-base">🔗</span>
+          <span>
+            <b class="text-blue-950">Cliente envía Link de Facebook</b>
+            <small>URL: facebook.com/share/p/196jarUnqz (SKU EST-01)</small>
+          </span>
+        </button>
+
+        <!-- SCENARIO NUEVO 3: ENLACE PRE-LLENADO WA.ME CON SKU -->
+        <button data-scenario="__deep_link" class="scenario border-purple-200 bg-purple-50/30 hover:bg-purple-50 hover:border-purple-400">
+          <span class="text-base">📲</span>
+          <span>
+            <b class="text-purple-950">Enlace wa.me con SKU pre-cargado</b>
+            <small>Mensaje automático con [SKU: ESC-02]</small>
+          </span>
+        </button>
+
+        <div class="my-1 border-t border-slate-200"></div>
+
         <!-- 1: Stock para SKU existente con stock -->
         <button data-scenario="¿Tienen stock para el SKU EST-01?" class="scenario">
           <span class="text-base">📦</span>

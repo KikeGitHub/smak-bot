@@ -360,7 +360,45 @@ export const TENANTS = [
       horario: ["horarios", "a que hora abren", "cuando atienden", "atencion", "horario de atencion", "abierto"],
       ubicacion: ["donde estan", "direccion", "sucursal", "local", "tienda", "ubicacion", "plaza", "mapa"],
       factura: ["facturacion", "rtn", "cai", "fiscal", "comprobante", "recibo"]
-    }
+    },
+    campaigns: [
+      {
+        id: "camp-fb-ad-estante",
+        platform: "facebook",
+        channel: "Facebook Ads (CTWA)",
+        type: "ad",
+        sourceId: "12020584738290123",
+        url: "https://www.facebook.com/share/p/196jarUnqz/?mibextid=wwXIfr",
+        headline: "Estante Rack Plegable Metálico",
+        body: "Hola, tenemos el Estante Rack Plegable Metálico. ¿Te interesa saber más?",
+        sku: "EST-01",
+        description: "Anuncio de Meta Ads (Facebook/Instagram) - Click to WhatsApp"
+      },
+      {
+        id: "camp-fb-post-estante",
+        platform: "facebook",
+        channel: "Facebook Post Orgánico",
+        type: "post",
+        sourceId: "196jarUnqz",
+        url: "https://www.facebook.com/share/p/196jarUnqz/?mibextid=wwXIfr",
+        headline: "Publicación: Estante Organizador Premium",
+        body: "¡Nuevo ingreso! Estante organizador de 5 niveles en oferta especial.",
+        sku: "EST-01",
+        description: "Enlace compartido de post en Facebook"
+      },
+      {
+        id: "camp-ig-escritorio",
+        platform: "instagram",
+        channel: "Instagram Reel",
+        type: "ad",
+        sourceId: "12020993847291100",
+        url: "https://www.instagram.com/reel/C3x918LqZ/",
+        headline: "Escritorio Minimalista Nórdico",
+        body: "Transforma tu espacio de trabajo con nuestro escritorio nórdico.",
+        sku: "ESC-02",
+        description: "Campaña Instagram Reels - Click to WhatsApp"
+      }
+    ]
   },
   {
     id: "calzado",
@@ -604,6 +642,20 @@ export const TENANTS = [
       envio: ["entrega", "despacho", "cargo expreso", "flete", "a domicilio"],
       pago: ["efectivo", "transferencia", "contra entrega", "tarjeta"],
       asesor: ["humano", "persona", "operador", "atencion al cliente", "agente"]
-    }
+    },
+    campaigns: [
+      {
+        id: "camp-fb-ad-tenis",
+        platform: "facebook",
+        channel: "Facebook Ads (CTWA)",
+        type: "ad",
+        sourceId: "12020776655443322",
+        url: "https://www.facebook.com/share/p/998tenisfb/?mibextid=wwXIfr",
+        headline: "Tenis Urban Flex Running",
+        body: "Lleva tus pasos al siguiente nivel con Tenis Urban Flex.",
+        sku: "TEN-01",
+        description: "Anuncio Facebook Ads - Tenis Running"
+      }
+    ]
   }
 ];

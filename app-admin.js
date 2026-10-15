@@ -32,15 +32,18 @@ function updateHeaderAndBadges() {
   const rules = StorageFacade.getRules();
   const synonyms = StorageFacade.getSynonyms();
   const orders = StorageFacade.getOrders();
+  const campaigns = StorageFacade.getCampaigns();
 
   $("#sidebar-products-count").textContent = `${products.length} productos`;
   $("#nav-count-products").textContent = products.length;
   $("#nav-count-rules").textContent = rules.length;
+  $("#nav-count-campaigns").textContent = campaigns.length;
   $("#nav-count-synonyms").textContent = Object.keys(synonyms).length;
   $("#nav-count-orders").textContent = orders.length;
 
   $("#badge-total-products").textContent = `${products.length} artículos`;
   $("#badge-total-rules").textContent = `${rules.length} reglas activas`;
+  $("#badge-total-campaigns").textContent = `${campaigns.length} enlaces activos`;
   $("#badge-total-synonyms").textContent = `${Object.keys(synonyms).length} conceptos`;
 }
 
@@ -48,8 +51,10 @@ function renderAll() {
   updateHeaderAndBadges();
   renderProducts();
   renderRules();
+  renderCampaigns();
   renderSynonyms();
   renderOrders();
+  updateSmartLinkGenerator();
 }
 
 // ---- SECTION 1: PRODUCTS TABLE ----
@@ -451,6 +456,172 @@ $("#synonyms-container").addEventListener("submit", e => {
   }
 });
 
+// ---- SECTION: SOCIAL CAMPAIGNS & REFERRAL MAPPING ----
+function renderCampaigns() {
+  const campaigns = StorageFacade.getCampaigns();
+  const products = StorageFacade.getProducts();
+  const tbody = $("#campaigns-table-body");
+  if (!tbody) return;
+
+  if (!campaigns.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">No hay campañas ni enlaces vinculados. Haz clic en "＋ Nueva Campaña / Enlace" para registrar uno.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = campaigns.map(c => {
+    let platformBadge = `<span class="badge bg-blue-100 text-blue-800">Facebook Ads</span>`;
+    if (c.platform === "facebook_post" || c.type === "post") {
+      platformBadge = `<span class="badge bg-indigo-100 text-indigo-800">Facebook Post</span>`;
+    } else if (c.platform === "instagram") {
+      platformBadge = `<span class="badge bg-pink-100 text-pink-800">Instagram</span>`;
+    } else if (c.platform === "tiktok") {
+      platformBadge = `<span class="badge bg-slate-900 text-white">TikTok</span>`;
+    }
+
+    const prod = products.find(p => p.sku === c.sku);
+    const prodName = prod ? prod.name : "Producto no encontrado";
+
+    return `
+      <tr class="hover:bg-slate-50/70 transition">
+        <td class="py-3 px-4">${platformBadge}</td>
+        <td class="py-3 px-4">
+          <div class="font-bold text-slate-800">${escapeHtml(c.headline || "Campaña")}</div>
+          <div class="text-[11px] text-slate-400 truncate max-w-[220px]">${escapeHtml(c.description || "")}</div>
+        </td>
+        <td class="py-3 px-4 font-mono text-[11px] text-slate-600">
+          <span class="rounded bg-slate-100 px-2 py-1 truncate max-w-[200px] inline-block align-middle" title="${escapeHtml(c.url || c.sourceId)}">${escapeHtml(c.sourceId || c.url)}</span>
+        </td>
+        <td class="py-3 px-4">
+          <span class="badge bg-emerald-50 text-emerald-800 font-mono font-bold">${escapeHtml(c.sku)}</span>
+          <span class="text-[11px] text-slate-600 ml-1 font-medium truncate max-w-[150px] inline-block align-middle">${escapeHtml(prodName)}</span>
+        </td>
+        <td class="py-3 px-4 text-right space-x-1">
+          <button data-action="copy-sku-link" data-sku="${escapeHtml(c.sku)}" class="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition" title="Copiar link wa.me con este SKU">Copiar Link wa.me</button>
+          <button data-action="delete-campaign" data-id="${escapeHtml(c.id)}" class="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">Borrar</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function updateSmartLinkGenerator() {
+  const select = $("#smart-link-product");
+  const output = $("#smart-link-output");
+  if (!select || !output) return;
+
+  const products = StorageFacade.getProducts();
+  const currentVal = select.value;
+  select.innerHTML = "";
+
+  products.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.sku;
+    opt.textContent = `${p.sku} · ${p.name}`;
+    select.append(opt);
+  });
+
+  if (currentVal && products.some(p => p.sku === currentVal)) {
+    select.value = currentVal;
+  }
+
+  const selectedSku = select.value || products[0]?.sku || "EST-01";
+  const phone = "50487331949";
+  const text = `Hola, me interesa el producto [SKU: ${selectedSku}]`;
+  output.value = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}
+
+if ($("#smart-link-product")) {
+  $("#smart-link-product").addEventListener("change", e => {
+    const selectedSku = e.target.value;
+    const phone = "50487331949";
+    const text = `Hola, me interesa el producto [SKU: ${selectedSku}]`;
+    $("#smart-link-output").value = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  });
+}
+
+if ($("#btn-copy-smart-link")) {
+  $("#btn-copy-smart-link").addEventListener("click", async () => {
+    const val = $("#smart-link-output").value;
+    try {
+      await navigator.clipboard.writeText(val);
+      notify("¡Enlace wa.me copiado al portapapeles!");
+    } catch {
+      notify("Enlace copiado.");
+    }
+  });
+}
+
+// Campaign Modal & Actions
+if ($("#btn-open-new-campaign")) {
+  $("#btn-open-new-campaign").addEventListener("click", () => {
+    $("#form-campaign").reset();
+    $("#camp-id").value = "";
+    const skuSelect = $("#camp-sku");
+    skuSelect.innerHTML = "";
+    StorageFacade.getProducts().forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.sku;
+      opt.textContent = `${p.sku} · ${p.name}`;
+      skuSelect.append(opt);
+    });
+    openModal("#modal-campaign");
+  });
+}
+
+if ($("#campaigns-table-body")) {
+  $("#campaigns-table-body").addEventListener("click", async e => {
+    const copyBtn = e.target.closest('[data-action="copy-sku-link"]');
+    const delBtn = e.target.closest('[data-action="delete-campaign"]');
+
+    if (copyBtn) {
+      const sku = copyBtn.dataset.sku;
+      const link = `https://wa.me/50487331949?text=${encodeURIComponent(`Hola, me interesa el producto [SKU: ${sku}]`)}`;
+      try {
+        await navigator.clipboard.writeText(link);
+        notify(`¡Enlace copiado para SKU ${sku}!`);
+      } catch {
+        notify("Enlace copiado.");
+      }
+    }
+
+    if (delBtn) {
+      const id = delBtn.dataset.id;
+      if (confirm("¿Estás seguro de eliminar este enlace de campaña?")) {
+        StorageFacade.deleteCampaign(id);
+        notify("Campaña eliminada.");
+        renderAll();
+      }
+    }
+  });
+}
+
+if ($("#form-campaign")) {
+  $("#form-campaign").addEventListener("submit", e => {
+    e.preventDefault();
+    const id = $("#camp-id").value;
+    const urlOrId = $("#camp-url").value.trim();
+    
+    // Extract token if it's a facebook share link
+    const fbShareMatch = urlOrId.match(/facebook\.com\/share\/p\/([a-zA-Z0-9_\-]+)/i);
+    const sourceId = (fbShareMatch && fbShareMatch[1]) ? fbShareMatch[1] : (urlOrId.startsWith("http") ? urlOrId.replace(/^https?:\/\/[^\/]+\//, "") : urlOrId);
+
+    const campData = {
+      id: id || undefined,
+      platform: $("#camp-platform").value,
+      headline: $("#camp-headline").value.trim(),
+      url: urlOrId,
+      sourceId: sourceId,
+      sku: $("#camp-sku").value,
+      description: $("#camp-desc").value.trim()
+    };
+
+    StorageFacade.saveCampaign(campData);
+    closeModal("#modal-campaign");
+    notify("Campaña vinculada al SKU exitosamente.");
+    renderAll();
+  });
+}
+
 // ---- SECTION 4: TESTER SANDBOX ----
 $("#tester-form").addEventListener("submit", async e => {
   e.preventDefault();
@@ -459,7 +630,8 @@ $("#tester-form").addEventListener("submit", async e => {
 
   const tenant = StorageFacade.getTenant();
   const products = StorageFacade.getProducts();
-  const skuInfo = testEngine.extractSku(question, products);
+  const campaigns = StorageFacade.getCampaigns();
+  const skuInfo = testEngine.extractSku(question, products, { campaigns });
 
   const answer = await testEngine.reply(question);
 
@@ -468,9 +640,17 @@ $("#tester-form").addEventListener("submit", async e => {
 
   let detectedRule = "Regla de consulta / Fallback general";
   if (skuInfo) {
-    detectedRule = skuInfo.product
-      ? `Consulta de Stock Paramétrica (Producto: ${skuInfo.product.name})`
-      : `Consulta de Stock (SKU: ${skuInfo.sku} no registrado)`;
+    if (skuInfo.source === "facebook_ad") {
+      detectedRule = `Atribución Meta Ads (Producto: ${skuInfo.product?.name || skuInfo.sku})`;
+    } else if (skuInfo.source === "social_link") {
+      detectedRule = `Enlace de Red Social Detectado (Producto: ${skuInfo.product?.name || skuInfo.sku})`;
+    } else if (skuInfo.source === "deep_link") {
+      detectedRule = `Enlace Deep Link con SKU (Producto: ${skuInfo.product?.name || skuInfo.sku})`;
+    } else {
+      detectedRule = skuInfo.product
+        ? `Consulta de Stock Paramétrica (Producto: ${skuInfo.product.name})`
+        : `Consulta de Stock (SKU: ${skuInfo.sku} no registrado)`;
+    }
   } else if (answer.isRestriction) {
     detectedRule = "Regla de Restricción / Lo que NO decir";
   }
@@ -535,7 +715,7 @@ function closeModal(selector) {
 
 $$(".btn-close-modal").forEach(btn => {
   btn.addEventListener("click", () => {
-    $$("#modal-product, #modal-rule, #modal-synonym").forEach(m => m.classList.add("hidden"));
+    $$("#modal-product, #modal-rule, #modal-synonym, #modal-campaign").forEach(m => m.classList.add("hidden"));
   });
 });
 

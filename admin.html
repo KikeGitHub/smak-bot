@@ -66,6 +66,10 @@
         <span class="flex items-center gap-2.5"><span>💬</span> Preguntas y Respuestas</span>
         <span id="nav-count-rules" class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold">0</span>
       </a>
+      <a href="#campanas" class="nav-item flex items-center justify-between rounded-xl px-3.5 py-2.5 text-emerald-100/80 transition hover:bg-white/10 hover:text-white">
+        <span class="flex items-center gap-2.5"><span>🌐</span> Redes y Campañas</span>
+        <span id="nav-count-campaigns" class="rounded-full bg-blue-400/20 text-blue-300 px-2 py-0.5 text-[10px] font-bold">0</span>
+      </a>
       <a href="#sinonimos" class="nav-item flex items-center justify-between rounded-xl px-3.5 py-2.5 text-emerald-100/80 transition hover:bg-white/10 hover:text-white">
         <span class="flex items-center gap-2.5"><span>📚</span> Diccionario de Sinónimos</span>
         <span id="nav-count-synonyms" class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold">0</span>
@@ -211,6 +215,68 @@
         <!-- SYNONYMS GRID -->
         <div id="synonyms-container" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <!-- Rendered via app-admin.js -->
+        </div>
+      </section>
+
+      <!-- SECTION: MAPEO DE REDES SOCIALES Y ENLACES (FACEBOOK / INSTAGRAM / CTWA) -->
+      <section id="campanas" class="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-7">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-slate-900">Mapeo de Redes Sociales y Campañas</h2>
+              <span id="badge-total-campaigns" class="badge bg-blue-50 text-blue-700 font-bold">3 enlaces</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">
+              Vincula enlaces de publicaciones compartidas (<code class="bg-slate-100 px-1 py-0.5 rounded text-blue-700">facebook.com/share/p/...</code>), anuncios de Meta Ads y URLs de Instagram con los SKUs del catálogo para que el bot identifique el producto sin pedirle código al cliente.
+            </p>
+          </div>
+          <button id="btn-open-new-campaign" type="button" class="inline-flex items-center gap-2 rounded-xl bg-[#087e67] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#066a58] transition shadow-sm">
+            <span>＋</span>
+            <span>Nueva Campaña / Enlace</span>
+          </button>
+        </div>
+
+        <!-- CAMPAIGNS TABLE -->
+        <div class="mt-5 overflow-x-auto">
+          <table class="w-full min-w-[700px] text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <th class="py-3 px-4 rounded-l-xl">Canal</th>
+                <th class="py-3 px-4">Titular o Campaña</th>
+                <th class="py-3 px-4">ID o URL de Referencia</th>
+                <th class="py-3 px-4">SKU Vinculado</th>
+                <th class="py-3 px-4 text-right rounded-r-xl">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="campaigns-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered via app-admin.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- SMART WA.ME LINK GENERATOR -->
+        <div class="mt-7 rounded-2xl bg-gradient-to-br from-slate-900 to-[#0e302a] p-5 text-white">
+          <div class="flex items-center gap-2 text-emerald-400">
+            <span>📲</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider">Generador de Enlaces Inteligentes de WhatsApp (Deep Links)</h3>
+          </div>
+          <p class="mt-1 text-xs text-emerald-100/70">
+            Genera enlaces oficiales <code class="bg-white/10 px-1.5 py-0.5 rounded font-mono text-emerald-300">wa.me</code> listos para colocar en publicaciones o biografías de Instagram y Facebook. Al hacer clic, el mensaje se abre con el SKU pre-cargado.
+          </p>
+
+          <div class="mt-4 grid sm:grid-cols-3 gap-3">
+            <div>
+              <label class="text-[11px] font-bold text-emerald-200">Selecciona el Producto:</label>
+              <select id="smart-link-product" class="mt-1 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs text-white focus:bg-[#123933] cursor-pointer"></select>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="text-[11px] font-bold text-emerald-200">Enlace generado con SKU:</label>
+              <div class="mt-1 flex gap-2">
+                <input id="smart-link-output" readonly class="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-mono text-emerald-200 select-all">
+                <button id="btn-copy-smart-link" type="button" class="shrink-0 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition">Copiar Enlace</button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -450,6 +516,61 @@
       <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
         <button type="button" class="btn-close-modal rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 transition">Cancelar</button>
         <button type="submit" class="rounded-xl bg-[#087e67] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#066a58] transition">Guardar Grupo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: CAMPAÑA / ENLACE RED SOCIAL -->
+<div id="modal-campaign" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto">
+  <div class="w-full max-w-lg rounded-3xl bg-white p-6 sm:p-8 shadow-2xl my-8">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div>
+        <h3 id="modal-campaign-title" class="text-lg font-bold text-slate-900">Vincular Publicación / Anuncio a SKU</h3>
+        <p class="text-xs text-slate-500">Registra el ID del anuncio o URL para que el bot detecte el producto.</p>
+      </div>
+      <button type="button" class="btn-close-modal text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form id="form-campaign" class="mt-5 grid gap-4">
+      <input type="hidden" id="camp-id">
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <label class="field">
+          Plataforma / Canal <span class="text-red-500">*</span>
+          <select id="camp-platform" class="control">
+            <option value="facebook">Facebook Ads (CTWA)</option>
+            <option value="facebook_post">Facebook Post Orgánico</option>
+            <option value="instagram">Instagram Ads / Reel</option>
+            <option value="tiktok">TikTok Ads</option>
+          </select>
+        </label>
+
+        <label class="field">
+          Producto / SKU Destino <span class="text-red-500">*</span>
+          <select id="camp-sku" class="control font-mono font-bold" required></select>
+        </label>
+      </div>
+
+      <label class="field">
+        Titular o Nombre de la Campaña <span class="text-red-500">*</span>
+        <input id="camp-headline" required placeholder="Ej: Anuncio Estante Rack Plegable Metálico" class="control">
+      </label>
+
+      <label class="field">
+        URL de la Publicación o ID del Anuncio <span class="text-red-500">*</span>
+        <span class="font-normal text-[11px] text-slate-400">Pega la URL completa (ej: https://www.facebook.com/share/p/196jarUnqz/) o el Post ID (196jarUnqz).</span>
+        <input id="camp-url" required placeholder="https://www.facebook.com/share/p/196jarUnqz/ o 12020584738290123" class="control font-mono text-xs">
+      </label>
+
+      <label class="field">
+        Descripción interna (opcional)
+        <input id="camp-desc" placeholder="Campaña promocional en redes" class="control">
+      </label>
+
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+        <button type="button" class="btn-close-modal rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 transition">Cancelar</button>
+        <button type="submit" class="rounded-xl bg-[#087e67] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#066a58] transition">Guardar Campaña</button>
       </div>
     </form>
   </div>

@@ -51,6 +51,18 @@ export class StorageFacade {
       });
 
       this.write({ activeTenantId: "smak", tenants, orders });
+    } else {
+      // Ensure existing tenants have campaigns array migrated
+      let modified = false;
+      TENANTS.forEach(defT => {
+        if (data.tenants[defT.id] && (!Array.isArray(data.tenants[defT.id].campaigns) || !data.tenants[defT.id].campaigns.length)) {
+          data.tenants[defT.id].campaigns = clone(defT.campaigns || []);
+          modified = true;
+        }
+      });
+      if (modified) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
     }
   }
 
@@ -203,6 +215,55 @@ export class StorageFacade {
     if (!state.tenants[id] || !state.tenants[id].synonyms) return;
     delete state.tenants[id].synonyms[key];
     this.write(state);
+  }
+
+  // ---- SOCIAL CAMPAIGNS & REFERRAL MAPPING ----
+  static getCampaigns(id = this.getActiveTenantId()) {
+    const tenant = this.getTenant(id);
+    return clone(tenant.campaigns || []);
+  }
+
+  static saveCampaign(campaign, id = this.getActiveTenantId()) {
+    const state = this.getState();
+    const tenant = state.tenants[id];
+    if (!tenant) return;
+    if (!tenant.campaigns) tenant.campaigns = [];
+
+    const c = clone(campaign);
+    if (!c.id) c.id = "camp-" + crypto.randomUUID().slice(0, 8);
+    c.sku = String(c.sku || "").trim().toUpperCase();
+
+    const index = tenant.campaigns.findIndex(item => item.id === c.id);
+    if (index >= 0) {
+      tenant.campaigns[index] = c;
+    } else {
+      tenant.campaigns.unshift(c);
+    }
+    this.write(state);
+    return c;
+  }
+
+  static deleteCampaign(campaignId, id = this.getActiveTenantId()) {
+    const state = this.getState();
+    const tenant = state.tenants[id];
+    if (!tenant || !tenant.campaigns) return false;
+    tenant.campaigns = tenant.campaigns.filter(c => c.id !== campaignId);
+    this.write(state);
+    return true;
+  }
+
+  static findCampaign(query, id = this.getActiveTenantId()) {
+    const campaigns = this.getCampaigns(id);
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return null;
+
+    // 1. Direct match with URL or sourceId
+    return campaigns.find(c => {
+      const cUrl = String(c.url || "").toLowerCase();
+      const cSourceId = String(c.sourceId || "").toLowerCase();
+      return (cUrl && q.includes(cUrl)) || (cUrl && cUrl.includes(q)) ||
+             (cSourceId && q.includes(cSourceId)) || (cSourceId && cSourceId === q);
+    }) || null;
   }
 
   // ---- ORDERS ----

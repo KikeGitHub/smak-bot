@@ -78,9 +78,79 @@ export class BotEngine {
     return saved;
   }
 
-  // Extract SKU from user message
-  extractSku(rawText, products = []) {
-    // 1. Explicit pattern: "SKU XXX", "CODIGO XXX", "ARTICULO XXX"
+  // Extract SKU from user message, Meta Ad referral, or social URL
+  extractSku(rawText, products = [], { referral = null, campaigns = [] } = {}) {
+    // 0. From Meta Click-to-WhatsApp Referral object (Official WhatsApp Cloud API)
+    if (referral) {
+      // 0a. Check source_id against campaign registry
+      if (referral.source_id && campaigns.length) {
+        const camp = campaigns.find(c => String(c.sourceId) === String(referral.source_id) || String(c.id) === String(referral.source_id));
+        if (camp) {
+          const prod = products.find(p => p.sku?.toUpperCase() === camp.sku?.toUpperCase());
+          return { sku: camp.sku.toUpperCase(), product: prod || null, source: "facebook_ad", referral, campaign: camp };
+        }
+      }
+
+      // 0b. Match headline or body against catalog names or keywords
+      const searchTarget = clean(`${referral.headline || ""} ${referral.body || ""}`);
+      for (const p of products) {
+        const pClean = clean(p.name);
+        const keywords = (p.keywords || []).map(clean);
+        if (p.sku && searchTarget.includes(clean(p.sku))) {
+          return { sku: p.sku.toUpperCase(), product: p, source: "facebook_ad", referral };
+        }
+        if (searchTarget.includes(pClean) || pClean.includes(searchTarget) || keywords.some(k => k.length > 2 && searchTarget.includes(k))) {
+          return { sku: p.sku?.toUpperCase() || "", product: p, source: "facebook_ad", referral };
+        }
+      }
+    }
+
+    // 1. Social URLs inside message text (e.g. facebook.com/share/p/196jarUnqz, instagram.com/...)
+    const urlMatch = rawText.match(/https?:\/\/[^\s]+/i);
+    if (urlMatch) {
+      const fullUrl = urlMatch[0];
+
+      // Check query param ?sku= or ?ref=
+      const skuParamMatch = fullUrl.match(/[?&](?:sku|ref)=([a-zA-Z0-9_\-]+)/i);
+      if (skuParamMatch && skuParamMatch[1]) {
+        const cand = skuParamMatch[1].toUpperCase();
+        const found = products.find(p => p.sku?.toUpperCase() === cand);
+        return { sku: cand, product: found || null, source: "url_param", url: fullUrl };
+      }
+
+      // Extract Facebook share post ID: facebook.com/share/p/196jarUnqz
+      const fbShareMatch = fullUrl.match(/facebook\.com\/share\/p\/([a-zA-Z0-9_\-]+)/i);
+      // Extract Instagram post/reel ID: instagram.com/(?:p|reel)/([a-zA-Z0-9_\-]+)
+      const igMatch = fullUrl.match(/instagram\.com\/(?:p|reel)\/([a-zA-Z0-9_\-]+)/i);
+      const postToken = (fbShareMatch && fbShareMatch[1]) || (igMatch && igMatch[1]) || null;
+
+      // Look up in campaigns registry
+      if (campaigns.length) {
+        const camp = campaigns.find(c => {
+          const cUrl = String(c.url || "").toLowerCase();
+          const cSourceId = String(c.sourceId || "").toLowerCase();
+          return (cUrl && (fullUrl.toLowerCase().includes(cUrl) || cUrl.includes(fullUrl.toLowerCase()))) ||
+                 (postToken && (cSourceId === postToken.toLowerCase() || cUrl.includes(postToken.toLowerCase())));
+        });
+
+        if (camp) {
+          const prod = products.find(p => p.sku?.toUpperCase() === camp.sku?.toUpperCase());
+          return { sku: camp.sku.toUpperCase(), product: prod || null, source: "social_link", platform: camp.platform || "Facebook", campaign: camp, url: fullUrl };
+        }
+      }
+    }
+
+    // 2. Deep-link bracketed SKU: "[SKU: EST-01]", "[EST-01]"
+    const bracketMatch = rawText.match(/\[(?:sku:?\s*)?([a-zA-Z0-9_\-]{2,15})\]/i);
+    if (bracketMatch && bracketMatch[1]) {
+      const candidate = bracketMatch[1].trim().toUpperCase();
+      const found = products.find(p => p.sku?.toUpperCase() === candidate);
+      if (found) {
+        return { sku: candidate, product: found, explicit: true, source: "deep_link" };
+      }
+    }
+
+    // 3. Explicit pattern: "SKU XXX", "CODIGO XXX", "ARTICULO XXX"
     const explicitMatch = rawText.match(/(?:sku|c[oó]digo|codigo|art[ií]culo|articulo|ref|modelo)\s*[:#\-]?\s*([a-zA-Z0-9_\-]{2,15})/i);
     if (explicitMatch && explicitMatch[1]) {
       const candidate = explicitMatch[1].trim().toUpperCase();
@@ -88,14 +158,14 @@ export class BotEngine {
       return { sku: candidate, product: found || null, explicit: true };
     }
 
-    // 2. Direct match with registered product SKUs in catalog
+    // 4. Direct match with registered product SKUs in catalog
     for (const p of products) {
       if (p.sku && new RegExp(`\\b${p.sku}\\b`, "i").test(rawText)) {
         return { sku: p.sku.toUpperCase(), product: p, explicit: false };
       }
     }
 
-    // 3. Match with product name keywords
+    // 5. Match with product name keywords
     const cleanMsg = clean(rawText);
     for (const p of products) {
       const pClean = clean(p.name);
@@ -115,12 +185,12 @@ export class BotEngine {
     return wordList.some(word => targetTerms.some(term => term === word || word.includes(term) || term.includes(word)));
   }
 
-  async reply(message, { audio = false } = {}) {
+  async reply(message, { audio = false, referral = null } = {}) {
     const rawText = String(message || "").trim();
     const cleanText = clean(rawText);
     const tokens = tokenize(rawText);
 
-    if (!cleanText) {
+    if (!cleanText && !referral) {
       return { text: "Hola, ¿en qué puedo ayudarte hoy?" };
     }
 
@@ -176,8 +246,56 @@ export class BotEngine {
     const products = tenant.products || [];
     const rules = tenant.rules || [];
     const synonyms = tenant.synonyms || {};
+    const campaigns = tenant.campaigns || [];
 
-    // 4. Human handover request (using synonyms or defaults)
+    // 4. META ADS REFERRAL / SOCIAL MEDIA LINK IDENTIFICATION (Highest Context Priority)
+    const skuExtraction = this.extractSku(rawText, products, { referral, campaigns });
+
+    // 4a. Customer arrived from a Meta Ad (CTWA referral like in the screenshot)
+    if (referral && skuExtraction && skuExtraction.product) {
+      const prod = skuExtraction.product;
+      this.selectedProduct = prod;
+      const isAvailable = prod.stock > 0;
+      return {
+        text: `¡Hola! 👋 Qué gusto saludarte.\n\nVeo que nos escribes desde nuestro anuncio en **Facebook / Instagram** por el **${prod.name} (SKU: ${prod.sku})**.\n\n${
+          isAvailable
+            ? `✅ **Disponibilidad:** ¡Tenemos **${prod.stock} unidades en stock**!\n🏷️ **Precio Especial:** **L.${Number(prod.salePrice).toLocaleString("es-HN")}** *(precio regular: L.${Number(prod.regularPrice).toLocaleString("es-HN")})*\n🚚 **Entrega:** Envíos a todo el país con pago contra entrega.`
+            : `⚠️ El producto **${prod.name}** (SKU: ${prod.sku}) se encuentra actualmente **agotado**.`
+        }\n\n¿Te gustaría apartar el tuyo o prefieres revisar medidas o fotografías reales?`,
+        product: prod,
+        images: prod.images?.slice(0, 2) || [],
+        source: "facebook_ad",
+        referral
+      };
+    }
+
+    // 4b. Customer sent a Facebook / Instagram URL directly in chat
+    if (skuExtraction && skuExtraction.source === "social_link" && skuExtraction.product) {
+      const prod = skuExtraction.product;
+      this.selectedProduct = prod;
+      const platformName = skuExtraction.platform === "instagram" ? "Instagram" : "Facebook";
+      return {
+        text: `¡Hola! 🔍 Detecté el enlace de la publicación en **${platformName}** para el producto **${prod.name} (SKU: ${prod.sku})**.\n\n✅ **Stock disponible:** **${prod.stock} unidades**\n🏷️ **Precio de Oferta:** **L.${Number(prod.salePrice).toLocaleString("es-HN")}**\n📦 **Medidas / Especificación:** ${prod.dimensions || "Consultar"}\n\n¡No necesitas escribir el código! Ya tengo tu producto seleccionado. ¿Deseas hacer tu pedido o ver fotos reales?`,
+        product: prod,
+        images: prod.images?.slice(0, 2) || [],
+        source: "social_link",
+        url: skuExtraction.url
+      };
+    }
+
+    // 4c. Customer arrived via deep link with pre-filled SKU: "[SKU: EST-01]"
+    if (skuExtraction && skuExtraction.source === "deep_link" && skuExtraction.product) {
+      const prod = skuExtraction.product;
+      this.selectedProduct = prod;
+      return {
+        text: `¡Hola! 👋 Con gusto te atiendo para el **${prod.name} (SKU: ${prod.sku})**.\n\n✅ **Stock:** **${prod.stock} unidades disponibles**\n🏷️ **Precio Especial:** **L.${Number(prod.salePrice).toLocaleString("es-HN")}**\n🚚 **Envíos:** Cobertura nacional con pago contra entrega.\n\n¿Deseas que preparemos tu pedido o tienes alguna duda de medidas?`,
+        product: prod,
+        images: prod.images?.slice(0, 2) || [],
+        source: "deep_link"
+      };
+    }
+
+    // 5. Human handover request (using synonyms or defaults)
     const asesorKeywords = ["asesor", "humano", "persona", "operador", "agente", ...(synonyms.asesor || [])].map(clean);
     if (asesorKeywords.some(k => cleanText.includes(k))) {
       this.human = true;
@@ -187,7 +305,7 @@ export class BotEngine {
       };
     }
 
-    // 5. RESTRICTION RULES ("Lo que NO debe decir o hacer" - Guardrails tienen máxima prioridad)
+    // 6. RESTRICTION RULES ("Lo que NO debe decir o hacer" - Guardrails tienen máxima prioridad)
     const restrictionRules = rules.filter(r => r.enabled && r.type === "restriction");
     for (const rule of restrictionRules) {
       const match = rule.trainingPhrases.some(phrase => matchPhrase(cleanText, tokens, phrase));
@@ -196,8 +314,7 @@ export class BotEngine {
       }
     }
 
-    // 6. PARAMETRIC RULES (e.g., SKU Stock Query)
-    const skuExtraction = this.extractSku(rawText, products);
+    // 7. PARAMETRIC RULES (e.g., SKU Stock Query)
     const isStockQuery = tokens.some(t => ["stock", "disponible", "disponibilidad", "quedan", "hay", "existencia", "inventario", "tienen"].includes(t)) ||
       this.matchesSynonym(tokens, synonyms, "stock");
 

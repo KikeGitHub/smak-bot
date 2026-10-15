@@ -41,14 +41,21 @@ Abre `index.html` en una pestaña y `admin.html` en otra; ambas ventanas se sinc
 * **Diccionario de Sinónimos Dinámico:**
   * Soporte para crear cualquier grupo de concepto y asociar *n* palabras o modismos.
   * Adición y eliminación rápida de palabras con chips interactivos.
+* **Mapeo de Redes Sociales y Campañas (Facebook / Instagram / TikTok):**
+  * Vinculación de URLs compartidas (`facebook.com/share/p/...`), anuncios de Meta Ads (`source_id`) y enlaces de Instagram con SKUs del catálogo.
+  * Generador integrado de Enlaces Inteligentes `wa.me` con mensaje y SKU pre-cargado.
 * **Simulador / Tester en Vivo Integrado:**
-  * Sandbox para probar preguntas en el propio panel y visualizar qué regla y SKU fueron detectados.
+  * Sandbox para probar preguntas o enlaces de redes sociales en el propio panel y visualizar qué regla y SKU fueron detectados.
 * **Gestión de Pedidos:**
   * Listado de ventas cerradas desde el chat con detalle de cliente, SKU, total y fecha.
 
 ### 2. Motor Conversacional (`js/bot-engine.js`)
 * Normalización léxica (limpieza de tildes, mayúsculas y puntuación).
-* Extractor de entidades SKU (vía expresiones regulares y matching en catálogo).
+* **Extractor de entidades SKU y Atribución Social:**
+  * Soporte de objetos `referral` de anuncios Meta Ads (Click-to-WhatsApp CTWA).
+  * Extracción y resolución de Post IDs en URLs de Facebook (`facebook.com/share/p/...`) e Instagram.
+  * Detección de SKUs en enlaces profundos (`[SKU: XXX]`).
+  * Matching semántico por nombre de catálogo, palabras clave y expresiones regulares.
 * Resolución condicional de stock (Stock disponible vs. Agotado vs. SKU no registrado).
 * Expansión semántica mediante diccionario de sinónimos.
 * Priorización de reglas de restricción (seguridad conversacional).
