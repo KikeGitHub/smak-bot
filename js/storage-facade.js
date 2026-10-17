@@ -52,12 +52,37 @@ export class StorageFacade {
 
       this.write({ activeTenantId: "smak", tenants, orders });
     } else {
-      // Ensure existing tenants have campaigns array migrated
+      // Ensure existing tenants have campaigns and newly added products/rules migrated
       let modified = false;
       TENANTS.forEach(defT => {
-        if (data.tenants[defT.id] && (!Array.isArray(data.tenants[defT.id].campaigns) || !data.tenants[defT.id].campaigns.length)) {
-          data.tenants[defT.id].campaigns = clone(defT.campaigns || []);
-          modified = true;
+        const curTenant = data.tenants[defT.id];
+        if (curTenant) {
+          if (!Array.isArray(curTenant.campaigns) || !curTenant.campaigns.length) {
+            curTenant.campaigns = clone(defT.campaigns || []);
+            modified = true;
+          }
+          // Merge missing products (like PER-09 and REG-10)
+          (defT.products || []).forEach(p => {
+            if (!curTenant.products.some(cp => cp.sku === p.sku)) {
+              curTenant.products.push(clone(p));
+              modified = true;
+            }
+          });
+          // Merge updated rules
+          (defT.rules || []).forEach(defR => {
+            const curR = curTenant.rules.find(r => r.id === defR.id);
+            if (curR) {
+              (defR.trainingPhrases || []).forEach(phrase => {
+                if (!curR.trainingPhrases.includes(phrase)) {
+                  curR.trainingPhrases.push(phrase);
+                  modified = true;
+                }
+              });
+            } else {
+              curTenant.rules.push(clone(defR));
+              modified = true;
+            }
+          });
         }
       });
       if (modified) {

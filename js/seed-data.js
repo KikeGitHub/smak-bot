@@ -120,6 +120,34 @@ export const TENANTS = [
         images: [
           "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=85"
         ]
+      },
+      {
+        id: "prod-9",
+        sku: "PER-09",
+        name: "Perchero de Pie Moderno Multiusos",
+        regularPrice: 850,
+        salePrice: 690,
+        stock: 14,
+        dimensions: "Altura 175 cm, Base redonda 40 cm",
+        weightLimit: "50 lbs distribuidas en 8 ganchos",
+        keywords: ["perchero", "percheros", "porchero", "colgador", "perchas", "ropa"],
+        images: [
+          "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?auto=format&fit=crop&w=900&q=85"
+        ]
+      },
+      {
+        id: "prod-10",
+        sku: "REG-10",
+        name: "Regadera Cuadrada de Ducha Acero Inox con Drenaje",
+        regularPrice: 1100,
+        salePrice: 890,
+        stock: 22,
+        dimensions: "Regadera 20 × 20 cm, Drenaje lineal 16 × 2.5 cm",
+        weightLimit: "Acero inoxidable 304 anti-sarro con filtro",
+        keywords: ["regadera", "regaderas", "ducha", "drenaje", "drenajes", "crenajes", "bano"],
+        images: [
+          "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=900&q=85"
+        ]
       }
     ],
     rules: [
@@ -176,9 +204,17 @@ export const TENANTS = [
           "hacen entregas a domicilio",
           "cuanto cuesta el envio",
           "flete y entrega",
-          "envian a domicilio"
+          "envian a domicilio",
+          "cuanto se tardan en venir a dejar a la casa",
+          "cuanto se tardan en venirme a dejar a la casa",
+          "cuanto tiempo se tardan en venir a dejar",
+          "se tardan dias",
+          "cuanto se tardan en venir a dejar",
+          "cuanto tardan en traerlo a la casa",
+          "cuanto tiempo se tardan",
+          "cuantos se tardan en venirme a dejar"
         ],
-        response: "Hacemos envíos rápidos a todo el país con Cargo Expreso. El tiempo estimado es de 1 a 2 días hábiles y el flete es gratis en compras mayores a L.1,500."
+        response: "Hacemos envíos rápidos a todo el país con Cargo Expreso. El tiempo estimado de entrega a la puerta de tu casa es de **1 a 2 días hábiles** (no nos tardamos semanas, es muy rápido) con pago contra entrega al recibir tu paquete. En Tegucigalpa y San Pedro Sula también podemos coordinar entrega el mismo día si realizas tu pedido temprano."
       },
       {
         id: "rule-envio-express",

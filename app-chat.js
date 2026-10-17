@@ -1,10 +1,12 @@
 import { StorageFacade } from "./js/storage-facade.js";
 import { BotEngine } from "./js/bot-engine.js";
+import { TranscriptionService } from "./js/transcription-service.js";
 
 const $ = (s) => document.querySelector(s);
 const thread = $("#messages");
 const engine = new BotEngine();
-let contextAudioUrl = null;
+let activeRecorder = null;
+let activeRecordingStream = null;
 
 function formatMarkdown(text) {
   let safe = String(text ?? "")
@@ -85,13 +87,42 @@ function bubble(text, own = false, extra = {}) {
     box.append(buyBtn);
   }
 
-  // AUDIO SIMULATION
-  if (extra.audio) {
+  // AUDIO PLAYER & TRANSCRIPTION CARD
+  if (extra.audioUrl || extra.audio) {
+    const audioWrap = document.createElement("div");
+    audioWrap.className = "mt-2.5 flex flex-col gap-2";
+
     const audio = document.createElement("audio");
     audio.controls = true;
-    audio.src = contextAudioUrl;
-    audio.className = "mt-2.5 w-full";
-    box.append(audio);
+    audio.src = extra.audioUrl;
+    audio.className = "w-full rounded-xl";
+    audioWrap.append(audio);
+
+    if (extra.isTranscribing) {
+      const loader = document.createElement("div");
+      loader.id = extra.statusId || ("trans-" + Date.now());
+      loader.className = "flex items-center gap-2 rounded-xl bg-emerald-100/80 px-3 py-2 text-xs font-medium text-emerald-950 animate-pulse";
+      loader.innerHTML = `
+        <span class="inline-block h-2 w-2 rounded-full bg-emerald-600 animate-ping"></span>
+        <span>Transcribiendo audio con IA en Codespaces...</span>
+      `;
+      audioWrap.append(loader);
+    }
+
+    if (extra.transcription) {
+      const transBox = document.createElement("div");
+      transBox.className = "rounded-xl border border-emerald-300/80 bg-emerald-50/90 p-2.5 text-xs text-slate-800 shadow-sm";
+      transBox.innerHTML = `
+        <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-emerald-800 mb-1">
+          <span class="flex items-center gap-1">✨ Transcripción IA</span>
+          <span class="rounded bg-emerald-200 px-1.5 py-0.5 text-[9px] font-bold text-emerald-900">Whisper</span>
+        </div>
+        <div class="italic text-slate-800 leading-relaxed font-normal">"${formatMarkdown(extra.transcription)}"</div>
+      `;
+      audioWrap.append(transBox);
+    }
+
+    box.append(audioWrap);
   }
 
   // CHECKOUT FLOW CONFIRMATION
@@ -131,6 +162,7 @@ function bubble(text, own = false, extra = {}) {
   row.append(box);
   thread.append(row);
   thread.scrollTop = thread.scrollHeight;
+  return row;
 }
 
 async function send(text, opts = {}) {
@@ -141,6 +173,63 @@ async function send(text, opts = {}) {
   window.setTimeout(() => bubble(answer.text, false, answer), 260);
 }
 
+/**
+ * Procesa un archivo o grabación de audio: reproduce, transcribe y responde
+ */
+async function processAudio(fileOrBlob, fileName = "audio.mp4") {
+  const audioUrl = URL.createObjectURL(fileOrBlob);
+  const statusId = "trans-status-" + Date.now();
+
+  // 1. Mostrar la nota de voz del usuario en el chat con estado cargando
+  const row = bubble("🎙️ Nota de voz del cliente", true, {
+    audioUrl,
+    isTranscribing: true,
+    statusId
+  });
+
+  try {
+    // 2. Llamada al transcriptor online en Codespaces
+    const result = await TranscriptionService.transcribeAudio(fileOrBlob, fileName);
+    const fullText = (result.full_text || "").trim();
+
+    // 3. Quitar el indicador de carga y mostrar tarjeta de transcripción
+    const statusEl = document.getElementById(statusId);
+    if (statusEl) {
+      statusEl.remove();
+    }
+
+    const box = row.querySelector("div");
+    if (box) {
+      const transBox = document.createElement("div");
+      transBox.className = "mt-2 rounded-xl border border-emerald-300/80 bg-emerald-50/90 p-2.5 text-xs text-slate-800 shadow-sm";
+      transBox.innerHTML = `
+        <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-emerald-800 mb-1">
+          <span class="flex items-center gap-1">✨ Transcripción IA</span>
+          <span class="rounded bg-emerald-200 px-1.5 py-0.5 text-[9px] font-bold text-emerald-900">Whisper Sync</span>
+        </div>
+        <div class="italic text-slate-800 leading-relaxed">"${formatMarkdown(fullText || "(No se detectaron palabras en el audio)")}"</div>
+      `;
+      box.querySelector(".whitespace-pre-wrap")?.after(transBox);
+    }
+
+    // 4. Pasar el texto transcrito directamente al motor comercial de SMAKBot
+    if (fullText) {
+      const answer = await engine.reply(fullText, { audioTranscript: true });
+      setTimeout(() => bubble(answer.text, false, answer), 300);
+    } else {
+      setTimeout(() => bubble("Disculpa, no logré escuchar palabras claras en este audio. ¿Podrías escribir tu consulta o repetirlo?", false), 300);
+    }
+
+  } catch (err) {
+    console.error("Error al transcribir:", err);
+    const statusEl = document.getElementById(statusId);
+    if (statusEl) {
+      statusEl.className = "flex items-center gap-2 rounded-xl bg-rose-100 p-2 text-xs font-semibold text-rose-800";
+      statusEl.innerHTML = `<span>⚠️ ${err.message || "Error al conectar con el transcriptor en Codespaces."}</span>`;
+    }
+  }
+}
+
 function updateTenant() {
   const t = StorageFacade.getTenant();
   $("#brand-name").textContent = t.name;
@@ -149,36 +238,80 @@ function updateTenant() {
   $("#tenant-label").textContent = t.name;
 }
 
+// Envío de mensaje escrito
 $("#composer").addEventListener("submit", e => {
   e.preventDefault();
   send($("#message").value);
 });
 
-$("#audio-button").addEventListener("click", async () => {
-  if (!contextAudioUrl) {
-    const sampleRate = 8000;
-    const length = sampleRate * 1.1;
-    const bytes = new Uint8Array(44 + length);
-    const view = new DataView(bytes.buffer);
-    const write = (offset, s) => [...s].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
-    write(0, "RIFF");
-    view.setUint32(4, 36 + length, true);
-    write(8, "WAVE");
-    write(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate, true);
-    view.setUint16(32, 1, true);
-    view.setUint16(34, 8, true);
-    write(36, "data");
-    view.setUint32(40, length, true);
-    bytes.fill(128, 44);
-    contextAudioUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
-  }
-  await send("Audio del cliente", { audio: true });
-});
+// Selector de archivos de audio
+const audioFileInput = $("#audio-file-input");
+const attachAudioBtn = $("#attach-audio-btn");
+const triggerUploadAudio = $("#trigger-upload-audio");
+
+if (attachAudioBtn && audioFileInput) {
+  attachAudioBtn.addEventListener("click", () => audioFileInput.click());
+}
+
+if (triggerUploadAudio && audioFileInput) {
+  triggerUploadAudio.addEventListener("click", () => audioFileInput.click());
+}
+
+if (audioFileInput) {
+  audioFileInput.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    audioFileInput.value = "";
+    await processAudio(file, file.name);
+  });
+}
+
+// Grabación con Micrófono en Vivo
+const micBtn = $("#audio-button");
+const recordingIndicator = $("#recording-indicator");
+const cancelRecordingBtn = $("#cancel-recording-btn");
+
+if (micBtn) {
+  micBtn.addEventListener("click", async () => {
+    // Si ya está grabando, detener y enviar
+    if (activeRecorder && activeRecorder.isRecording()) {
+      micBtn.className = "grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-lg hover:bg-slate-200 transition shadow-sm relative";
+      recordingIndicator?.classList.add("hidden");
+      try {
+        const { blob } = await activeRecorder.stop();
+        activeRecorder = null;
+        await processAudio(blob, "grabacion-microfono.webm");
+      } catch (err) {
+        console.error("Error al detener grabación:", err);
+      }
+      return;
+    }
+
+    // Iniciar grabación
+    try {
+      activeRecorder = TranscriptionService.createRecorder();
+      await activeRecorder.start();
+      micBtn.className = "grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-rose-600 text-white text-lg animate-pulse shadow-md ring-2 ring-rose-400 relative";
+      recordingIndicator?.classList.remove("hidden");
+    } catch (err) {
+      console.warn("No se pudo iniciar micrófono:", err);
+      alert("No se pudo acceder al micrófono: " + (err.message || "Permiso denegado."));
+    }
+  });
+}
+
+if (cancelRecordingBtn) {
+  cancelRecordingBtn.addEventListener("click", async () => {
+    if (activeRecorder && activeRecorder.isRecording()) {
+      try {
+        await activeRecorder.stop();
+      } catch (_) {}
+      activeRecorder = null;
+      micBtn.className = "grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-lg hover:bg-slate-200 transition shadow-sm relative";
+      recordingIndicator?.classList.add("hidden");
+    }
+  });
+}
 
 function renderMetaAdCard(referral) {
   const adRow = document.createElement("div");
@@ -226,10 +359,41 @@ function renderMetaAdCard(referral) {
   thread.scrollTop = thread.scrollHeight;
 }
 
+// Controladores para los Escenarios Rápidos
 document.querySelectorAll("[data-scenario]").forEach(btn => {
   btn.addEventListener("click", async () => {
     engine.reset();
     const text = btn.dataset.scenario;
+
+    // SCENARIO AUDIO 1: PERCHERO (WHATSAPP OGG)
+    if (text === "__sample_perchero") {
+      thread.replaceChildren();
+      try {
+        const resp = await fetch("audio-samples/perchero.ogg");
+        if (!resp.ok) throw new Error("No se pudo cargar el archivo perchero.ogg");
+        const blob = await resp.blob();
+        await processAudio(blob, "perchero.ogg");
+      } catch (err) {
+        console.error("Error cargando perchero.ogg:", err);
+        bubble("⚠️ No se pudo reproducir el archivo de muestra: " + err.message, false);
+      }
+      return;
+    }
+
+    // SCENARIO AUDIO 2: REGADERAS (WHATSAPP OGG)
+    if (text === "__sample_regaderas") {
+      thread.replaceChildren();
+      try {
+        const resp = await fetch("audio-samples/regaderas.ogg");
+        if (!resp.ok) throw new Error("No se pudo cargar el archivo regaderas.ogg");
+        const blob = await resp.blob();
+        await processAudio(blob, "regaderas.ogg");
+      } catch (err) {
+        console.error("Error cargando regaderas.ogg:", err);
+        bubble("⚠️ No se pudo reproducir el archivo de muestra: " + err.message, false);
+      }
+      return;
+    }
 
     if (text === "__checkout") {
       bubble("Quiero hacer un pedido", true);
@@ -298,7 +462,7 @@ $("#clear-button").addEventListener("click", () => {
   engine.reset();
   const t = StorageFacade.getTenant();
   const firstSku = t.products?.[0]?.sku || "EST-01";
-  bubble(`¡Hola! 👋 Soy el asistente de **${t.name}**.\n\nPuedes consultarme por disponibilidad de inventario (ej. *"¿Tienen stock para el SKU ${firstSku}?"*), ver nuestro catálogo completo o consultar tiempos de entrega.`);
+  bubble(`¡Hola! 👋 Soy el asistente de **${t.name}**.\n\nPuedes enviarme notas de voz 🎙️ o escribir tus dudas sobre disponibilidad (ej. *"¿Tienen stock para el SKU ${firstSku}?"*), catálogo completo o envíos.`);
 });
 
 window.addEventListener("smakbot:data-changed", () => {
@@ -313,4 +477,4 @@ window.addEventListener("storage", () => {
 updateTenant();
 const initialTenant = StorageFacade.getTenant();
 const sampleSku = initialTenant.products?.[0]?.sku || "EST-01";
-bubble(`¡Hola! 👋 Soy el asistente de ventas de **${initialTenant.name}**.\n\nPuedes preguntarme por:\n• Disponibilidad de stock: *"¿Tienen stock para el SKU ${sampleSku}?"*\n• Ver catálogo: *"¿Qué productos tienen en catálogo?"*\n• Envíos, métodos de pago o fotos.`);
+bubble(`¡Hola! 👋 Soy el asistente comercial de **${initialTenant.name}**.\n\nPuedes escribirme o **enviarme notas de voz 🎙️**:\n• Hablar o consultar stock: *"¿Tienen stock para el SKU ${sampleSku}?"*\n• Ver catálogo: *"¿Qué productos tienen en catálogo?"*\n• Envíos, métodos de pago o fotos.`);

@@ -182,10 +182,16 @@ export class BotEngine {
   matchesSynonym(wordList, synonyms, concept) {
     const synList = synonyms[concept] || [];
     const targetTerms = [concept, ...synList].map(clean);
-    return wordList.some(word => targetTerms.some(term => term === word || word.includes(term) || term.includes(word)));
+    return wordList.some(word => targetTerms.some(term => {
+      if (term === word) return true;
+      if (word.length >= 4 && term.length >= 4) {
+        return word.includes(term) || term.includes(word);
+      }
+      return false;
+    }));
   }
 
-  async reply(message, { audio = false, referral = null } = {}) {
+  async reply(message, { audio = false, audioTranscript = false, referral = null } = {}) {
     const rawText = String(message || "").trim();
     const cleanText = clean(rawText);
     const tokens = tokenize(rawText);
@@ -194,8 +200,8 @@ export class BotEngine {
       return { text: "Hola, ¿en qué puedo ayudarte hoy?" };
     }
 
-    // 1. Audio mode request
-    if (audio || tokens.some(t => ["audio", "voz"].includes(t)) || cleanText.includes("no se leer")) {
+    // 1. Audio mode request (only if not already an incoming transcribed audio)
+    if (!audioTranscript && (audio || tokens.some(t => ["audio", "voz"].includes(t)) || cleanText.includes("no se leer"))) {
       this.voicePreferred = true;
       return {
         text: "¡Con gusto! Te responderé también con una nota de voz para que sea más fácil.",
@@ -314,7 +320,33 @@ export class BotEngine {
       }
     }
 
-    // 7. PARAMETRIC RULES (e.g., SKU Stock Query)
+    // Set current active product if identified in message
+    if (skuExtraction?.product) {
+      this.selectedProduct = skuExtraction.product;
+    }
+    const currentProduct = this.selectedProduct || products[0] || null;
+
+    // 7. SPECIFIC PRODUCT INTENTS (Photos, Shipping/Delivery, Price, Dimensions)
+    const isPhotoQuery = this.matchesSynonym(tokens, synonyms, "fotos") || tokens.some(t => ["foto", "fotos", "imagen", "imagenes", "verlo"].includes(t));
+    if (isPhotoQuery && currentProduct) {
+      return {
+        text: `¡Claro! Aquí tienes fotografías reales de **${currentProduct.name}** (${currentProduct.sku}):\n\n🏷️ **Precio:** L.${Number(currentProduct.salePrice).toLocaleString("es-HN")}\n📦 **Medidas / Detalle:** ${currentProduct.dimensions || "Estándar"}\n✅ **Disponibilidad:** ${currentProduct.stock > 0 ? `${currentProduct.stock} unidades en stock` : "Agotado"}. ¿Deseas hacer tu pedido?`,
+        product: currentProduct,
+        images: currentProduct.images || []
+      };
+    }
+
+    const isShippingQuery = tokens.some(t => ["envio", "envios", "entrega", "entregas", "tardan", "tarda", "tiempo", "domicilio", "casa", "dias"].includes(t)) ||
+      cleanText.includes("venir a dejar") || cleanText.includes("venirme a dejar") || cleanText.includes("cuanto tiempo");
+    if (isShippingQuery && currentProduct) {
+      return {
+        text: `¡Hola! Con gusto te informamos sobre el **${currentProduct.name} (SKU: ${currentProduct.sku})**:\n\n🚚 **Tiempo de entrega:** Nuestro tiempo estimado de entrega a domicilio es de **1 a 2 días hábiles** a todo el país vía Cargo Expreso (en Tegucigalpa y San Pedro Sula podemos coordinar entrega el mismo día si realizas tu pedido temprano).\n\n💵 **Pago seguro:** Pagas en efectivo **contra entrega** al recibir el paquete en la puerta de tu casa.\n\n✅ Tenemos **${currentProduct.stock} unidades en stock** a precio de oferta **L.${Number(currentProduct.salePrice).toLocaleString("es-HN")}**. ¿A qué ciudad y colonia sería tu entrega?`,
+        product: currentProduct,
+        images: currentProduct.images?.slice(0, 1) || []
+      };
+    }
+
+    // 8. PARAMETRIC RULES (Stock & Availability Query)
     const isStockQuery = tokens.some(t => ["stock", "disponible", "disponibilidad", "quedan", "hay", "existencia", "inventario", "tienen"].includes(t)) ||
       this.matchesSynonym(tokens, synonyms, "stock");
 
@@ -380,8 +412,6 @@ export class BotEngine {
     }
 
     // 9. Specific attributes using dynamic synonyms (Price, Dimensions, Weight, Photos)
-    const currentProduct = this.selectedProduct || products[0] || null;
-
     if (this.matchesSynonym(tokens, synonyms, "precio") || tokens.some(t => ["precio", "cuesta", "costo", "vale"].includes(t))) {
       if (currentProduct) {
         return {
