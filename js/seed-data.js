@@ -146,7 +146,8 @@ export const TENANTS = [
         weightLimit: "Acero inoxidable 304 anti-sarro con filtro",
         keywords: ["regadera", "regaderas", "ducha", "drenaje", "drenajes", "crenajes", "bano"],
         images: [
-          "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=900&q=85"
+          "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=900&q=85",
+          "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=900&q=85"
         ]
       }
     ],

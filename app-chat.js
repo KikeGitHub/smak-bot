@@ -176,7 +176,7 @@ async function send(text, opts = {}) {
 /**
  * Procesa un archivo o grabación de audio: reproduce, transcribe y responde
  */
-async function processAudio(fileOrBlob, fileName = "audio.mp4") {
+async function processAudio(fileOrBlob, fileName = "audio.mp4", options = {}) {
   const audioUrl = URL.createObjectURL(fileOrBlob);
   const statusId = "trans-status-" + Date.now();
 
@@ -188,8 +188,8 @@ async function processAudio(fileOrBlob, fileName = "audio.mp4") {
   });
 
   try {
-    // 2. Llamada al transcriptor online en Codespaces
-    const result = await TranscriptionService.transcribeAudio(fileOrBlob, fileName);
+    // 2. Llamada al transcriptor online en Codespaces con vad_filter: false
+    const result = await TranscriptionService.transcribeAudio(fileOrBlob, fileName, { vad_filter: false, ...options });
     const fullText = (result.full_text || "").trim();
 
     // 3. Quitar el indicador de carga y mostrar tarjeta de transcripción
@@ -387,7 +387,7 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
         const resp = await fetch("audio-samples/regaderas.ogg");
         if (!resp.ok) throw new Error("No se pudo cargar el archivo regaderas.ogg");
         const blob = await resp.blob();
-        await processAudio(blob, "regaderas.ogg");
+        await processAudio(blob, "regaderas.ogg", { vad_filter: false });
       } catch (err) {
         console.error("Error cargando regaderas.ogg:", err);
         bubble("⚠️ No se pudo reproducir el archivo de muestra: " + err.message, false);

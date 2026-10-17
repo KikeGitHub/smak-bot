@@ -11,9 +11,12 @@ export class TranscriptionService {
    * Envía un archivo o Blob de audio al endpoint de transcripción
    * @param {Blob|File} fileOrBlob 
    * @param {string} [fileName="audio.mp3"]
+   * @param {Object} [options={}]
+   * @param {boolean} [options.vad_filter=false]
+   * @param {string} [options.language="es"]
    * @returns {Promise<{full_text: string, duration_seconds: number, segments: Array}>}
    */
-  static async transcribeAudio(fileOrBlob, fileName = "audio.mp3") {
+  static async transcribeAudio(fileOrBlob, fileName = "audio.mp3", options = {}) {
     const formData = new FormData();
     const finalFileName = fileOrBlob.name || fileName;
     
@@ -21,7 +24,8 @@ export class TranscriptionService {
     formData.append("file", fileOrBlob, finalFileName);
     formData.append("file_path", "string");
     formData.append("task_id", (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("task-" + Date.now()));
-    formData.append("language", "es");
+    formData.append("language", options.language || "es");
+    formData.append("vad_filter", options.vad_filter !== undefined ? String(options.vad_filter) : "false");
 
     const response = await fetch(this.API_URL, {
       method: "POST",

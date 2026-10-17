@@ -334,8 +334,13 @@ export class BotEngine {
     // 7. SPECIFIC PRODUCT INTENTS (Photos, Shipping/Delivery, Price, Dimensions)
     const isPhotoQuery = this.matchesSynonym(tokens, synonyms, "fotos") || tokens.some(t => ["foto", "fotos", "imagen", "imagenes", "verlo"].includes(t));
     if (isPhotoQuery && currentProduct) {
+      let drainageNote = "";
+      if (cleanText.includes("drenaje") || cleanText.includes("crenaje") || cleanText.includes("para que") || currentProduct.sku === "REG-10") {
+        drainageNote = "\n\n🚿 **¿Para qué sirve el drenaje lineal (16 × 2.5 cm)?**\nEs una rejilla de piso en acero inoxidable 304 que permite un desagüe rápido y continuo en la ducha, evita encharcamientos, atrapa residuos y cuenta con sello anti-olores.";
+      }
+
       return {
-        text: `¡Claro! Aquí tienes fotografías reales de **${currentProduct.name}** (${currentProduct.sku}):\n\n🏷️ **Precio:** L.${Number(currentProduct.salePrice).toLocaleString("es-HN")}\n📦 **Medidas / Detalle:** ${currentProduct.dimensions || "Estándar"}\n✅ **Disponibilidad:** ${currentProduct.stock > 0 ? `${currentProduct.stock} unidades en stock` : "Agotado"}. ¿Deseas hacer tu pedido?`,
+        text: `¡Claro! Aquí tienes fotografías reales de **${currentProduct.name}** (${currentProduct.sku}):\n\n🏷️ **Precio:** L.${Number(currentProduct.salePrice).toLocaleString("es-HN")}\n📦 **Medidas / Detalle:** ${currentProduct.dimensions || "Estándar"}${drainageNote}\n\n✅ **Disponibilidad:** ${currentProduct.stock > 0 ? `${currentProduct.stock} unidades en stock` : "Agotado"}. ¿Deseas hacer tu pedido?`,
         product: currentProduct,
         images: currentProduct.images || []
       };
