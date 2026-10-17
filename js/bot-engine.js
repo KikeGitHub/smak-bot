@@ -9,16 +9,21 @@ const clean = s => String(s || "")
 
 const tokenize = s => clean(s).split(/\s+/).filter(Boolean);
 
-// Flexible phrase matcher with prefix/plural tolerance
+const STOP_WORDS = new Set(['de', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'es', 'son', 'lo', 'en', 'por', 'que', 'se', 'me', 'te', 'le', 'y', 'o', 'al', 'del', 'a']);
+
+// Flexible phrase matcher with stop-word filtering & substantive keyword matching
 function matchPhrase(cleanInput, inTokens, phrase) {
   const cPhrase = clean(phrase);
   if (!cPhrase) return false;
-  if (cleanInput.includes(cPhrase) || cPhrase.includes(cleanInput)) return true;
+  if (cleanInput.includes(cPhrase)) return true;
 
   const phraseTokens = tokenize(cPhrase);
   if (!phraseTokens.length) return false;
 
-  const matchedCount = phraseTokens.filter(pt => {
+  const substantivePhraseTokens = phraseTokens.filter(t => !STOP_WORDS.has(t) && t.length > 2);
+  const targetTokens = substantivePhraseTokens.length > 0 ? substantivePhraseTokens : phraseTokens;
+
+  const matchedCount = targetTokens.filter(pt => {
     return inTokens.some(it => {
       if (it === pt) return true;
       // Allow minor variations like rebaja / rebajas, envio / envios
@@ -30,7 +35,7 @@ function matchPhrase(cleanInput, inTokens, phrase) {
     });
   }).length;
 
-  return (matchedCount / phraseTokens.length) >= 0.65;
+  return (matchedCount / targetTokens.length) >= 0.75;
 }
 
 export class BotEngine {
