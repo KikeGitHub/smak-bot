@@ -339,9 +339,9 @@ export class BotEngine {
         const cleaned = clean(rawText);
         const wantsInvoice = cleaned.includes("si") || cleaned.includes("factura") || cleaned.includes("rtn") || cleaned.includes("requiero") || cleaned.includes("ocupo");
         if (wantsInvoice) {
-          c.step = "invoice_details";
+          c.step = "invoice_rtn";
           return {
-            text: `Por favor compártenos tu número de **RTN** (14 dígitos) y el **Nombre o Razón Social** de la empresa para la factura:`
+            text: `Por favor compártenos tu número de **RTN** (14 dígitos):`
           };
         } else {
           c.requiresInvoice = false;
@@ -351,11 +351,17 @@ export class BotEngine {
           return this._buildOrderConfirmationResponse(c);
         }
       }
-      if (c.step === "invoice_details") {
+      if (c.step === "invoice_rtn") {
         c.requiresInvoice = true;
         const rtnMatch = rawText.match(/\d{14}/) || rawText.match(/\d{8,14}/);
-        c.rtn = rtnMatch ? rtnMatch[0] : rawText.trim().slice(0, 16);
-        c.businessName = rawText.replace(c.rtn, "").replace(/[-–,:]/g, " ").trim() || c.name;
+        c.rtn = rtnMatch ? rtnMatch[0] : rawText.trim();
+        c.step = "invoice_business_name";
+        return {
+          text: `RTN registrado: **${c.rtn}**.\n\n¿Cuál es el **Nombre o Razón Social** de la empresa para la factura?`
+        };
+      }
+      if (c.step === "invoice_business_name") {
+        c.businessName = rawText.trim() || c.name;
         c.step = "confirm";
         return this._buildOrderConfirmationResponse(c);
       }
