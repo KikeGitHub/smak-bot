@@ -55,19 +55,54 @@ export class BotEngine {
     this.selectedProduct = null;
   }
 
-  startCheckout(product = null) {
+  startCheckout(product = null, initialQty = 1) {
     const tenant = StorageFacade.getTenant();
     const targetProduct = product || this.selectedProduct || tenant.products?.[0] || { name: "Producto", salePrice: 0, sku: "" };
+    const orderNumber = StorageFacade.generateOrderNumber();
+    const qty = Number(initialQty) > 0 ? Number(initialQty) : 1;
     this.checkout = {
       step: "name",
       product: targetProduct,
+      orderNumber,
+      quantity: qty,
+      quantityLabel: "",
+      total: Number(targetProduct.salePrice) * qty,
       name: "",
       address: "",
       phone: "",
-      location: null
+      location: null,
+      requiresInvoice: false,
+      rtn: null,
+      businessName: null
     };
     return {
-      text: `¡Excelente elección! Preparo tu orden para **${targetProduct.name}** (L.${Number(targetProduct.salePrice).toLocaleString("es-HN")}). ¿A qué nombre registramos el pedido?`
+      text: `¡Excelente elección! Preparo tu orden (*N° ${orderNumber}*) para **${targetProduct.name}** (L.${Number(targetProduct.salePrice).toLocaleString("es-HN")}). ¿A qué nombre registramos tu pedido?`
+    };
+  }
+
+  _buildOrderConfirmationResponse(c) {
+    const prod = c.product;
+    const invoiceTxt = c.requiresInvoice 
+      ? `Sí (RTN: ${c.rtn} · ${c.businessName})` 
+      : "No (Consumidor Final)";
+
+    return {
+      text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}** (SKU: ${prod.sku})\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Cliente: ${c.name}\n• Entrega: ${c.address}${c.location ? `\n• 📍 Mapa GPS: [Ver en Google Maps](${c.location.mapUrl})` : ""}\n• Contacto: ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra con pago contra entrega.`,
+      order: {
+        orderNumber: c.orderNumber,
+        name: c.name,
+        address: c.address,
+        phone: c.phone,
+        productName: `${prod.name} (${prod.sku})`,
+        sku: prod.sku,
+        quantity: c.quantity,
+        quantityLabel: c.quantityLabel || `${c.quantity} unid.`,
+        requiresInvoice: c.requiresInvoice,
+        rtn: c.rtn,
+        businessName: c.businessName,
+        total: Number(c.total),
+        location: c.location || null
+      }
     };
   }
 
@@ -75,17 +110,25 @@ export class BotEngine {
     const c = this.checkout;
     if (!c || c.step !== "confirm") return null;
     const saved = StorageFacade.saveOrder({
+      orderNumber: c.orderNumber,
       name: c.name,
       address: c.address,
       phone: c.phone,
       productName: c.product.name,
       sku: c.product.sku,
-      total: Number(c.product.salePrice),
-      location: c.location || null
+      quantity: c.quantity,
+      quantityLabel: c.quantityLabel || `${c.quantity} unid.`,
+      requiresInvoice: c.requiresInvoice,
+      rtn: c.rtn,
+      businessName: c.businessName,
+      total: Number(c.total),
+      location: c.location || null,
+      source: "whatsapp_bot"
     });
     this.checkout = null;
     return saved;
   }
+
 
   _formatResponse(res, isVoice = false) {
     if (!res) return res;
@@ -245,10 +288,21 @@ export class BotEngine {
     if (this.checkout) {
       const c = this.checkout;
       if (c.step === "name") {
-        c.name = rawText;
-        c.step = "address";
+        c.name = rawText.trim();
+        c.step = "quantity";
         return { 
-          text: `Gracias, ${c.name}. ¿Cuál es la dirección completa de entrega (ciudad y colonia)?\n\n💡 *Tip: Puedes presionar el botón 📍 abajo o enviar tu ubicación GPS de WhatsApp.*` 
+          text: `Gracias, ${c.name}. ¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):` 
+        };
+      }
+      if (c.step === "quantity") {
+        const match = rawText.match(/\d+/);
+        const q = match ? Math.max(1, parseInt(match[0], 10)) : 1;
+        c.quantity = q;
+        c.quantityLabel = rawText.trim() || `${q} ${q === 1 ? 'unidad' : 'unidades'}`;
+        c.total = Number(c.product.salePrice) * q;
+        c.step = "address";
+        return {
+          text: `Anotado: **${c.quantityLabel}** (Total: L.${Number(c.total).toLocaleString("es-HN")}). ¿Cuál es la dirección completa de entrega (ciudad y colonia)?\n\n💡 *Tip: Puedes presionar el botón 📍 abajo o enviar tu ubicación GPS de WhatsApp.*`
         };
       }
       if (c.step === "address") {
@@ -265,33 +319,74 @@ export class BotEngine {
           };
           c.step = "phone";
           return {
-            text: `¡Ubicación de entrega recibida con éxito! 📍\n\n📌 **Dirección registrada:** ${locName}\n🗺️ [Ver en Google Maps](${c.location.mapUrl})\n\n¿Tienes alguna referencia adicional (color de casa o portón), o a qué número de WhatsApp o teléfono te contactamos para coordinar la entrega?`,
+            text: `¡Ubicación de entrega recibida con éxito! 📍\n\n📌 **Dirección registrada:** ${locName}\n🗺️ [Ver en Google Maps](${c.location.mapUrl})\n\n¿A qué número de teléfono o WhatsApp te contactamos para coordinar la entrega?`,
             location: c.location
           };
         } else {
-          c.address = rawText;
+          c.address = rawText.trim();
           c.step = "phone";
-          return { text: "Anotado. ¿A qué número de teléfono o WhatsApp te contactamos para la entrega?" };
+          return { text: `Dirección registrada: ${c.address}.\n\n¿A qué número de teléfono o WhatsApp te contactamos para la entrega?` };
         }
       }
       if (c.step === "phone") {
-        c.phone = rawText;
-        c.step = "confirm";
-        const prod = c.product;
+        c.phone = rawText.trim();
+        c.step = "requires_invoice";
         return {
-          text: `📋 **Resumen de tu pedido**:\n• Producto: **${prod.name}** (SKU: ${prod.sku})\n• Total a pagar: **L.${Number(prod.salePrice).toLocaleString("es-HN")}**\n• Cliente: ${c.name}\n• Entrega: ${c.address}${c.location ? `\n• 📍 Mapa GPS: [Ver en Google Maps](${c.location.mapUrl})` : ""}\n• Contacto: ${c.phone}\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
-          order: {
-            name: c.name,
-            address: c.address,
-            phone: c.phone,
-            productName: `${prod.name} (${prod.sku})`,
-            sku: prod.sku,
-            total: Number(prod.salePrice),
-            location: c.location || null
-          }
+          text: `¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):`
+        };
+      }
+      if (c.step === "requires_invoice") {
+        const cleaned = clean(rawText);
+        const wantsInvoice = cleaned.includes("si") || cleaned.includes("factura") || cleaned.includes("rtn") || cleaned.includes("requiero") || cleaned.includes("ocupo");
+        if (wantsInvoice) {
+          c.step = "invoice_details";
+          return {
+            text: `Por favor compártenos tu número de **RTN** (14 dígitos) y el **Nombre o Razón Social** de la empresa para la factura:`
+          };
+        } else {
+          c.requiresInvoice = false;
+          c.rtn = null;
+          c.businessName = null;
+          c.step = "confirm";
+          return this._buildOrderConfirmationResponse(c);
+        }
+      }
+      if (c.step === "invoice_details") {
+        c.requiresInvoice = true;
+        const rtnMatch = rawText.match(/\d{14}/) || rawText.match(/\d{8,14}/);
+        c.rtn = rtnMatch ? rtnMatch[0] : rawText.trim().slice(0, 16);
+        c.businessName = rawText.replace(c.rtn, "").replace(/[-–,:]/g, " ").trim() || c.name;
+        c.step = "confirm";
+        return this._buildOrderConfirmationResponse(c);
+      }
+    }
+
+    // 3b. Tracking and order inquiry
+    const trackingRegex = /(?:smak-ord-\d+|calz-ord-\d+|caex-[a-z0-9-]+)/i;
+    const matchedCode = rawText.match(trackingRegex);
+    if (matchedCode || ((tokens.some(t => ["rastreo", "guia", "tracking", "paquete"].includes(t)) || cleanText.includes("mi pedido")) && (cleanText.includes("donde") || cleanText.includes("estado") || cleanText.includes("numero")))) {
+      const codeToSearch = matchedCode ? matchedCode[0] : null;
+      let order = codeToSearch ? StorageFacade.getOrderByNumber(codeToSearch) : null;
+      if (!order) {
+        const recentOrders = StorageFacade.getOrders();
+        order = recentOrders[0];
+      }
+      if (order) {
+        const statusMap = {
+          pendiente: "🕒 Pendiente de despacho en bodega",
+          en_camino: "🚚 En camino a tu domicilio",
+          entregado: "✅ Entregado con éxito"
+        };
+        const statusText = statusMap[order.status] || "🚚 En proceso de entrega";
+        const trackingText = order.trackingNumber 
+          ? `• Guía de rastreo: **${order.trackingNumber}** (${order.trackingCarrier || "Cargo Expreso"})\n• Transportadora: Cargo Expreso a domicilio`
+          : "• Guía de rastreo: *En preparación para despacho en el siguiente lote.*";
+        return {
+          text: `📦 **Información de tu Pedido (${order.orderNumber})**:\n\n• Estado: **${statusText}**\n• Cliente: ${order.name}\n• Detalle: ${order.quantityLabel || (order.quantity + " unid.")} · ${order.productName}\n• Dirección: ${order.address}\n• Total contra entrega: **L.${Number(order.total).toLocaleString("es-HN")}**\n${trackingText}\n\nSi requieres apoyo de un asesor, escribe *asesor* en cualquier momento.`
         };
       }
     }
+
 
     // 3b. Location query outside of checkout
     const detectedLoc = location || LocationService.parseLocationFromText(rawText);

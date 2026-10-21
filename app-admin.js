@@ -667,30 +667,221 @@ function renderOrders() {
   $("#order-count").textContent = orders.length;
 
   if (!orders.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-slate-400">Todavía no hay pedidos registrados. Confirma una compra desde el simulador o carga pedidos demo.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-8 text-center text-slate-400">Todavía no hay pedidos registrados. Confirma una compra desde el simulador o carga pedidos demo.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = orders.map(o => {
     const mapUrl = o.location?.mapUrl || (o.address && o.address.startsWith("http") ? o.address : null);
+    const piezasTxt = o.quantityLabel || `${o.quantity || 1} unid.`;
+    const orderNum = o.orderNumber || "ORD-SMAK";
+
+    let statusBadge = "";
+    if (o.status === "en_camino" || o.trackingNumber) {
+      statusBadge = `<span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">🚚 En camino</span>`;
+    } else if (o.status === "entregado") {
+      statusBadge = `<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">✓ Entregado</span>`;
+    } else {
+      statusBadge = `<span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">🕒 Pendiente</span>`;
+    }
+
+    let invoiceBadge = "";
+    if (o.requiresInvoice) {
+      invoiceBadge = `
+        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200" title="RTN: ${escapeHtml(o.rtn || '')} · ${escapeHtml(o.businessName || '')}">
+          🧾 Sí
+        </span>
+        ${o.rtn ? `<div class="font-mono text-[9px] text-slate-400 mt-0.5 truncate max-w-[120px]" title="RTN: ${escapeHtml(o.rtn)}">RTN: ${escapeHtml(o.rtn)}</div>` : ""}
+      `;
+    } else {
+      invoiceBadge = `<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">No</span>`;
+    }
+
     return `
     <tr class="hover:bg-slate-50 transition">
-      <td class="px-5 py-3 font-semibold text-slate-800">${escapeHtml(o.name)}</td>
-      <td class="px-5 py-3 text-slate-600">
-        <span class="font-bold text-slate-800">${escapeHtml(o.productName)}</span>
-        ${o.sku ? `<span class="ml-1 font-mono text-[11px] rounded bg-slate-100 px-1.5 py-0.5">${escapeHtml(o.sku)}</span>` : ""}
+      <td class="px-4 py-3">
+        <div class="font-mono font-bold text-indigo-700 text-xs">${escapeHtml(orderNum)}</div>
+        <div class="mt-1">${statusBadge}</div>
+        <div class="text-[10px] text-slate-400 mt-1">${new Date(o.createdAt).toLocaleString("es-HN", { dateStyle: "short", timeStyle: "short" })}</div>
       </td>
-      <td class="px-5 py-3 text-slate-600">
-        <div class="font-medium text-slate-800">${escapeHtml(o.address || "—")}</div>
-        ${mapUrl ? `<a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-200 transition">📍 Abrir en Google Maps</a>` : ""}
+      <td class="px-4 py-3">
+        <div class="font-bold text-slate-900">${escapeHtml(o.name)}</div>
+        <div class="font-mono text-xs text-slate-500 mt-0.5">${escapeHtml(o.phone)}</div>
       </td>
-      <td class="px-5 py-3 text-slate-600 font-mono text-xs">${escapeHtml(o.phone)}</td>
-      <td class="px-5 py-3 font-bold text-emerald-700">L.${money(o.total)}</td>
-      <td class="px-5 py-3 text-slate-400 text-[11px]">${new Date(o.createdAt).toLocaleString("es-HN", { dateStyle: "short", timeStyle: "short" })}</td>
+      <td class="px-4 py-3 text-slate-600">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded text-[11px] border border-amber-200/80">${escapeHtml(piezasTxt)}</span>
+          ${o.sku ? `<span class="font-mono text-[10px] rounded bg-slate-100 px-1.5 py-0.5 text-slate-600 font-semibold">${escapeHtml(o.sku)}</span>` : ""}
+        </div>
+        <div class="font-medium text-slate-800 mt-1 text-xs">${escapeHtml(o.productName)}</div>
+      </td>
+      <td class="px-4 py-3">
+        ${invoiceBadge}
+      </td>
+      <td class="px-4 py-3 text-slate-600 max-w-[180px]">
+        <div class="font-medium text-slate-800 line-clamp-2 text-xs">${escapeHtml(o.address || "—")}</div>
+        ${mapUrl ? `<a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-200 transition">📍 Google Maps</a>` : ""}
+      </td>
+      <td class="px-4 py-3 font-bold text-emerald-700 whitespace-nowrap">L.${money(o.total)}</td>
+      <td class="px-4 py-3 text-center">
+        ${o.trackingNumber ? `
+          <div class="flex flex-col items-center gap-1">
+            <span class="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-2 py-0.5">🚚 ${escapeHtml(o.trackingNumber)}</span>
+            <div class="flex items-center gap-1 mt-0.5">
+              <button type="button" class="btn-notify-wa px-2 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[10px] hover:bg-emerald-700 transition shadow-sm" data-id="${o.id}" title="Reenviar mensaje de WhatsApp al cliente">📲 WhatsApp</button>
+              <button type="button" class="btn-edit-trk px-1.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-[10px]" data-id="${o.id}" title="Editar guía">✏️</button>
+              <button type="button" class="btn-view-audit px-1.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-[10px]" data-id="${o.id}" title="Ver auditoría">🔍</button>
+            </div>
+          </div>
+        ` : `
+          <div class="flex items-center justify-center gap-1.5">
+            <button type="button" class="btn-assign-trk flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-indigo-700 transition shadow-sm" data-id="${o.id}">
+              <span>🚚 Asignar Guía</span>
+            </button>
+            <button type="button" class="btn-view-audit px-1.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-[10px]" data-id="${o.id}" title="Ver auditoría">🔍</button>
+          </div>
+        `}
+      </td>
     </tr>
   `;
   }).join("");
 }
+
+// ---- TRACKING & AUDIT EVENT HANDLERS ----
+let currentTrackingOrder = null;
+
+function updateTrackingPreview(order) {
+  if (!order) return;
+  const trk = $("#tracking-number-input").value.trim().toUpperCase() || "CAEX-HN-XXXXXX";
+  const carrier = $("#tracking-carrier-select").value || "Cargo Expreso";
+  const piezasTxt = order.quantityLabel || `${order.quantity || 1} unidades`;
+  const invoiceLine = order.requiresInvoice ? `🧾 Tu factura con RTN (${order.rtn}) va adjunta en el paquete.\n` : "";
+  const msg = `¡Hola ${order.name}! 👋 Te confirmamos que tu pedido *${order.orderNumber}* (${piezasTxt} · ${order.productName}) ya va en camino a tu dirección (${order.address}). 🚚📦\n\nTu número de guía de rastreo es: *${trk}* (${carrier}).\nMonto total a pagar en efectivo contra entrega: *L.${Number(order.total).toLocaleString("es-HN")}*.\n${invoiceLine}Recuerda tener listo el pago al momento de recibir. Si tienes cualquier consulta, estamos a tu orden. ¡Gracias por confiar en SMAK Honduras! ✨`;
+  $("#tracking-preview-message").value = msg;
+}
+
+$("#orders").addEventListener("click", e => {
+  const assignBtn = e.target.closest(".btn-assign-trk");
+  const editBtn = e.target.closest(".btn-edit-trk");
+  const notifyBtn = e.target.closest(".btn-notify-wa");
+  const auditBtn = e.target.closest(".btn-view-audit");
+
+  if (assignBtn || editBtn) {
+    const orderId = (assignBtn || editBtn).dataset.id;
+    const order = StorageFacade.getOrder(orderId);
+    if (!order) return;
+    currentTrackingOrder = order;
+
+    $("#tracking-order-id").value = order.id;
+    $("#trk-order-number").textContent = order.orderNumber;
+    $("#trk-order-total").textContent = `L.${money(order.total)}`;
+    $("#trk-customer-name").textContent = order.name;
+    $("#trk-customer-phone").textContent = order.phone;
+    $("#trk-customer-product").textContent = `${order.quantityLabel || (order.quantity + " unid.")} · ${order.productName}`;
+    $("#trk-customer-address").textContent = order.address;
+    $("#tracking-number-input").value = order.trackingNumber || "";
+    $("#tracking-carrier-select").value = order.trackingCarrier || "Cargo Expreso";
+
+    updateTrackingPreview(order);
+    openModal("#modal-tracking");
+    setTimeout(() => $("#tracking-number-input").focus(), 150);
+  } else if (notifyBtn) {
+    const orderId = notifyBtn.dataset.id;
+    const order = StorageFacade.getOrder(orderId);
+    if (!order || !order.trackingNumber) return;
+    const result = StorageFacade.updateOrderTracking(order.id, order.trackingNumber, order.trackingCarrier);
+    if (result && result.whatsappUrl) {
+      window.open(result.whatsappUrl, "_blank");
+      notify(`📲 Notificación WhatsApp enviada para ${order.orderNumber}`);
+    }
+  } else if (auditBtn) {
+    const orderId = auditBtn.dataset.id;
+    const order = StorageFacade.getOrder(orderId);
+    if (!order) return;
+
+    const audit = order.audit || {};
+    const history = Array.isArray(audit.history) ? audit.history : [];
+    const sourceLabel = order.source === "landing_page_widget" ? "Showroom Web App (SWAP)" : "Simulador WhatsApp";
+
+    const auditHtml = `
+      <div class="grid sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase font-bold">N° Pedido</span>
+          <span class="font-mono font-bold text-indigo-700 text-sm">${escapeHtml(order.orderNumber)}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase font-bold">Canal / Origen</span>
+          <span class="font-bold text-slate-800">${escapeHtml(sourceLabel)}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase font-bold">Cliente & Teléfono</span>
+          <span class="font-medium text-slate-800">${escapeHtml(order.name)} (${escapeHtml(order.phone)})</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase font-bold">Piezas / Producto</span>
+          <span class="font-medium text-slate-800">${escapeHtml(order.quantityLabel || (order.quantity + " unid."))} · ${escapeHtml(order.productName)}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase font-bold">IP de Auditoría</span>
+          <span class="font-mono text-slate-700">${escapeHtml(audit.ip || "190.92.112.45")}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase font-bold">Facturación</span>
+          <span class="font-semibold ${order.requiresInvoice ? 'text-emerald-700' : 'text-slate-600'}">
+            ${order.requiresInvoice ? `Sí (RTN: ${escapeHtml(order.rtn || '—')} · ${escapeHtml(order.businessName || '—')})` : 'No (Consumidor Final)'}
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="font-bold text-slate-800 mb-2">Historial de Eventos & Trazabilidad:</h4>
+        <div class="space-y-2 border-l-2 border-indigo-200 pl-3 ml-2">
+          ${history.length ? history.map(h => `
+            <div class="relative">
+              <div class="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-600"></div>
+              <div class="text-[11px] font-bold text-slate-800">${escapeHtml(h.action || 'evento')} · <span class="font-normal text-slate-400">${new Date(h.timestamp).toLocaleString("es-HN")}</span></div>
+              <div class="text-[11px] text-slate-600">${escapeHtml(h.note || 'Actualización de registro.')}</div>
+            </div>
+          `).join("") : `
+            <div class="text-slate-400">Sin eventos adicionales registrados.</div>
+          `}
+        </div>
+      </div>
+    `;
+
+    $("#audit-modal-body").innerHTML = auditHtml;
+    openModal("#modal-audit");
+  }
+});
+
+$("#tracking-number-input")?.addEventListener("input", () => {
+  updateTrackingPreview(currentTrackingOrder);
+});
+
+$("#tracking-carrier-select")?.addEventListener("change", () => {
+  updateTrackingPreview(currentTrackingOrder);
+});
+
+$("#form-tracking")?.addEventListener("submit", e => {
+  e.preventDefault();
+  const orderId = $("#tracking-order-id").value;
+  const trackingNumber = $("#tracking-number-input").value.trim();
+  const carrier = $("#tracking-carrier-select").value;
+
+  if (!orderId || !trackingNumber) return;
+
+  const result = StorageFacade.updateOrderTracking(orderId, trackingNumber, carrier);
+  closeModal("#modal-tracking");
+
+  if (result && result.whatsappUrl) {
+    window.open(result.whatsappUrl, "_blank");
+    notify(`✅ Guía ${trackingNumber} asignada y WhatsApp abierto con mensaje.`);
+  } else {
+    notify(`✅ Guía ${trackingNumber} asignada correctamente.`);
+  }
+
+  renderOrders();
+});
 
 $("#seed-orders").addEventListener("click", () => {
   const added = StorageFacade.seedDemoOrders();
@@ -722,9 +913,10 @@ function closeModal(selector) {
 
 $$(".btn-close-modal").forEach(btn => {
   btn.addEventListener("click", () => {
-    $$("#modal-product, #modal-rule, #modal-synonym, #modal-campaign").forEach(m => m.classList.add("hidden"));
+    $$("#modal-product, #modal-rule, #modal-synonym, #modal-campaign, #modal-tracking, #modal-audit").forEach(m => m.classList.add("hidden"));
   });
 });
+
 
 // Toast Notification
 function notify(message) {

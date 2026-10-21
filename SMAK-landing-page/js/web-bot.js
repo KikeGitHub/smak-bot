@@ -52,22 +52,65 @@
       this.selectedProduct = null;
     }
 
-    startCheckout(product = null) {
+    startCheckout(product = null, initialQty = 1) {
       const allProducts = window.SMAK_PRODUCTS || [];
       const prod = product || this.selectedProduct || allProducts[0] || { name: "Mueble SMAK", category: "Muebles y Organización" };
-      const price = prod.price || DEFAULT_PRICES[prod.category] || 1500;
+      const unitPrice = prod.price || DEFAULT_PRICES[prod.category] || 1500;
+      const qty = Number(initialQty) > 0 ? Number(initialQty) : 1;
+
+      // Generate order number connecting to existing state or sequential
+      let orderNumber = "SMAK-ORD-1001";
+      try {
+        const saved = localStorage.getItem("smakbot-demo-v3");
+        if (saved) {
+          const state = JSON.parse(saved);
+          const count = Array.isArray(state.orders) ? state.orders.length : 0;
+          orderNumber = `SMAK-ORD-${String(1001 + count).padStart(4, "0")}`;
+        }
+      } catch (e) {}
 
       this.checkout = {
         step: "name",
         product: prod,
-        price,
+        orderNumber,
+        unitPrice,
+        quantity: qty,
+        quantityLabel: "",
+        total: unitPrice * qty,
         name: "",
         address: "",
-        phone: ""
+        phone: "",
+        requiresInvoice: false,
+        rtn: null,
+        businessName: null
       };
 
       return {
-        text: `¡Excelente elección! Preparo tu orden para **${prod.name}** (*L.${price.toLocaleString("es-HN")}*).\n\n¿A qué nombre registramos tu pedido?`
+        text: `¡Excelente elección! Preparo tu orden (*N° ${orderNumber}*) para **${prod.name}** (*L.${unitPrice.toLocaleString("es-HN")}*).\n\n¿A qué nombre registramos tu pedido?`
+      };
+    }
+
+    _buildOrderConfirmation(c) {
+      const prod = c.product;
+      const invoiceTxt = c.requiresInvoice 
+        ? `Sí (RTN: ${c.rtn} · ${c.businessName})` 
+        : "No (Consumidor Final)";
+
+      return {
+        text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}**\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Cliente: ${c.name}\n• Entrega: ${c.address}\n• Contacto: ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
+        order: {
+          orderNumber: c.orderNumber,
+          name: c.name,
+          address: c.address,
+          phone: c.phone,
+          productName: prod.name,
+          quantity: c.quantity,
+          quantityLabel: c.quantityLabel || `${c.quantity} unid.`,
+          requiresInvoice: c.requiresInvoice,
+          rtn: c.rtn,
+          businessName: c.businessName,
+          price: c.total
+        }
       };
     }
 
@@ -75,17 +118,41 @@
       const c = this.checkout;
       if (!c || c.step !== "confirm") return null;
 
+      const nowIso = new Date().toISOString();
       const orderData = {
         id: "web-" + Date.now(),
         tenantId: "smak",
+        orderNumber: c.orderNumber,
         name: c.name,
         address: c.address,
         phone: c.phone,
         productName: c.product.name,
         sku: c.product.id ? c.product.id.slice(0, 8).toUpperCase() : "SMAK-WEB",
-        total: c.price,
+        quantity: c.quantity,
+        quantityLabel: c.quantityLabel || `${c.quantity} unid.`,
+        requiresInvoice: c.requiresInvoice,
+        rtn: c.rtn,
+        businessName: c.businessName,
+        total: c.total,
+        status: "pendiente",
+        trackingNumber: null,
+        trackingCarrier: "Cargo Expreso",
         source: "landing_page_widget",
-        createdAt: new Date().toISOString()
+        createdAt: nowIso,
+        audit: {
+          ip: "190.92.112.45 (Tegucigalpa, HN)",
+          userAgent: navigator.userAgent || "Web Client",
+          source: "landing_page_widget",
+          createdAt: nowIso,
+          history: [
+            {
+              action: "creacion_pedido",
+              status: "pendiente",
+              timestamp: nowIso,
+              note: `Pedido ${c.orderNumber} creado desde Showroom Web (${c.quantityLabel || c.quantity + ' unid.'}). Facturación: ${c.requiresInvoice ? 'Sí (con RTN)' : 'No'}.`
+            }
+          ]
+        }
       };
 
       // Sincronizar en localStorage bajo smakbot-demo-v3 para que aparezca en el panel admin.html
@@ -107,6 +174,7 @@
       this.checkout = null;
       return orderData;
     }
+
 
     findProduct(query) {
       const allProducts = window.SMAK_PRODUCTS || [];
@@ -144,35 +212,94 @@
       if (this.checkout) {
         const c = this.checkout;
         if (c.step === "name") {
-          c.name = rawText;
+          c.name = rawText.trim();
+          c.step = "quantity";
+          return {
+            text: `Mucho gusto, ${c.name}. ¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+          };
+        }
+        if (c.step === "quantity") {
+          const match = rawText.match(/\d+/);
+          const q = match ? Math.max(1, parseInt(match[0], 10)) : 1;
+          c.quantity = q;
+          c.quantityLabel = rawText.trim() || `${q} ${q === 1 ? 'unidad' : 'unidades'}`;
+          c.total = c.unitPrice * q;
           c.step = "address";
           return {
-            text: `Mucho gusto, ${c.name}. ¿Cuál es la dirección completa de entrega (ciudad, colonia y punto de referencia)?`
+            text: `Anotado: **${c.quantityLabel}** (Total: L.${c.total.toLocaleString("es-HN")}). ¿Cuál es la dirección completa de entrega en Honduras (ciudad y colonia)?`
           };
         }
         if (c.step === "address") {
-          c.address = rawText;
+          c.address = rawText.trim();
           c.step = "phone";
           return {
-            text: `Anotado en ${c.address}. ¿A qué número de teléfono o WhatsApp te contactamos para coordinar la entrega?`
+            text: `Dirección registrada: ${c.address}.\n\n¿A qué número de teléfono o WhatsApp te contactamos para coordinar la entrega?`
           };
         }
         if (c.step === "phone") {
-          c.phone = rawText;
-          c.step = "confirm";
-          const prod = c.product;
+          c.phone = rawText.trim();
+          c.step = "requires_invoice";
           return {
-            text: `📋 **Resumen de tu pedido**:\n• Producto: **${prod.name}**\n• Total a pagar: **L.${c.price.toLocaleString("es-HN")}**\n• Cliente: ${c.name}\n• Entrega: ${c.address}\n• Contacto: ${c.phone}\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
-            order: {
-              name: c.name,
-              address: c.address,
-              phone: c.phone,
-              productName: prod.name,
-              price: c.price
-            }
+            text: `¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):`
           };
         }
+        if (c.step === "requires_invoice") {
+          const cleaned = clean(rawText);
+          const wantsInvoice = cleaned.includes("si") || cleaned.includes("factura") || cleaned.includes("rtn") || cleaned.includes("requiero") || cleaned.includes("ocupo");
+          if (wantsInvoice) {
+            c.step = "invoice_details";
+            return {
+              text: `Por favor compártenos tu número de **RTN** (14 dígitos) y el **Nombre o Razón Social** de la empresa para la factura:`
+            };
+          } else {
+            c.requiresInvoice = false;
+            c.rtn = null;
+            c.businessName = null;
+            c.step = "confirm";
+            return this._buildOrderConfirmation(c);
+          }
+        }
+        if (c.step === "invoice_details") {
+          c.requiresInvoice = true;
+          const rtnMatch = rawText.match(/\d{14}/) || rawText.match(/\d{8,14}/);
+          c.rtn = rtnMatch ? rtnMatch[0] : rawText.trim().slice(0, 16);
+          c.businessName = rawText.replace(c.rtn, "").replace(/[-–,:]/g, " ").trim() || c.name;
+          c.step = "confirm";
+          return this._buildOrderConfirmation(c);
+        }
       }
+
+      // 1b. Consulta de Rastreo / Estado de Pedido
+      const trackingRegex = /(?:smak-ord-\d+|caex-[a-z0-9-]+)/i;
+      const matchedCode = rawText.match(trackingRegex);
+      if (matchedCode || ((tokens.some(t => ["rastreo", "guia", "tracking", "paquete"].includes(t)) || cleanText.includes("mi pedido")) && (cleanText.includes("donde") || cleanText.includes("estado") || cleanText.includes("numero")))) {
+        try {
+          const saved = localStorage.getItem("smakbot-demo-v3");
+          if (saved) {
+            const state = JSON.parse(saved);
+            const orders = Array.isArray(state.orders) ? state.orders : [];
+            const searchStr = matchedCode ? matchedCode[0].toUpperCase() : null;
+            const order = searchStr 
+              ? orders.find(o => (o.orderNumber && o.orderNumber.toUpperCase() === searchStr) || (o.trackingNumber && o.trackingNumber.toUpperCase() === searchStr))
+              : orders[0];
+            if (order) {
+              const statusMap = {
+                pendiente: "🕒 Pendiente de despacho en bodega",
+                en_camino: "🚚 En camino a tu domicilio",
+                entregado: "✅ Entregado con éxito"
+              };
+              const statusText = statusMap[order.status] || "🚚 En proceso de entrega";
+              const trackingText = order.trackingNumber 
+                ? `• Guía de rastreo: **${order.trackingNumber}** (${order.trackingCarrier || "Cargo Expreso"})\n• Despachado por: Cargo Expreso Honduras`
+                : "• Guía de rastreo: *Asignándose para despacho en el siguiente lote.*";
+              return {
+                text: `📦 **Información de tu Pedido (${order.orderNumber})**:\n\n• Estado: **${statusText}**\n• Cliente: ${order.name}\n• Detalle: ${order.quantityLabel || (order.quantity + " unid.")} · ${order.productName}\n• Dirección: ${order.address}\n• Total contra entrega: **L.${Number(order.total).toLocaleString("es-HN")}**\n${trackingText}\n\nSi requieres soporte adicional, un asesor puede atenderte.`
+              };
+            }
+          }
+        } catch (e) {}
+      }
+
 
       // 2. Intención de Compra / Iniciar Checkout
       if (tokens.some(t => ["comprar", "ordenar", "pedido", "pedir"].includes(t)) || cleanText.includes("hacer pedido")) {
@@ -394,12 +521,17 @@
         const oCard = document.createElement("div");
         oCard.className = "web-bot-order-card";
         oCard.innerHTML = `
-          <div class="web-bot-order-title">📦 Confirmación de Pedido</div>
+          <div class="web-bot-order-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>📦 Confirmación de Pedido</span>
+            <span style="background:#D97706;color:#FFF;padding:2px 6px;border-radius:4px;font-size:10px;font-family:monospace;">${o.orderNumber || 'SMAK-ORD'}</span>
+          </div>
           <div><b>Cliente:</b> ${o.name}</div>
           <div><b>Producto:</b> ${o.productName}</div>
+          <div><b>Piezas / Cantidad:</b> <span style="color:#D97706;font-weight:700;">${o.quantityLabel || (o.quantity + " unid.")}</span></div>
           <div><b>Entrega:</b> ${o.address}</div>
           <div><b>Teléfono:</b> ${o.phone}</div>
-          <div><b>Total a pagar:</b> L.${Number(o.price).toLocaleString('es-HN')}</div>
+          <div><b>Facturación:</b> <span style="background:${o.requiresInvoice ? '#FEF3C7' : '#F1F5F9'};color:${o.requiresInvoice ? '#92400E' : '#475569'};padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;">${o.requiresInvoice ? `Sí (RTN: ${o.rtn || 'Con RTN'})` : 'No (Consumidor Final)'}</span></div>
+          <div style="font-weight:700;color:#0F172A;font-size:13px;margin-top:6px;padding-top:4px;border-top:1px dashed #E2E8F0;">Total a pagar: L.${Number(o.price).toLocaleString('es-HN')}</div>
           <button type="button" class="web-bot-order-confirm-btn" data-action="confirm-order">✓ Confirmar pedido contra entrega</button>
         `;
         const confirmBtn = oCard.querySelector('[data-action="confirm-order"]');
@@ -408,7 +540,7 @@
           confirmBtn.disabled = true;
           confirmBtn.textContent = "✓ Pedido confirmado con éxito";
           setTimeout(() => {
-            addBubble(`¡Muchísimas gracias, ${saved ? saved.name : "estimado cliente"}! 🎉\n\nTu pedido ha quedado formalmente registrado en nuestro sistema. Un asesor de SMAK se comunicará vía WhatsApp o llamada telefónica para coordinar el despacho.`, false);
+            addBubble(`¡Muchísimas gracias, ${saved ? saved.name : "estimado cliente"}! 🎉\n\nTu pedido *${saved ? saved.orderNumber : ""}* (${saved ? saved.quantityLabel : "1 unid."}) ha quedado formalmente registrado en nuestro sistema backend. En breve te notificaremos la guía de rastreo cuando sea despachado.`, false);
           }, 300);
         });
         bubble.append(oCard);

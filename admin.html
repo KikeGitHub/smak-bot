@@ -311,7 +311,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 p-5 sm:p-7 border-b border-slate-100">
           <div>
             <h2 class="text-xl font-bold text-slate-900">Pedidos Confirmados desde el Chat</h2>
-            <p class="mt-1 text-xs text-slate-500">Ventas cerradas automáticamente a través del flujo conversacional.</p>
+            <p class="mt-1 text-xs text-slate-500">Ventas cerradas automáticamente a través del flujo conversacional (Web Showroom y WhatsApp).</p>
           </div>
           <div class="flex items-center gap-2">
             <button id="seed-orders" type="button" class="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">＋ Cargar pedidos de prueba</button>
@@ -319,15 +319,16 @@
           </div>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[650px] text-left text-xs">
+          <table class="w-full min-w-[900px] text-left text-xs">
             <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
               <tr>
-                <th class="px-5 py-3.5">Cliente</th>
-                <th class="px-5 py-3.5">Producto y SKU</th>
-                <th class="px-5 py-3.5">Dirección y GPS</th>
-                <th class="px-5 py-3.5">Teléfono</th>
-                <th class="px-5 py-3.5">Total</th>
-                <th class="px-5 py-3.5">Fecha</th>
+                <th class="px-4 py-3.5">N° Pedido & Estado</th>
+                <th class="px-4 py-3.5">Cliente & Teléfono</th>
+                <th class="px-4 py-3.5">Detalle & Piezas</th>
+                <th class="px-4 py-3.5">Facturación</th>
+                <th class="px-4 py-3.5">Dirección & GPS</th>
+                <th class="px-4 py-3.5">Total</th>
+                <th class="px-4 py-3.5 text-center">Guía & Acciones</th>
               </tr>
             </thead>
             <tbody id="orders" class="divide-y divide-slate-100"></tbody>
@@ -574,6 +575,83 @@
         <button type="submit" class="rounded-xl bg-[#087e67] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#066a58] transition">Guardar Campaña</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- MODAL: ASIGNAR GUÍA DE RASTREO Y NOTIFICAR WHATSAPP -->
+<div id="modal-tracking" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto">
+  <div class="w-full max-w-lg rounded-3xl bg-white p-6 sm:p-8 shadow-2xl my-8">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">🚚 Guía de Rastreo y Despacho</h3>
+        <p class="text-xs text-slate-500" id="modal-tracking-subtitle">Asigna la guía de envío y notifica automáticamente al cliente por WhatsApp.</p>
+      </div>
+      <button type="button" class="btn-close-modal text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form id="form-tracking" class="mt-5 space-y-4">
+      <input type="hidden" id="tracking-order-id">
+      
+      <div class="rounded-2xl bg-slate-50 p-4 border border-slate-200/60 text-xs space-y-1.5">
+        <div class="flex justify-between font-bold text-slate-800">
+          <span id="trk-order-number" class="font-mono text-indigo-700 font-bold">ORD-SMAK-XXXX</span>
+          <span id="trk-order-total" class="text-emerald-700 font-bold">L.0.00</span>
+        </div>
+        <div class="text-slate-600"><b>Cliente:</b> <span id="trk-customer-name">—</span></div>
+        <div class="text-slate-600"><b>Teléfono:</b> <span id="trk-customer-phone" class="font-mono">—</span></div>
+        <div class="text-slate-600"><b>Artículos:</b> <span id="trk-customer-product">—</span></div>
+        <div class="text-slate-600"><b>Dirección:</b> <span id="trk-customer-address">—</span></div>
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-3">
+        <label class="field">
+          Número de Guía / Tracking <span class="text-red-500">*</span>
+          <input id="tracking-number-input" required placeholder="Ej: CAEX-HN-948210" class="control font-mono font-bold uppercase text-indigo-700">
+        </label>
+        <label class="field">
+          Empresa de Envíos
+          <select id="tracking-carrier-select" class="control font-semibold">
+            <option value="Cargo Expreso">Cargo Expreso (Nacional)</option>
+            <option value="DHL Honduras">DHL Honduras</option>
+            <option value="Entrega Local SMAK">Entrega Local SMAK</option>
+            <option value="Servientrega">Servientrega / Encomienda</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        Vista Previa del Mensaje para WhatsApp del Cliente:
+        <textarea id="tracking-preview-message" rows="4" readonly class="control bg-slate-50 text-[11px] text-slate-600 font-sans resize-none"></textarea>
+      </label>
+
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+        <button type="button" class="btn-close-modal rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 transition">Cancelar</button>
+        <button type="submit" class="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm">
+          <span>📲 Guardar y Notificar WhatsApp</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: AUDITORÍA Y METADATOS DEL PEDIDO -->
+<div id="modal-audit" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto">
+  <div class="w-full max-w-2xl rounded-3xl bg-white p-6 sm:p-8 shadow-2xl my-8">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">🔍 Registro de Auditoría y Trazabilidad</h3>
+        <p class="text-xs text-slate-500">Historial completo de eventos, origen, IP y facturación del pedido.</p>
+      </div>
+      <button type="button" class="btn-close-modal text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <div id="audit-modal-body" class="mt-5 space-y-5 text-xs">
+      <!-- Injected by JS -->
+    </div>
+
+    <div class="flex justify-end pt-4 border-t border-slate-100">
+      <button type="button" class="btn-close-modal rounded-xl bg-slate-100 px-5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 transition">Cerrar</button>
+    </div>
   </div>
 </div>
 

@@ -299,15 +299,21 @@ function bubble(text, own = false, extra = {}) {
 
   // 8. CHECKOUT FLOW CONFIRMATION CARD
   if (extra.order) {
+    const o = extra.order;
     const summary = document.createElement("div");
-    summary.className = "mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs leading-5 text-slate-800";
+    summary.className = "mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs leading-5 text-slate-800 shadow-sm";
     summary.innerHTML = `
-      <div class="font-bold text-emerald-900 border-b border-emerald-200 pb-1 mb-1">Confirmación de Pedido</div>
-      <div><b>Cliente:</b> ${extra.order.name}</div>
-      <div><b>Producto:</b> ${extra.order.productName}</div>
-      <div><b>Entrega:</b> ${extra.order.address} ${extra.order.location ? `<a href="${extra.order.location.mapUrl}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 underline ml-1">📍 Ver GPS</a>` : ""}</div>
-      <div><b>Teléfono:</b> ${extra.order.phone}</div>
-      <div><b>Total:</b> L.${Number(extra.order.total).toLocaleString("es-HN")}</div>
+      <div class="flex items-center justify-between font-bold text-emerald-900 border-b border-emerald-200 pb-1 mb-2">
+        <span>📦 Confirmación de Pedido</span>
+        <span class="rounded bg-emerald-700 text-white px-1.5 py-0.5 text-[10px] font-mono">${o.orderNumber || "ORD-SMAK"}</span>
+      </div>
+      <div><b>Cliente:</b> ${o.name}</div>
+      <div><b>Producto:</b> ${o.productName}</div>
+      <div><b>Cantidad / Piezas:</b> <span class="text-emerald-800 font-semibold">${o.quantityLabel || (o.quantity + " unid.")}</span></div>
+      <div><b>Entrega:</b> ${o.address} ${o.location ? `<a href="${o.location.mapUrl}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 underline ml-1">📍 Ver GPS</a>` : ""}</div>
+      <div><b>Teléfono:</b> ${o.phone}</div>
+      <div><b>Facturación:</b> <span class="rounded px-1.5 py-0.5 text-[11px] font-semibold ${o.requiresInvoice ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600'}">${o.requiresInvoice ? `Sí (RTN: ${o.rtn || 'Con RTN'})` : 'No (Consumidor Final)'}</span></div>
+      <div class="mt-1 pt-1 border-t border-emerald-200/60 font-bold text-emerald-950 text-sm">Total a pagar: L.${Number(o.total).toLocaleString("es-HN")}</div>
     `;
     box.append(summary);
 
@@ -320,7 +326,7 @@ function bubble(text, own = false, extra = {}) {
       confirm.disabled = true;
       confirm.className = "mt-3 w-full rounded-xl bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500 cursor-not-allowed";
       confirm.textContent = "✓ Compra confirmada exitosamente";
-      bubble(`¡Muchas gracias, ${saved.name}! Tu pedido ha quedado formalmente registrado en nuestro panel administrativo con entrega coordinada.`);
+      bubble(`¡Muchas gracias, ${saved.name}! 🎉 Tu pedido *${saved.orderNumber}* (${saved.quantityLabel || '1 unid.'}) ha quedado formalmente registrado en nuestro sistema backend. En breve te notificaremos cuando la guía de rastreo sea asignada.`);
     });
     box.append(confirm);
   }

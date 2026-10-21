@@ -33,21 +33,53 @@ export class StorageFacade {
         { tenantId: "calzado", name: "Cristian Orellana", address: "Barrio El Centro, Choluteca", phone: "+504 9322-1088", sku: "CAS-07", daysAgo: 5 }
       ];
 
-      const orders = initialOrders.map(sample => {
+      const orders = initialOrders.map((sample, idx) => {
         const tenant = tenants[sample.tenantId];
         const prod = tenant?.products?.find(p => p.sku === sample.sku) || tenant?.products?.[0];
+        const prefix = sample.tenantId === "calzado" ? "CALZ-ORD" : "SMAK-ORD";
+        const orderNum = `${prefix}-${String(1001 + idx).padStart(4, "0")}`;
+        const quantity = sample.sku === "EST-01" ? 2 : 1;
+        const quantityLabel = sample.sku === "EST-01" ? "2 estantes" : (sample.sku === "ESC-02" ? "1 escritorio" : "1 unidad");
+        const requiresInvoice = idx === 0 || idx === 3;
+        const trackingNumber = idx === 1 ? "CAEX-HN-948210" : (idx > 2 ? "CAEX-HN-881290" : null);
+        const status = idx === 1 ? "en_camino" : (idx > 2 ? "entregado" : "pendiente");
+        const createdIso = new Date(Date.now() - sample.daysAgo * 86400000).toISOString();
+
         return {
           id: crypto.randomUUID(),
           tenantId: sample.tenantId,
+          orderNumber: orderNum,
           name: sample.name,
           address: sample.address,
           phone: sample.phone,
           productName: prod ? `${prod.name} (${prod.sku})` : "Producto",
           sku: prod ? prod.sku : "",
-          total: prod ? Number(prod.salePrice) : 0,
+          quantity,
+          quantityLabel,
+          requiresInvoice,
+          rtn: requiresInvoice ? "08011985123456" : null,
+          businessName: requiresInvoice ? sample.name + " S. de R.L." : null,
+          status,
+          trackingNumber,
+          trackingCarrier: "Cargo Expreso",
+          total: (prod ? Number(prod.salePrice) : 0) * quantity,
           location: sample.location || null,
           isDemo: true,
-          createdAt: new Date(Date.now() - sample.daysAgo * 86400000).toISOString()
+          createdAt: createdIso,
+          audit: {
+            ip: "190.92.112.45 (Tegucigalpa, HN)",
+            userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0",
+            source: sample.location ? "whatsapp_bot" : "landing_page_widget",
+            createdAt: createdIso,
+            history: [
+              {
+                action: "creacion_pedido",
+                status,
+                timestamp: createdIso,
+                note: `Pedido ${orderNum} creado. Factura: ${requiresInvoice ? 'Sí (con RTN)' : 'No'}.`
+              }
+            ]
+          }
         };
       });
 
@@ -86,6 +118,51 @@ export class StorageFacade {
           });
         }
       });
+
+      // Migrate existing orders with orderNumber, quantity, requiresInvoice, audit
+      if (Array.isArray(data.orders)) {
+        let orderCounter = 1000 + data.orders.length;
+        data.orders.forEach((o, idx) => {
+          if (!o.orderNumber) {
+            const prefix = o.tenantId === "calzado" ? "CALZ-ORD" : "SMAK-ORD";
+            o.orderNumber = `${prefix}-${String(orderCounter - idx).padStart(4, "0")}`;
+            modified = true;
+          }
+          if (o.quantity === undefined) {
+            o.quantity = 1;
+            o.quantityLabel = "1 unidad";
+            modified = true;
+          }
+          if (o.requiresInvoice === undefined) {
+            o.requiresInvoice = idx % 3 === 0;
+            o.rtn = o.requiresInvoice ? ("08011990" + String(100000 + idx)) : null;
+            o.businessName = o.requiresInvoice ? (o.name + " S.A.") : null;
+            modified = true;
+          }
+          if (!o.status) {
+            o.status = o.trackingNumber ? "en_camino" : "pendiente";
+            modified = true;
+          }
+          if (!o.audit) {
+            o.audit = {
+              ip: "190.92.112.45 (Tegucigalpa, HN)",
+              userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0",
+              source: o.source || (o.location ? "whatsapp_bot" : "landing_page_widget"),
+              createdAt: o.createdAt || new Date().toISOString(),
+              history: [
+                {
+                  action: "creacion_pedido",
+                  status: o.status,
+                  timestamp: o.createdAt || new Date().toISOString(),
+                  note: `Pedido ${o.orderNumber} registrado en el sistema.`
+                }
+              ]
+            };
+            modified = true;
+          }
+        });
+      }
+
       if (modified) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }
@@ -294,49 +371,157 @@ export class StorageFacade {
 
   // ---- ORDERS ----
   static getOrders(id = this.getActiveTenantId()) {
-    return this.getState().orders.filter(o => o.tenantId === id);
+    const orders = this.getState().orders || [];
+    return id ? orders.filter(o => o.tenantId === id) : orders;
+  }
+
+  static getOrder(orderId) {
+    const state = this.getState();
+    return (state.orders || []).find(o => o.id === orderId || o.orderNumber === orderId) || null;
+  }
+
+  static getOrderByNumber(orderNumber) {
+    if (!orderNumber) return null;
+    const cleanNum = String(orderNumber).trim().toUpperCase();
+    const state = this.getState();
+    return (state.orders || []).find(o => 
+      (o.orderNumber && o.orderNumber.toUpperCase() === cleanNum) ||
+      (o.trackingNumber && o.trackingNumber.toUpperCase() === cleanNum) ||
+      (o.id && o.id.toUpperCase() === cleanNum)
+    ) || null;
+  }
+
+  static generateOrderNumber(tenantId = this.getActiveTenantId()) {
+    const state = this.getState();
+    const orders = state.orders || [];
+    const prefix = tenantId === "calzado" ? "CALZ-ORD" : "SMAK-ORD";
+    const nextNum = 1001 + orders.length;
+    return `${prefix}-${String(nextNum).padStart(4, "0")}`;
   }
 
   static saveOrder(order) {
     const state = this.getState();
+    const tenantId = order.tenantId || state.activeTenantId || "smak";
+    const orderNumber = order.orderNumber || this.generateOrderNumber(tenantId);
+    const quantity = Number(order.quantity) > 0 ? Number(order.quantity) : 1;
+    const quantityLabel = order.quantityLabel || `${quantity} ${quantity === 1 ? 'unidad' : 'unidades'}`;
+    const requiresInvoice = Boolean(order.requiresInvoice);
+    const rtn = requiresInvoice ? (order.rtn || "08011990123456") : null;
+    const businessName = requiresInvoice ? (order.businessName || order.name) : null;
+    const nowIso = new Date().toISOString();
+
     const newOrder = {
       ...clone(order),
-      id: crypto.randomUUID(),
-      tenantId: state.activeTenantId,
-      createdAt: new Date().toISOString()
+      id: order.id || crypto.randomUUID(),
+      tenantId,
+      orderNumber,
+      quantity,
+      quantityLabel,
+      requiresInvoice,
+      rtn,
+      businessName,
+      status: order.status || (order.trackingNumber ? "en_camino" : "pendiente"),
+      trackingNumber: order.trackingNumber || null,
+      trackingCarrier: order.trackingCarrier || "Cargo Expreso",
+      createdAt: order.createdAt || nowIso,
+      audit: {
+        ip: order.audit?.ip || "190.92.112.45 (Tegucigalpa, HN)",
+        userAgent: order.audit?.userAgent || (typeof navigator !== "undefined" ? navigator.userAgent : "Web / Simulator"),
+        source: order.source || "whatsapp_bot",
+        createdAt: nowIso,
+        history: [
+          {
+            action: "creacion_pedido",
+            status: "pendiente",
+            timestamp: nowIso,
+            note: `Pedido ${orderNumber} confirmado (${quantityLabel}). Facturación: ${requiresInvoice ? 'Sí (Factura con RTN)' : 'No (Consumidor Final)'}.`
+          }
+        ]
+      }
     };
+
+    if (!Array.isArray(state.orders)) {
+      state.orders = [];
+    }
     state.orders.unshift(newOrder);
     this.write(state);
     return newOrder;
   }
 
+  static updateOrderTracking(orderId, trackingNumber, carrier = "Cargo Expreso", notes = "") {
+    const state = this.getState();
+    const order = (state.orders || []).find(o => o.id === orderId || o.orderNumber === orderId);
+    if (!order) return null;
+
+    const prevTracking = order.trackingNumber;
+    order.trackingNumber = String(trackingNumber).trim().toUpperCase();
+    order.trackingCarrier = carrier || "Cargo Expreso";
+    order.status = "en_camino";
+
+    if (!order.audit) {
+      order.audit = { history: [] };
+    }
+    if (!Array.isArray(order.audit.history)) {
+      order.audit.history = [];
+    }
+
+    order.audit.history.push({
+      action: prevTracking ? "actualizacion_guia_rastreo" : "asignacion_guia_rastreo",
+      status: "en_camino",
+      trackingNumber: order.trackingNumber,
+      carrier: order.trackingCarrier,
+      timestamp: new Date().toISOString(),
+      note: notes || `Guía asignada: ${order.trackingNumber} (${order.trackingCarrier}). Notificación al cliente preparada.`
+    });
+
+    this.write(state);
+
+    const cleanPhone = String(order.phone || "").replace(/\D/g, "");
+    const fullPhone = cleanPhone.startsWith("504") ? cleanPhone : ("504" + cleanPhone);
+    const piezasTxt = order.quantityLabel || `${order.quantity || 1} unidades`;
+    const message = `¡Hola ${order.name}! 👋 Te confirmamos que tu pedido *${order.orderNumber}* (${piezasTxt} · ${order.productName}) ya va en camino a tu dirección (${order.address}). 🚚📦\n\nTu número de guía de rastreo es: *${order.trackingNumber}* (${order.trackingCarrier}).\nMonto total a pagar en efectivo contra entrega: *L.${Number(order.total).toLocaleString("es-HN")}*.\n${order.requiresInvoice ? `🧾 Tu factura con RTN (${order.rtn}) va adjunta en el paquete.\n` : ""}Recuerda tener listo el pago al momento de recibir. Si tienes cualquier consulta, estamos a tu orden. ¡Gracias por confiar en SMAK Honduras! ✨`;
+    const whatsappUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+
+    return {
+      order,
+      whatsappUrl,
+      message
+    };
+  }
+
   static seedDemoOrders() {
     const state = this.getState();
     const extraSamples = [
-      { tenantId: "smak", name: "Karla Barahona", address: "Col. Trejo, San Pedro Sula", phone: "+504 9812-4011", sku: "EST-01", location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
-      { tenantId: "smak", name: "Javier Moncada", address: "Res. El Molinón, Tegucigalpa", phone: "+504 9740-8822", sku: "ESC-02", location: { lat: 14.0900, lng: -87.1800, mapUrl: "https://www.google.com/maps?q=14.0900,-87.1800", address: "Res. El Molinón, Tegucigalpa" } },
-      { tenantId: "calzado", name: "Lorena Varela", address: "Barrio Medina, San Pedro Sula", phone: "+504 9600-5541", sku: "TEN-01", location: { lat: 15.5010, lng: -88.0250, mapUrl: "https://www.google.com/maps?q=15.5010,-88.0250", address: "Barrio Medina, San Pedro Sula" } }
+      { tenantId: "smak", name: "Karla Barahona", address: "Col. Trejo, San Pedro Sula", phone: "+504 9812-4011", sku: "EST-01", quantity: 2, quantityLabel: "2 estantes", requiresInvoice: true, rtn: "08011989004512", businessName: "Barahona Design Studio", location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
+      { tenantId: "smak", name: "Javier Moncada", address: "Res. El Molinón, Tegucigalpa", phone: "+504 9740-8822", sku: "ESC-02", quantity: 1, quantityLabel: "1 escritorio", requiresInvoice: false, trackingNumber: "CAEX-HN-948210", location: { lat: 14.0900, lng: -87.1800, mapUrl: "https://www.google.com/maps?q=14.0900,-87.1800", address: "Res. El Molinón, Tegucigalpa" } },
+      { tenantId: "calzado", name: "Lorena Varela", address: "Barrio Medina, San Pedro Sula", phone: "+504 9600-5541", sku: "TEN-01", quantity: 1, quantityLabel: "1 par", requiresInvoice: false, location: { lat: 15.5010, lng: -88.0250, mapUrl: "https://www.google.com/maps?q=15.5010,-88.0250", address: "Barrio Medina, San Pedro Sula" } }
     ];
     let count = 0;
     for (const sample of extraSamples) {
       const tenant = state.tenants[sample.tenantId];
       const prod = tenant?.products?.find(p => p.sku === sample.sku) || tenant?.products?.[0];
-      state.orders.unshift({
-        id: crypto.randomUUID(),
+      const quantity = sample.quantity || 1;
+      const total = prod ? Number(prod.salePrice) * quantity : 0;
+      this.saveOrder({
         tenantId: sample.tenantId,
         name: sample.name,
         address: sample.address,
         phone: sample.phone,
         productName: prod ? `${prod.name} (${prod.sku})` : "Producto",
         sku: prod ? prod.sku : "",
-        total: prod ? Number(prod.salePrice) : 0,
+        quantity,
+        quantityLabel: sample.quantityLabel || `${quantity} unidades`,
+        requiresInvoice: sample.requiresInvoice || false,
+        rtn: sample.rtn || null,
+        businessName: sample.businessName || null,
+        trackingNumber: sample.trackingNumber || null,
+        status: sample.trackingNumber ? "en_camino" : "pendiente",
+        total,
         location: sample.location || null,
-        isDemo: true,
-        createdAt: new Date().toISOString()
+        isDemo: true
       });
       count++;
     }
-    this.write(state);
     return count;
   }
 
