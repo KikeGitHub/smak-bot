@@ -59,8 +59,16 @@ Abre `index.html` en una pestaña y `admin.html` en otra; ambas ventanas se sinc
 * Resolución condicional de stock (Stock disponible vs. Agotado vs. SKU no registrado).
 * Expansión semántica mediante diccionario de sinónimos.
 * Priorización de reglas de restricción (seguridad conversacional).
-* Flujo guiado de checkout conversacional (nombre -> dirección -> teléfono -> confirmación).
-* Escalamiento a asesor humano y soporte de consultas simuladas por audio.
+* **Respuestas Automatizadas en Audio (Voz TTS):**
+  * Detección automática cuando el usuario envía una nota de voz.
+  * Generación y reproducción de notas de voz de respuesta del bot con reproductor interactivo estilo WhatsApp (onda visual animada, contador de duración y selector de velocidad 1x / 1.5x / 2x).
+  * Salida combinada: audio de respuesta + transcripción escrita y tarjetas de producto.
+* **Reconocimiento de Ubicación GPS y Google Maps en Checkout:**
+  * Detección de mensajes de ubicación de WhatsApp (`type: "location"`), enlaces de Google Maps y coordenadas directas.
+  * Geocodificación inversa (Reverse Geocoding) automática para traducir coordenadas a direcciones legibles de entrega (colonia, calle, ciudad).
+  * Tarjetas interactivas de mapa en el chat y enlaces directos a Google Maps para el repartidor en el panel de pedidos.
+* Flujo guiado de checkout conversacional (nombre -> dirección / ubicación GPS -> teléfono -> confirmación).
+* Escalamiento a asesor humano y soporte de consultas por notas de voz.
 
 ---
 
@@ -68,13 +76,17 @@ Abre `index.html` en una pestaña y `admin.html` en otra; ambas ventanas se sinc
 
 ```
 smakbot-demo/
-├── index.html            # Simulador de chat comercial (estilo WhatsApp Web)
-├── admin.html            # Panel de negocio y administración de reglas
-├── app-chat.js           # Controlador del simulador de chat
+├── index.html            # Simulador de chat comercial (estilo WhatsApp Web con soporte GPS y Audio)
+├── admin.html            # Panel de negocio, gestión de reglas y pedidos con GPS
+├── app-chat.js           # Controlador del simulador de chat y reproductores multimedia
 ├── app-admin.js          # Controlador del panel de administración
 ├── js/
-│   ├── seed-data.js      # Datos iniciales (tenants, productos con SKU, reglas, sinónimos)
-│   ├── storage-facade.js # Capa de persistencia (Fachada de Storage)
-│   └── bot-engine.js     # Motor de inferencia y coincidencia de intenciones
+│   ├── seed-data.js             # Datos iniciales (tenants, productos con SKU, reglas, sinónimos)
+│   ├── storage-facade.js        # Capa de persistencia (Fachada de Storage)
+│   ├── bot-engine.js            # Motor de inferencia y coincidencia de intenciones
+│   ├── speech-service.js        # Servicio de síntesis de voz (TTS) y reproductor WhatsApp
+│   ├── location-service.js      # Servicio de geolocalización GPS y enlaces Google Maps
+│   └── transcription-service.js # Servicio de transcripción Whisper sincrónico
 └── README.md             # Documentación técnica
 ```
+

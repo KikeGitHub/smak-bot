@@ -19,16 +19,16 @@ export class StorageFacade {
     if (!isValidV3) {
       const tenants = Object.fromEntries(TENANTS.map(t => [t.id, clone(t)]));
       const initialOrders = [
-        { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "EST-01", daysAgo: 0 },
-        { tenantId: "smak", name: "Carlos Mendoza", address: "Residencial Las Uvas, Comayagüela", phone: "+504 9452-6810", sku: "ESC-02", daysAgo: 1 },
-        { tenantId: "smak", name: "Andrea Pineda", address: "Barrio El Centro, San Pedro Sula", phone: "+504 9981-3472", sku: "MESA-04", daysAgo: 2 },
+        { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "EST-01", daysAgo: 0, location: { lat: 14.1025, lng: -87.1950, mapUrl: "https://www.google.com/maps?q=14.1025,-87.1950", address: "Col. Palmira, Tegucigalpa" } },
+        { tenantId: "smak", name: "Carlos Mendoza", address: "Residencial Las Uvas, Comayagüela", phone: "+504 9452-6810", sku: "ESC-02", daysAgo: 1, location: { lat: 14.0480, lng: -87.2180, mapUrl: "https://www.google.com/maps?q=14.0480,-87.2180", address: "Residencial Las Uvas, Comayagüela" } },
+        { tenantId: "smak", name: "Andrea Pineda", address: "Barrio El Centro, San Pedro Sula", phone: "+504 9981-3472", sku: "MESA-04", daysAgo: 2, location: { lat: 15.5030, lng: -88.0260, mapUrl: "https://www.google.com/maps?q=15.5030,-88.0260", address: "Barrio El Centro, San Pedro Sula" } },
         { tenantId: "smak", name: "Roberto Cálix", address: "Col. El Toronjal, La Ceiba", phone: "+504 9711-4402", sku: "LAMP-05", daysAgo: 3 },
-        { tenantId: "smak", name: "Elena Ramos", address: "Lomas del Guijarro, Tegucigalpa", phone: "+504 8820-9150", sku: "REP-06", daysAgo: 4 },
+        { tenantId: "smak", name: "Elena Ramos", address: "Lomas del Guijarro, Tegucigalpa", phone: "+504 8820-9150", sku: "REP-06", daysAgo: 4, location: { lat: 14.0980, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0980,-87.1850", address: "Lomas del Guijarro, Tegucigalpa" } },
         { tenantId: "smak", name: "David Banegas", address: "Col. Los Álamos, San Pedro Sula", phone: "+504 9500-3321", sku: "CLO-07", daysAgo: 5 },
-        { tenantId: "calzado", name: "José David Rivera", address: "Col. Trejo, San Pedro Sula", phone: "+504 9630-1175", sku: "TEN-01", daysAgo: 0 },
+        { tenantId: "calzado", name: "José David Rivera", address: "Col. Trejo, San Pedro Sula", phone: "+504 9630-1175", sku: "TEN-01", daysAgo: 0, location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
         { tenantId: "calzado", name: "Sofía Castellanos", address: "Barrio Río de Piedras, San Pedro Sula", phone: "+504 9714-8206", sku: "BOT-02", daysAgo: 1 },
-        { tenantId: "calzado", name: "Marlon Aguilar", address: "Col. Kennedy, Tegucigalpa", phone: "+504 9460-7719", sku: "MOC-04", daysAgo: 2 },
-        { tenantId: "calzado", name: "Daniela Flores", address: "Res. Plaza, Tegucigalpa", phone: "+504 8890-5316", sku: "DEP-05", daysAgo: 3 },
+        { tenantId: "calzado", name: "Marlon Aguilar", address: "Col. Kennedy, Tegucigalpa", phone: "+504 9460-7719", sku: "MOC-04", daysAgo: 2, location: { lat: 14.0580, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0580,-87.1850", address: "Col. Kennedy, Tegucigalpa" } },
+        { tenantId: "calzado", name: "Daniela Flores", address: "Res. Plaza, Tegucigalpa", phone: "+504 8890-5316", sku: "DEP-05", daysAgo: 3, location: { lat: 14.0720, lng: -87.1720, mapUrl: "https://www.google.com/maps?q=14.0720,-87.1720", address: "Res. Plaza, Tegucigalpa" } },
         { tenantId: "calzado", name: "Gabriela Santos", address: "Col. Miramar, La Ceiba", phone: "+504 9811-6624", sku: "TAC-06", daysAgo: 4 },
         { tenantId: "calzado", name: "Cristian Orellana", address: "Barrio El Centro, Choluteca", phone: "+504 9322-1088", sku: "CAS-07", daysAgo: 5 }
       ];
@@ -45,6 +45,7 @@ export class StorageFacade {
           productName: prod ? `${prod.name} (${prod.sku})` : "Producto",
           sku: prod ? prod.sku : "",
           total: prod ? Number(prod.salePrice) : 0,
+          location: sample.location || null,
           isDemo: true,
           createdAt: new Date(Date.now() - sample.daysAgo * 86400000).toISOString()
         };
@@ -312,9 +313,9 @@ export class StorageFacade {
   static seedDemoOrders() {
     const state = this.getState();
     const extraSamples = [
-      { tenantId: "smak", name: "Karla Barahona", address: "Col. Trejo, San Pedro Sula", phone: "+504 9812-4011", sku: "EST-01" },
-      { tenantId: "smak", name: "Javier Moncada", address: "Res. El Molinón, Tegucigalpa", phone: "+504 9740-8822", sku: "ESC-02" },
-      { tenantId: "calzado", name: "Lorena Varela", address: "Barrio Medina, San Pedro Sula", phone: "+504 9600-5541", sku: "TEN-01" }
+      { tenantId: "smak", name: "Karla Barahona", address: "Col. Trejo, San Pedro Sula", phone: "+504 9812-4011", sku: "EST-01", location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
+      { tenantId: "smak", name: "Javier Moncada", address: "Res. El Molinón, Tegucigalpa", phone: "+504 9740-8822", sku: "ESC-02", location: { lat: 14.0900, lng: -87.1800, mapUrl: "https://www.google.com/maps?q=14.0900,-87.1800", address: "Res. El Molinón, Tegucigalpa" } },
+      { tenantId: "calzado", name: "Lorena Varela", address: "Barrio Medina, San Pedro Sula", phone: "+504 9600-5541", sku: "TEN-01", location: { lat: 15.5010, lng: -88.0250, mapUrl: "https://www.google.com/maps?q=15.5010,-88.0250", address: "Barrio Medina, San Pedro Sula" } }
     ];
     let count = 0;
     for (const sample of extraSamples) {
@@ -329,6 +330,7 @@ export class StorageFacade {
         productName: prod ? `${prod.name} (${prod.sku})` : "Producto",
         sku: prod ? prod.sku : "",
         total: prod ? Number(prod.salePrice) : 0,
+        location: sample.location || null,
         isDemo: true,
         createdAt: new Date().toISOString()
       });

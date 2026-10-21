@@ -667,22 +667,29 @@ function renderOrders() {
   $("#order-count").textContent = orders.length;
 
   if (!orders.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-slate-400">Todavía no hay pedidos registrados. Confirma una compra desde el simulador o carga pedidos demo.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-slate-400">Todavía no hay pedidos registrados. Confirma una compra desde el simulador o carga pedidos demo.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = orders.map(o => `
+  tbody.innerHTML = orders.map(o => {
+    const mapUrl = o.location?.mapUrl || (o.address && o.address.startsWith("http") ? o.address : null);
+    return `
     <tr class="hover:bg-slate-50 transition">
       <td class="px-5 py-3 font-semibold text-slate-800">${escapeHtml(o.name)}</td>
       <td class="px-5 py-3 text-slate-600">
         <span class="font-bold text-slate-800">${escapeHtml(o.productName)}</span>
         ${o.sku ? `<span class="ml-1 font-mono text-[11px] rounded bg-slate-100 px-1.5 py-0.5">${escapeHtml(o.sku)}</span>` : ""}
       </td>
-      <td class="px-5 py-3 text-slate-600">${escapeHtml(o.phone)}</td>
+      <td class="px-5 py-3 text-slate-600">
+        <div class="font-medium text-slate-800">${escapeHtml(o.address || "—")}</div>
+        ${mapUrl ? `<a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-200 transition">📍 Abrir en Google Maps</a>` : ""}
+      </td>
+      <td class="px-5 py-3 text-slate-600 font-mono text-xs">${escapeHtml(o.phone)}</td>
       <td class="px-5 py-3 font-bold text-emerald-700">L.${money(o.total)}</td>
       <td class="px-5 py-3 text-slate-400 text-[11px]">${new Date(o.createdAt).toLocaleString("es-HN", { dateStyle: "short", timeStyle: "short" })}</td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 }
 
 $("#seed-orders").addEventListener("click", () => {

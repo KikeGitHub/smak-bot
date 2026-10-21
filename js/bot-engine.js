@@ -1,4 +1,6 @@
-import { StorageFacade } from "./storage-facade.js";
+import { StorageFacade } from "./storage-facade.js?v=4";
+import { LocationService } from "./location-service.js?v=4";
+import { SpeechService } from "./speech-service.js?v=4";
 
 const clean = s => String(s || "")
   .toLocaleLowerCase("es")
@@ -61,7 +63,8 @@ export class BotEngine {
       product: targetProduct,
       name: "",
       address: "",
-      phone: ""
+      phone: "",
+      location: null
     };
     return {
       text: `¡Excelente elección! Preparo tu orden para **${targetProduct.name}** (L.${Number(targetProduct.salePrice).toLocaleString("es-HN")}). ¿A qué nombre registramos el pedido?`
@@ -77,10 +80,20 @@ export class BotEngine {
       phone: c.phone,
       productName: c.product.name,
       sku: c.product.sku,
-      total: Number(c.product.salePrice)
+      total: Number(c.product.salePrice),
+      location: c.location || null
     });
     this.checkout = null;
     return saved;
+  }
+
+  _formatResponse(res, isVoice = false) {
+    if (!res) return res;
+    if (isVoice) {
+      res.audioReply = true;
+      res.speechText = SpeechService.cleanTextForSpeech(res.text);
+    }
+    return res;
   }
 
   // Extract SKU from user message, Meta Ad referral, or social URL
@@ -196,12 +209,18 @@ export class BotEngine {
     }));
   }
 
-  async reply(message, { audio = false, audioTranscript = false, referral = null } = {}) {
+  async reply(message, opts = {}) {
+    const isVoice = Boolean(opts.audio || opts.audioTranscript || this.voicePreferred);
+    const result = await this._internalReply(message, opts);
+    return this._formatResponse(result, isVoice);
+  }
+
+  async _internalReply(message, { audio = false, audioTranscript = false, referral = null, location = null } = {}) {
     const rawText = String(message || "").trim();
     const cleanText = clean(rawText);
     const tokens = tokenize(rawText);
 
-    if (!cleanText && !referral) {
+    if (!cleanText && !referral && !location) {
       return { text: "Hola, ¿en qué puedo ayudarte hoy?" };
     }
 
@@ -228,29 +247,67 @@ export class BotEngine {
       if (c.step === "name") {
         c.name = rawText;
         c.step = "address";
-        return { text: `Gracias, ${c.name}. ¿Cuál es la dirección completa de entrega (ciudad y colonia)?` };
+        return { 
+          text: `Gracias, ${c.name}. ¿Cuál es la dirección completa de entrega (ciudad y colonia)?\n\n💡 *Tip: Puedes presionar el botón 📍 abajo o enviar tu ubicación GPS de WhatsApp.*` 
+        };
       }
       if (c.step === "address") {
-        c.address = rawText;
-        c.step = "phone";
-        return { text: "Anotado. ¿A qué número de teléfono o WhatsApp te contactamos para la entrega?" };
+        const detectedLoc = location || LocationService.parseLocationFromText(rawText);
+        if (detectedLoc) {
+          const locName = detectedLoc.address || detectedLoc.name || `Ubicación GPS (${detectedLoc.lat.toFixed(4)}, ${detectedLoc.lng.toFixed(4)})`;
+          c.address = locName;
+          c.location = {
+            lat: detectedLoc.lat,
+            lng: detectedLoc.lng,
+            name: detectedLoc.name || locName,
+            address: locName,
+            mapUrl: detectedLoc.mapUrl || LocationService.getGoogleMapsUrl(detectedLoc.lat, detectedLoc.lng)
+          };
+          c.step = "phone";
+          return {
+            text: `¡Ubicación de entrega recibida con éxito! 📍\n\n📌 **Dirección registrada:** ${locName}\n🗺️ [Ver en Google Maps](${c.location.mapUrl})\n\n¿Tienes alguna referencia adicional (color de casa o portón), o a qué número de WhatsApp o teléfono te contactamos para coordinar la entrega?`,
+            location: c.location
+          };
+        } else {
+          c.address = rawText;
+          c.step = "phone";
+          return { text: "Anotado. ¿A qué número de teléfono o WhatsApp te contactamos para la entrega?" };
+        }
       }
       if (c.step === "phone") {
         c.phone = rawText;
         c.step = "confirm";
         const prod = c.product;
         return {
-          text: `📋 **Resumen de tu pedido**:\n• Producto: **${prod.name}** (SKU: ${prod.sku})\n• Total a pagar: **L.${Number(prod.salePrice).toLocaleString("es-HN")}**\n• Cliente: ${c.name}\n• Entrega: ${c.address}\n• Contacto: ${c.phone}\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
+          text: `📋 **Resumen de tu pedido**:\n• Producto: **${prod.name}** (SKU: ${prod.sku})\n• Total a pagar: **L.${Number(prod.salePrice).toLocaleString("es-HN")}**\n• Cliente: ${c.name}\n• Entrega: ${c.address}${c.location ? `\n• 📍 Mapa GPS: [Ver en Google Maps](${c.location.mapUrl})` : ""}\n• Contacto: ${c.phone}\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
           order: {
             name: c.name,
             address: c.address,
             phone: c.phone,
             productName: `${prod.name} (${prod.sku})`,
             sku: prod.sku,
-            total: Number(prod.salePrice)
+            total: Number(prod.salePrice),
+            location: c.location || null
           }
         };
       }
+    }
+
+    // 3b. Location query outside of checkout
+    const detectedLoc = location || LocationService.parseLocationFromText(rawText);
+    if (detectedLoc && !this.checkout) {
+      const locName = detectedLoc.address || detectedLoc.name || "tu ubicación";
+      const mapUrl = detectedLoc.mapUrl || LocationService.getGoogleMapsUrl(detectedLoc.lat, detectedLoc.lng);
+      return {
+        text: `¡Ubicación detectada! 📍 Veo que te encuentras en **${locName}**.\n\n🚚 **Cobertura de Entrega:** ¡Sí, tenemos cobertura completa a domicilio en tu zona a través de Cargo Expreso!\n💵 **Pago Seguro:** Cancelas en efectivo contra entrega al recibir tu paquete.\n\n¿Te gustaría ver nuestro catálogo completo o hacer el pedido de algún producto?`,
+        location: {
+          lat: detectedLoc.lat,
+          lng: detectedLoc.lng,
+          name: locName,
+          address: locName,
+          mapUrl
+        }
+      };
     }
 
     const tenant = StorageFacade.getTenant();

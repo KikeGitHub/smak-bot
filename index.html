@@ -95,10 +95,57 @@
     <div id="messages" class="wall flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3"></div>
 
     <!-- COMPOSER -->
-    <div class="border-t border-slate-100 bg-white p-3 sm:p-4">
+    <div class="border-t border-slate-100 bg-white p-3 sm:p-4 relative">
+      <!-- LOCATION PICKER POPOVER -->
+      <div id="location-picker-menu" class="hidden absolute bottom-full left-4 mb-2 w-80 sm:w-96 rounded-2xl bg-white p-3.5 shadow-2xl border border-slate-200 z-50 animate-fadeIn">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div class="flex items-center gap-1.5 font-bold text-xs text-slate-800">
+            <span>📍 Compartir Ubicación WhatsApp</span>
+          </div>
+          <button id="close-location-picker" type="button" class="text-xs text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        
+        <div class="mt-2.5 space-y-2">
+          <button id="btn-gps-live" type="button" class="w-full flex items-center gap-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 p-2 text-left text-xs font-semibold text-emerald-900 border border-emerald-200 transition">
+            <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white text-xs">🛰️</span>
+            <div>
+              <div class="font-bold">Enviar mi Ubicación GPS en Vivo</div>
+              <div class="text-[10px] text-emerald-700 font-normal">Detecta tus coordenadas reales con el navegador</div>
+            </div>
+          </button>
+
+          <div class="pt-1 text-[10px] uppercase font-bold text-slate-400">Puntos de entrega para pruebas (Honduras):</div>
+          
+          <div class="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto">
+            <button type="button" data-loc-preset="teg_palmira" class="loc-preset-btn rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 p-1.5 text-left text-[11px] text-slate-700 transition">
+              <b class="block text-slate-900 font-bold truncate">🏢 Col. Palmira</b>
+              <span class="text-[10px] text-slate-400">Tegucigalpa</span>
+            </button>
+            <button type="button" data-loc-preset="sps_andes" class="loc-preset-btn rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 p-1.5 text-left text-[11px] text-slate-700 transition">
+              <b class="block text-slate-900 font-bold truncate">🏭 Bo. Los Andes</b>
+              <span class="text-[10px] text-slate-400">San Pedro Sula</span>
+            </button>
+            <button type="button" data-loc-preset="teg_plaza" class="loc-preset-btn rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 p-1.5 text-left text-[11px] text-slate-700 transition">
+              <b class="block text-slate-900 font-bold truncate">🏡 Res. Plaza</b>
+              <span class="text-[10px] text-slate-400">Tegucigalpa</span>
+            </button>
+            <button type="button" data-loc-preset="teg_kennedy" class="loc-preset-btn rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 p-1.5 text-left text-[11px] text-slate-700 transition">
+              <b class="block text-slate-900 font-bold truncate">🏪 Col. Kennedy</b>
+              <span class="text-[10px] text-slate-400">Tegucigalpa</span>
+            </button>
+          </div>
+
+          <form id="form-paste-maps" class="mt-2 pt-2 border-t border-slate-100 flex gap-1.5">
+            <input id="input-maps-url" placeholder="O pega enlace Google Maps (maps.app.goo.gl)" class="min-w-0 flex-1 rounded-xl bg-slate-100 px-2.5 py-1.5 text-[11px] text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-emerald-500">
+            <button type="submit" class="rounded-xl bg-[#087e67] px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-[#066a58] transition shrink-0">Enviar</button>
+          </form>
+        </div>
+      </div>
+
       <form id="composer" class="flex gap-2 items-center">
         <input type="file" id="audio-file-input" accept="audio/*,video/mp4" class="hidden">
         <button id="attach-audio-btn" type="button" title="Adjuntar archivo de audio (.mp3, .m4a, .mp4, .wav)" class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600 text-base hover:bg-slate-200 transition shadow-sm">📎</button>
+        <button id="location-button" type="button" title="Compartir ubicación de entrega (GPS / Maps)" class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600 text-base hover:bg-slate-200 transition shadow-sm">📍</button>
         <button id="audio-button" type="button" title="Grabar nota de voz con micrófono (haz clic para iniciar / detener)" class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-lg hover:bg-slate-200 transition shadow-sm relative">🎙</button>
         <input id="message" autocomplete="off" placeholder="Escribe un mensaje o prueba: '¿Tienen stock para el SKU EST-01?'" class="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm outline-none ring-emerald-600 transition focus:ring-2 focus:bg-white text-slate-900">
         <button class="rounded-2xl bg-[#087e67] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#066a58] transition shadow-sm">Enviar</button>
@@ -111,7 +158,7 @@
         <button id="cancel-recording-btn" type="button" class="text-xs text-rose-600 underline font-bold hover:text-rose-900">Cancelar</button>
       </div>
       <div class="mt-2.5 flex items-center justify-between text-xs">
-        <span class="text-[11px] text-slate-400">Responde dinámicamente con catálogo y reglas del panel.</span>
+        <span class="text-[11px] text-slate-400">Responde dinámicamente con voz TTS, catálogo y reglas.</span>
         <button id="human-button" class="font-bold text-emerald-800 hover:underline text-xs">Hablar con asesor</button>
       </div>
     </div>
@@ -260,6 +307,18 @@
             <small>Toma de datos y confirmación del pedido</small>
           </span>
         </button>
+
+        <!-- 8: Checkout con Ubicación GPS WhatsApp -->
+        <button data-scenario="__order_with_location" class="scenario border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 hover:border-emerald-500">
+          <span class="text-base">📍</span>
+          <span>
+            <b class="text-emerald-950 flex items-center gap-1.5">
+              <span>Checkout con Ubicación GPS WhatsApp</span>
+              <span class="rounded bg-emerald-700 text-white text-[9px] px-1.5 py-0.2 font-bold uppercase">Nuevo</span>
+            </b>
+            <small>Simula pedido enviando tarjeta de ubicación GPS</small>
+          </span>
+        </button>
       </div>
     </div>
 
@@ -280,6 +339,6 @@
   </aside>
 </main>
 
-<script type="module" src="app-chat.js"></script>
+<script type="module" src="app-chat.js?v=4"></script>
 </body>
 </html>

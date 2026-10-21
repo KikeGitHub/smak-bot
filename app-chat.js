@@ -1,12 +1,13 @@
-import { StorageFacade } from "./js/storage-facade.js";
-import { BotEngine } from "./js/bot-engine.js";
-import { TranscriptionService } from "./js/transcription-service.js";
+import { StorageFacade } from "./js/storage-facade.js?v=4";
+import { BotEngine } from "./js/bot-engine.js?v=4";
+import { TranscriptionService } from "./js/transcription-service.js?v=4";
+import { SpeechService } from "./js/speech-service.js?v=4";
+import { LocationService } from "./js/location-service.js?v=4";
 
 const $ = (s) => document.querySelector(s);
 const thread = $("#messages");
 const engine = new BotEngine();
 let activeRecorder = null;
-let activeRecordingStream = null;
 
 function formatMarkdown(text) {
   let safe = String(text ?? "")
@@ -15,6 +16,8 @@ function formatMarkdown(text) {
   safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   // Italic *text*
   safe = safe.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  // Markdown links [text](url)
+  safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline font-bold text-emerald-700 hover:text-emerald-900">$1</a>');
   return safe;
 }
 
@@ -23,16 +26,185 @@ function bubble(text, own = false, extra = {}) {
   row.className = `flex ${own ? "justify-end" : "justify-start"} animate-fadeIn`;
 
   const box = document.createElement("div");
-  box.className = `max-w-[86%] sm:max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${
+  box.className = `max-w-[88%] sm:max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${
     own ? "bg-[#d9fdd3] text-slate-900 rounded-tr-sm" : "bg-white text-slate-800 rounded-tl-sm border border-slate-100"
   }`;
 
+  // 1. BOT VOICE NOTE PLAYER (WhatsApp Style Audio Response)
+  if (extra.audioReply && !own) {
+    const voiceCard = document.createElement("div");
+    voiceCard.className = "mb-3 rounded-2xl bg-gradient-to-r from-[#075e54] to-[#128c7e] p-3 text-white shadow-md";
+
+    const speechTextToRead = extra.speechText || SpeechService.cleanTextForSpeech(text);
+    const duration = SpeechService.estimateDuration(speechTextToRead);
+    const waveform = SpeechService.generateWaveform(26);
+
+    let activeController = null;
+    let isPlaying = false;
+    let currentSpeed = 1.0;
+
+    const topHeader = document.createElement("div");
+    topHeader.className = "flex items-center justify-between text-[11px] font-semibold text-emerald-100 pb-2 border-b border-white/10";
+    topHeader.innerHTML = `
+      <span class="flex items-center gap-1.5">
+        <span class="grid h-5 w-5 place-items-center rounded-full bg-white/20 text-xs">🎙️</span>
+        <span>Nota de Voz de SMAK Bot</span>
+      </span>
+      <span class="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold text-white">Voz IA</span>
+    `;
+    voiceCard.append(topHeader);
+
+    const controls = document.createElement("div");
+    controls.className = "mt-2.5 flex items-center gap-2.5 sm:gap-3";
+
+    // Play/Pause button
+    const playBtn = document.createElement("button");
+    playBtn.type = "button";
+    playBtn.className = "grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[#075e54] text-base font-bold shadow hover:scale-105 transition active:scale-95";
+    playBtn.innerHTML = `<span>▶</span>`;
+
+    // Waveform container
+    const waveWrap = document.createElement("div");
+    waveWrap.className = "flex-1 flex items-center gap-[2px] sm:gap-[2.5px] h-8 cursor-pointer";
+    const barEls = waveform.map((height) => {
+      const bar = document.createElement("span");
+      bar.className = "w-1 rounded-full bg-emerald-200/50 transition-all duration-150";
+      bar.style.height = `${Math.max(20, height * 0.75)}%`;
+      waveWrap.append(bar);
+      return bar;
+    });
+
+    // Time & Speed
+    const metaWrap = document.createElement("div");
+    metaWrap.className = "shrink-0 flex flex-col items-end gap-1";
+
+    const timeLabel = document.createElement("span");
+    timeLabel.className = "font-mono text-[11px] font-medium text-emerald-100";
+    timeLabel.textContent = `0:00 / 0:${String(duration).padStart(2, "0")}`;
+
+    const speedBtn = document.createElement("button");
+    speedBtn.type = "button";
+    speedBtn.className = "rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-white/25 transition";
+    speedBtn.textContent = "1x";
+    speedBtn.addEventListener("click", () => {
+      if (currentSpeed === 1.0) currentSpeed = 1.5;
+      else if (currentSpeed === 1.5) currentSpeed = 2.0;
+      else currentSpeed = 1.0;
+      speedBtn.textContent = `${currentSpeed}x`;
+      if (isPlaying && activeController) {
+        SpeechService.stop();
+        activeController = SpeechService.speak(speechTextToRead, {
+          rate: currentSpeed,
+          onStart: () => { isPlaying = true; playBtn.innerHTML = `<span>⏸</span>`; },
+          onProgress: ({ elapsed, percent }) => updateWaveProgress(percent, elapsed),
+          onEnd: () => resetPlayer(),
+          onError: () => resetPlayer()
+        });
+      }
+    });
+
+    metaWrap.append(timeLabel, speedBtn);
+    controls.append(playBtn, waveWrap, metaWrap);
+    voiceCard.append(controls);
+
+    function updateWaveProgress(percent, elapsed) {
+      const activeIndex = Math.floor((percent / 100) * barEls.length);
+      barEls.forEach((bar, idx) => {
+        if (idx <= activeIndex) {
+          bar.className = "w-1 rounded-full bg-white transition-all duration-150";
+        } else {
+          bar.className = "w-1 rounded-full bg-emerald-200/50 transition-all duration-150";
+        }
+      });
+      const s = Math.floor(elapsed);
+      timeLabel.textContent = `0:${String(s).padStart(2, "0")} / 0:${String(duration).padStart(2, "0")}`;
+    }
+
+    function resetPlayer() {
+      isPlaying = false;
+      playBtn.innerHTML = `<span>▶</span>`;
+      barEls.forEach(b => b.className = "w-1 rounded-full bg-emerald-200/50 transition-all duration-150");
+      timeLabel.textContent = `0:00 / 0:${String(duration).padStart(2, "0")}`;
+    }
+
+    playBtn.addEventListener("click", () => {
+      if (isPlaying) {
+        SpeechService.stop();
+        resetPlayer();
+      } else {
+        isPlaying = true;
+        playBtn.innerHTML = `<span>⏸</span>`;
+        activeController = SpeechService.speak(speechTextToRead, {
+          rate: currentSpeed,
+          onStart: () => { isPlaying = true; },
+          onProgress: ({ elapsed, percent }) => updateWaveProgress(percent, elapsed),
+          onEnd: () => resetPlayer(),
+          onError: (err) => {
+            console.warn("TTS Error:", err);
+            resetPlayer();
+          }
+        });
+      }
+    });
+
+    box.append(voiceCard);
+  }
+
+  // 2. TEXT BODY
   const body = document.createElement("div");
   body.className = "whitespace-pre-wrap text-sm leading-6";
   body.innerHTML = formatMarkdown(text);
   box.append(body);
 
-  // PRODUCT IMAGES
+  // 3. WHATSAPP LOCATION CARD (When user or bot shares location)
+  if (extra.location) {
+    const loc = extra.location;
+    const locCard = document.createElement("div");
+    locCard.className = `mt-3 overflow-hidden rounded-2xl border ${own ? "border-emerald-300 bg-white" : "border-slate-200 bg-slate-50"} shadow-sm`;
+
+    // Map preview banner with stylized GPS pin
+    const mapBanner = document.createElement("div");
+    mapBanner.className = "relative h-28 w-full bg-gradient-to-br from-emerald-100 via-teal-50 to-sky-100 flex items-center justify-center overflow-hidden border-b border-slate-200";
+    mapBanner.innerHTML = `
+      <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#087e67_1px,transparent_1px)] [background-size:12px_12px]"></div>
+      <div class="relative flex flex-col items-center">
+        <div class="grid h-10 w-10 place-items-center rounded-full bg-rose-600 text-white shadow-lg text-lg ring-4 ring-rose-200 animate-bounce">
+          📍
+        </div>
+      </div>
+      <div class="absolute bottom-2 right-2 rounded-md bg-white/95 backdrop-blur-sm px-2 py-0.5 text-[10px] font-mono font-bold text-slate-700 shadow-sm border border-slate-200">
+        GPS: ${loc.lat ? `${Number(loc.lat).toFixed(4)}, ${Number(loc.lng).toFixed(4)}` : "Ubicación en vivo"}
+      </div>
+    `;
+    locCard.append(mapBanner);
+
+    const locInfo = document.createElement("div");
+    locInfo.className = "p-3";
+    locInfo.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-slate-900">${loc.name || "Ubicación de Entrega"}</div>
+          <div class="text-[11px] text-slate-500 mt-0.5 leading-relaxed truncate">${loc.address || "Punto de entrega registrado"}</div>
+        </div>
+        <span class="rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 shrink-0">WhatsApp GPS</span>
+      </div>
+    `;
+
+    if (loc.mapUrl) {
+      const mapBtn = document.createElement("a");
+      mapBtn.href = loc.mapUrl;
+      mapBtn.target = "_blank";
+      mapBtn.rel = "noopener noreferrer";
+      mapBtn.className = "mt-2.5 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm";
+      mapBtn.innerHTML = `<span>🗺️ Abrir en Google Maps / Waze</span> <span class="text-[10px]">↗</span>`;
+      locInfo.append(mapBtn);
+    }
+
+    locCard.append(locInfo);
+    box.append(locCard);
+  }
+
+  // 4. PRODUCT IMAGES
   if (extra.images?.length) {
     const gallery = document.createElement("div");
     gallery.className = "mt-3 grid grid-cols-2 gap-2";
@@ -46,7 +218,7 @@ function bubble(text, own = false, extra = {}) {
     box.append(gallery);
   }
 
-  // CATALOG INTERACTIVE CARDS
+  // 5. CATALOG INTERACTIVE CARDS
   if (extra.catalog?.length) {
     const catGrid = document.createElement("div");
     catGrid.className = "mt-3 grid gap-2";
@@ -73,7 +245,7 @@ function bubble(text, own = false, extra = {}) {
     box.append(catGrid);
   }
 
-  // QUICK BUY BUTTON WHEN PRODUCT HAS STOCK
+  // 6. QUICK BUY BUTTON WHEN PRODUCT HAS STOCK
   if (extra.product && extra.product.stock > 0 && !extra.order) {
     const buyBtn = document.createElement("button");
     buyBtn.type = "button";
@@ -87,7 +259,7 @@ function bubble(text, own = false, extra = {}) {
     box.append(buyBtn);
   }
 
-  // AUDIO PLAYER & TRANSCRIPTION CARD
+  // 7. USER AUDIO PLAYER & TRANSCRIPTION CARD
   if (extra.audioUrl || extra.audio) {
     const audioWrap = document.createElement("div");
     audioWrap.className = "mt-2.5 flex flex-col gap-2";
@@ -125,7 +297,7 @@ function bubble(text, own = false, extra = {}) {
     box.append(audioWrap);
   }
 
-  // CHECKOUT FLOW CONFIRMATION
+  // 8. CHECKOUT FLOW CONFIRMATION CARD
   if (extra.order) {
     const summary = document.createElement("div");
     summary.className = "mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs leading-5 text-slate-800";
@@ -133,7 +305,7 @@ function bubble(text, own = false, extra = {}) {
       <div class="font-bold text-emerald-900 border-b border-emerald-200 pb-1 mb-1">Confirmación de Pedido</div>
       <div><b>Cliente:</b> ${extra.order.name}</div>
       <div><b>Producto:</b> ${extra.order.productName}</div>
-      <div><b>Entrega:</b> ${extra.order.address}</div>
+      <div><b>Entrega:</b> ${extra.order.address} ${extra.order.location ? `<a href="${extra.order.location.mapUrl}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 underline ml-1">📍 Ver GPS</a>` : ""}</div>
       <div><b>Teléfono:</b> ${extra.order.phone}</div>
       <div><b>Total:</b> L.${Number(extra.order.total).toLocaleString("es-HN")}</div>
     `;
@@ -148,7 +320,7 @@ function bubble(text, own = false, extra = {}) {
       confirm.disabled = true;
       confirm.className = "mt-3 w-full rounded-xl bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500 cursor-not-allowed";
       confirm.textContent = "✓ Compra confirmada exitosamente";
-      bubble(`¡Muchas gracias, ${saved.name}! Tu pedido ha quedado formalmente registrado en nuestro panel administrativo. Un asesor coordinará la entrega.`);
+      bubble(`¡Muchas gracias, ${saved.name}! Tu pedido ha quedado formalmente registrado en nuestro panel administrativo con entrega coordinada.`);
     });
     box.append(confirm);
   }
@@ -171,6 +343,20 @@ async function send(text, opts = {}) {
   $("#message").value = "";
   const answer = await engine.reply(text, opts);
   window.setTimeout(() => bubble(answer.text, false, answer), 260);
+}
+
+/**
+ * Procesa el envío de una ubicación (GPS en vivo o predefinida)
+ */
+async function sendLocation(loc) {
+  $("#location-picker-menu")?.classList.add("hidden");
+  // 1. Mostrar la tarjeta de ubicación enviada por el cliente
+  bubble(loc.name || loc.address || "📍 Ubicación compartida", true, {
+    location: loc
+  });
+  // 2. Procesar con el motor conversacional
+  const answer = await engine.reply(loc.address || loc.name, { location: loc });
+  window.setTimeout(() => bubble(answer.text, false, answer), 280);
 }
 
 /**
@@ -212,7 +398,7 @@ async function processAudio(fileOrBlob, fileName = "audio.mp4", options = {}) {
       box.querySelector(".whitespace-pre-wrap")?.after(transBox);
     }
 
-    // 4. Pasar el texto transcrito directamente al motor comercial de SMAKBot
+    // 4. Pasar el texto transcrito directamente al motor comercial de SMAKBot (responderá con nota de voz TTS)
     if (fullText) {
       const answer = await engine.reply(fullText, { audioTranscript: true });
       setTimeout(() => bubble(answer.text, false, answer), 300);
@@ -265,6 +451,89 @@ if (audioFileInput) {
     await processAudio(file, file.name);
   });
 }
+
+// Selector y menú de Ubicación
+const locationBtn = $("#location-button");
+const locationPickerMenu = $("#location-picker-menu");
+const closeLocationPicker = $("#close-location-picker");
+const btnGpsLive = $("#btn-gps-live");
+const formPasteMaps = $("#form-paste-maps");
+
+if (locationBtn && locationPickerMenu) {
+  locationBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    locationPickerMenu.classList.toggle("hidden");
+  });
+}
+
+if (closeLocationPicker && locationPickerMenu) {
+  closeLocationPicker.addEventListener("click", () => {
+    locationPickerMenu.classList.add("hidden");
+  });
+}
+
+// Botón GPS en vivo del dispositivo
+if (btnGpsLive) {
+  btnGpsLive.addEventListener("click", async () => {
+    btnGpsLive.disabled = true;
+    const originalText = btnGpsLive.innerHTML;
+    btnGpsLive.innerHTML = `<span class="animate-spin text-sm">⏳</span> Obteniendo GPS del dispositivo...`;
+    try {
+      const loc = await LocationService.getCurrentPosition();
+      btnGpsLive.innerHTML = originalText;
+      btnGpsLive.disabled = false;
+      await sendLocation(loc);
+    } catch (err) {
+      console.warn("Error GPS:", err);
+      // Fallback a Colonia Palmira si el usuario deniega permiso
+      alert("GPS del navegador: " + err.message + "\nSe enviará ubicación de muestra de Tegucigalpa.");
+      const fallback = LocationService.PRESETS[0];
+      btnGpsLive.innerHTML = originalText;
+      btnGpsLive.disabled = false;
+      await sendLocation({
+        ...fallback,
+        mapUrl: LocationService.getGoogleMapsUrl(fallback.lat, fallback.lng)
+      });
+    }
+  });
+}
+
+// Botones de presets de ubicación en Honduras
+document.querySelectorAll(".loc-preset-btn").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const presetId = btn.dataset.locPreset;
+    const preset = LocationService.PRESETS.find(p => p.id === presetId) || LocationService.PRESETS[0];
+    await sendLocation({
+      ...preset,
+      mapUrl: LocationService.getGoogleMapsUrl(preset.lat, preset.lng)
+    });
+  });
+});
+
+// Pegar enlace de Google Maps
+if (formPasteMaps) {
+  formPasteMaps.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const url = $("#input-maps-url").value.trim();
+    if (!url) return;
+    $("#input-maps-url").value = "";
+    const parsed = LocationService.parseLocationFromText(url) || {
+      name: "Ubicación Google Maps",
+      address: url,
+      lat: 14.1025,
+      lng: -87.1950,
+      mapUrl: url
+    };
+    await sendLocation(parsed);
+  });
+}
+
+// Cerrar menú de ubicación al hacer clic fuera
+document.addEventListener("click", (e) => {
+  if (locationPickerMenu && !locationPickerMenu.contains(e.target) && e.target !== locationBtn) {
+    locationPickerMenu.classList.add("hidden");
+  }
+});
 
 // Grabación con Micrófono en Vivo
 const micBtn = $("#audio-button");
@@ -365,7 +634,7 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
     engine.reset();
     const text = btn.dataset.scenario;
 
-    // SCENARIO AUDIO 1: PERCHERO (WHATSAPP OGG)
+    // SCENARIO AUDIO 1: PERCHERO (WHATSAPP OGG CON RESPUESTA EN VOZ)
     if (text === "__sample_perchero") {
       thread.replaceChildren();
       try {
@@ -380,7 +649,7 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
       return;
     }
 
-    // SCENARIO AUDIO 2: REGADERAS (WHATSAPP OGG)
+    // SCENARIO AUDIO 2: REGADERAS (WHATSAPP OGG CON RESPUESTA EN VOZ)
     if (text === "__sample_regaderas") {
       thread.replaceChildren();
       try {
@@ -399,6 +668,52 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
       bubble("Quiero hacer un pedido", true);
       const answer = engine.startCheckout();
       setTimeout(() => bubble(answer.text, false, answer), 220);
+      return;
+    }
+
+    // SCENARIO NUEVO: CHECKOUT COMPLETO CON UBICACION GPS DE WHATSAPP
+    if (text === "__order_with_location") {
+      thread.replaceChildren();
+      engine.reset();
+      const t = StorageFacade.getTenant();
+      const firstProd = t.products?.[0] || { name: "Estante Organizador Premium", sku: "EST-01", salePrice: 1050 };
+
+      // 1. Cliente pide producto
+      bubble(`¡Hola! Quiero hacer el pedido del ${firstProd.name} (SKU: ${firstProd.sku})`, true);
+
+      // 2. Bot inicia checkout preguntando nombre
+      setTimeout(() => {
+        const ans1 = engine.startCheckout(firstProd);
+        bubble(ans1.text, false, ans1);
+      }, 400);
+
+      // 3. Cliente da su nombre
+      setTimeout(() => {
+        bubble("Carlos Mendoza", true);
+        engine.checkout.name = "Carlos Mendoza";
+        engine.checkout.step = "address";
+        bubble(`Gracias, Carlos Mendoza. ¿Cuál es la dirección completa de entrega (ciudad y colonia)?\n\n💡 *Tip: Puedes presionar el botón 📍 abajo o enviar tu ubicación GPS de WhatsApp.*`, false);
+      }, 1100);
+
+      // 4. Cliente envía su ubicación de WhatsApp (Colonia Palmira, Tegucigalpa)
+      setTimeout(async () => {
+        const palmira = LocationService.PRESETS[0];
+        const locPayload = {
+          ...palmira,
+          mapUrl: LocationService.getGoogleMapsUrl(palmira.lat, palmira.lng)
+        };
+        bubble("📍 Colonia Palmira, Tegucigalpa", true, { location: locPayload });
+        const ans2 = await engine.reply(palmira.address, { location: locPayload });
+        bubble(ans2.text, false, ans2);
+      }, 2000);
+
+      // 5. Cliente envía su teléfono
+      setTimeout(async () => {
+        bubble("+504 9876-1204", true);
+        const ans3 = await engine.reply("+504 9876-1204");
+        bubble(ans3.text, false, ans3);
+      }, 3100);
+
       return;
     }
 
@@ -458,11 +773,12 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
 $("#human-button").addEventListener("click", () => send("Quiero hablar con un asesor comercial"));
 
 $("#clear-button").addEventListener("click", () => {
+  SpeechService.stop();
   thread.replaceChildren();
   engine.reset();
   const t = StorageFacade.getTenant();
   const firstSku = t.products?.[0]?.sku || "EST-01";
-  bubble(`¡Hola! 👋 Soy el asistente de **${t.name}**.\n\nPuedes enviarme notas de voz 🎙️ o escribir tus dudas sobre disponibilidad (ej. *"¿Tienen stock para el SKU ${firstSku}?"*), catálogo completo o envíos.`);
+  bubble(`¡Hola! 👋 Soy el asistente de **${t.name}**.\n\nPuedes enviarme notas de voz 🎙️ o tu ubicación GPS 📍, consultar disponibilidad (ej. *"¿Tienen stock para el SKU ${firstSku}?"*), catálogo completo o envíos.`);
 });
 
 window.addEventListener("smakbot:data-changed", () => {
@@ -477,4 +793,4 @@ window.addEventListener("storage", () => {
 updateTenant();
 const initialTenant = StorageFacade.getTenant();
 const sampleSku = initialTenant.products?.[0]?.sku || "EST-01";
-bubble(`¡Hola! 👋 Soy el asistente comercial de **${initialTenant.name}**.\n\nPuedes escribirme o **enviarme notas de voz 🎙️**:\n• Hablar o consultar stock: *"¿Tienen stock para el SKU ${sampleSku}?"*\n• Ver catálogo: *"¿Qué productos tienen en catálogo?"*\n• Envíos, métodos de pago o fotos.`);
+bubble(`¡Hola! 👋 Soy el asistente comercial de **${initialTenant.name}**.\n\n✨ **Nuevas funciones activas**:\n• **Respuestas en Audio**: Si me envías un audio 🎙️, te responderé con una nota de voz con transcripción.\n• **Ubicación GPS**: Al pedirte dirección, puedes presionar **📍 Compartir Ubicación** o enviar un link de Google Maps.\n\n¿En qué puedo ayudarte hoy?`);
