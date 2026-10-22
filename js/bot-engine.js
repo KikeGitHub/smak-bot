@@ -11,7 +11,7 @@ const clean = s => String(s || "")
 
 const tokenize = s => clean(s).split(/\s+/).filter(Boolean);
 
-const STOP_WORDS = new Set(['de', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'es', 'son', 'lo', 'en', 'por', 'que', 'se', 'me', 'te', 'le', 'y', 'o', 'al', 'del', 'a']);
+const STOP_WORDS = new Set(['de', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'es', 'son', 'lo', 'en', 'por', 'que', 'se', 'me', 'te', 'le', 'y', 'o', 'al', 'del', 'a', 'con', 'para', 'como', 'si', 'su', 'sus', 'mi', 'mis', 'tu', 'tus']);
 
 // Flexible phrase matcher with stop-word filtering & substantive keyword matching
 function matchPhrase(cleanInput, inTokens, phrase) {
@@ -365,6 +365,47 @@ export class BotEngine {
         c.step = "confirm";
         return this._buildOrderConfirmationResponse(c);
       }
+      if (c.step === "confirm") {
+        const isTransfer = cleanText.includes("transferencia") || cleanText.includes("transfer") || cleanText.includes("cuenta") || cleanText.includes("bancaria") || cleanText.includes("banco");
+        const isCard = cleanText.includes("tarjeta") || cleanText.includes("credito") || cleanText.includes("debito") || cleanText.includes("cuotas") || cleanText.includes("tasa cero") || cleanText.includes("visa") || cleanText.includes("mastercard");
+        const isPaymentGeneral = cleanText.includes("pago") || cleanText.includes("pagar") || cleanText.includes("como pago");
+        const isConfirmWord = ["confirmar", "confirmo", "si", "correcto", "listo", "dale", "ok", "adelante", "comprar", "proceder"].some(w => cleanText === w || cleanText.startsWith(w + " ") || cleanText.endsWith(" " + w));
+
+        if (isConfirmWord && !isTransfer && !isCard && !isPaymentGeneral) {
+          const saved = this.confirmOrder();
+          return {
+            text: `¡Muchas gracias, ${saved.name}! 🎉 Tu pedido **${saved.orderNumber}** (${saved.quantityLabel || '1 unid.'}) ha quedado formalmente registrado en nuestro sistema backend. En breve te notificaremos cuando la guía de rastreo sea asignada.`
+          };
+        }
+
+        const confirmation = this._buildOrderConfirmationResponse(c);
+
+        if (isTransfer) {
+          return {
+            text: `¡Sí, con todo gusto aceptamos transferencia bancaria! 🏦\n\nPuedes transferir a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes realizar tu transferencia y compartirnos el comprobante por este chat cuando tu pedido sea despachado, o bien pagar en efectivo contra entrega al recibir tu paquete en tu puerta.\n\n👇 **Tu pedido sigue listo para confirmar:**`,
+            order: confirmation.order
+          };
+        }
+
+        if (isCard) {
+          return {
+            text: `¡Sí! Aceptamos tarjetas de crédito Visa y Mastercard mediante enlace de pago seguro de BAC Credomatic (con opción a cuotas sin intereses al 0%).\n\nTambién puedes pagar en efectivo contra entrega al recibir tu paquete.\n\n👇 **Tu pedido sigue listo para confirmar:**`,
+            order: confirmation.order
+          };
+        }
+
+        if (isPaymentGeneral) {
+          return {
+            text: `Aceptamos dos modalidades de pago:\n1. **Efectivo contra entrega:** Pagas al recibir en tu puerta.\n2. **Transferencia bancaria previa:** A nuestras cuentas en BAC (742-108-951), Ficohsa (2000-098-432) o Atlántida (110-045-892).\n\n👇 **Tu pedido sigue listo para confirmar:**`,
+            order: confirmation.order
+          };
+        }
+
+        return {
+          text: `Entendido. Tu orden **${c.orderNumber}** para **${c.product.name}** sigue lista.\n\nPuedes presionar el botón abajo para confirmar tu compra:`,
+          order: confirmation.order
+        };
+      }
     }
 
     // 3b. Tracking and order inquiry
@@ -471,6 +512,16 @@ export class BotEngine {
       return {
         text: "Te transfiero de inmediato con un asesor humano. El asistente automático ha quedado en pausa.",
         human: true
+      };
+    }
+
+    // 5b. Transferencia bancaria inquiry outside of checkout
+    const isTransferQuery = cleanText.includes("transferencia") || cleanText.includes("transfer") || (cleanText.includes("cuenta") && (cleanText.includes("banco") || cleanText.includes("transferir") || cleanText.includes("depositar")));
+    if (isTransferQuery) {
+      const activeProd = this.selectedProduct || products[0];
+      return {
+        text: `¡Sí, aceptamos transferencia bancaria! 🏦\n\nPuedes realizar tu pago a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes pagar vía transferencia bancaria y compartirnos tu comprobante por este chat, o si prefieres también puedes pagar en efectivo contra entrega al recibir tu producto en la puerta de tu casa.\n\n¿Deseas que preparemos tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
+        product: activeProd || null
       };
     }
 

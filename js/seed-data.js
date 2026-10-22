@@ -233,6 +233,29 @@ export const TENANTS = [
         response: "En Tegucigalpa y San Pedro Sula contamos con mensajería express para entrega el mismo día si realizas tu pedido antes de la 1:00 PM con un recargo de L.80."
       },
       {
+        id: "rule-transferencia",
+        name: "Pago por Transferencia Bancaria",
+        type: "static",
+        category: "Pagos",
+        enabled: true,
+        trainingPhrases: [
+          "puedo pagar con transferencia",
+          "puedo pagar por transferencia",
+          "se puede pagar con transferencia",
+          "aceptan transferencia",
+          "aceptan transferencia bancaria",
+          "tienen transferencia",
+          "pago por transferencia",
+          "transferencia bancaria",
+          "cuentas para transferir",
+          "datos de transferencia",
+          "numeros de cuenta",
+          "numero de cuenta para transferir",
+          "cuenta de banco"
+        ],
+        response: "¡Sí! Aceptamos transferencias bancarias a nuestras cuentas empresariales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes transferir y compartirnos tu comprobante por este chat cuando tu pedido sea despachado, o si lo prefieres, también puedes pagar en efectivo contra entrega al recibir tu paquete en tu puerta."
+      },
+      {
         id: "rule-pagos",
         name: "Métodos y Formas de Pago",
         type: "static",
@@ -241,12 +264,12 @@ export const TENANTS = [
         trainingPhrases: [
           "como puedo pagar",
           "formas de pago",
+          "metodos de pago",
           "aceptan pago contra entrega",
           "puedo pagar en efectivo",
-          "transferencia bancaria",
           "que metodos de pago tienen"
         ],
-        response: "Puedes pagar en efectivo contra entrega al recibir tu pedido en la puerta de tu casa, o bien vía transferencia bancaria (Ficohsa, BAC, Atlántida o Banpaís)."
+        response: "Aceptamos dos formas de pago principales:\n1. **Efectivo contra entrega:** Pagas al recibir en tu domicilio.\n2. **Transferencia bancaria previa:** A nuestras cuentas en BAC (742-108-951), Ficohsa (2000-098-432) o Atlántida (110-045-892)."
       },
       {
         id: "rule-tarjetas",
@@ -256,7 +279,8 @@ export const TENANTS = [
         enabled: true,
         trainingPhrases: [
           "aceptan tarjeta de credito",
-          "se puede pagar con tarjeta",
+          "se puede pagar con tarjeta de credito",
+          "pago con tarjeta",
           "tienen tasa cero",
           "tienen cuotas sin intereses",
           "link de pago con tarjeta"
@@ -611,6 +635,25 @@ export const TENANTS = [
           "como me llega el paquete"
         ],
         response: "Envíos express en 24 a 48 horas a las principales ciudades de Honduras con Cargo Expreso. Flete gratis en compras de 2 o más pares."
+      },
+      {
+        id: "rule-transferencia-c",
+        name: "Pago por Transferencia Bancaria",
+        type: "static",
+        category: "Pagos",
+        enabled: true,
+        trainingPhrases: [
+          "puedo pagar con transferencia",
+          "puedo pagar por transferencia",
+          "se puede pagar con transferencia",
+          "aceptan transferencia",
+          "tienen transferencia",
+          "pago por transferencia",
+          "transferencia bancaria",
+          "cuentas para transferir",
+          "datos de transferencia"
+        ],
+        response: "¡Sí! Aceptamos transferencia bancaria a nuestras cuentas: BAC Credomatic (Cheques: 742-108-951), Ficohsa (2000-098-432) y Atlántida (110-045-892). También puedes pagar en efectivo contra entrega."
       },
       {
         id: "rule-pagos-c",

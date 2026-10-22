@@ -105,12 +105,18 @@ export class StorageFacade {
           (defT.rules || []).forEach(defR => {
             const curR = curTenant.rules.find(r => r.id === defR.id);
             if (curR) {
-              (defR.trainingPhrases || []).forEach(phrase => {
-                if (!curR.trainingPhrases.includes(phrase)) {
-                  curR.trainingPhrases.push(phrase);
-                  modified = true;
-                }
-              });
+              if (defR.id.includes("transferencia") || defR.id.includes("pagos") || defR.id.includes("tarjetas")) {
+                curR.response = defR.response;
+                curR.trainingPhrases = clone(defR.trainingPhrases);
+                modified = true;
+              } else {
+                (defR.trainingPhrases || []).forEach(phrase => {
+                  if (!curR.trainingPhrases.includes(phrase)) {
+                    curR.trainingPhrases.push(phrase);
+                    modified = true;
+                  }
+                });
+              }
             } else {
               curTenant.rules.push(clone(defR));
               modified = true;

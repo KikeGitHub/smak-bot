@@ -273,6 +273,47 @@
           c.step = "confirm";
           return this._buildOrderConfirmation(c);
         }
+        if (c.step === "confirm") {
+          const isTransfer = cleanText.includes("transferencia") || cleanText.includes("transfer") || cleanText.includes("cuenta") || cleanText.includes("bancaria") || cleanText.includes("banco");
+          const isCard = cleanText.includes("tarjeta") || cleanText.includes("credito") || cleanText.includes("debito") || cleanText.includes("cuotas") || cleanText.includes("tasa cero") || cleanText.includes("visa") || cleanText.includes("mastercard");
+          const isPaymentGeneral = cleanText.includes("pago") || cleanText.includes("pagar") || cleanText.includes("como pago");
+          const isConfirmWord = ["confirmar", "confirmo", "si", "correcto", "listo", "dale", "ok", "adelante", "comprar", "proceder"].some(w => cleanText === w || cleanText.startsWith(w + " ") || cleanText.endsWith(" " + w));
+
+          if (isConfirmWord && !isTransfer && !isCard && !isPaymentGeneral) {
+            const saved = this.confirmOrder();
+            return {
+              text: `¡Muchas gracias, ${saved ? saved.name : "estimado cliente"}! 🎉 Tu pedido **${saved ? saved.orderNumber : ""}** (${saved ? saved.quantityLabel : "1 unid."}) ha quedado formalmente registrado en nuestro sistema backend. En breve te notificaremos cuando la guía de rastreo sea asignada.`
+            };
+          }
+
+          const confirmation = this._buildOrderConfirmation(c);
+
+          if (isTransfer) {
+            return {
+              text: `¡Sí, con gusto aceptamos transferencia bancaria! 🏦\n\nPuedes transferir a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes realizar tu transferencia y adjuntar tu comprobante por WhatsApp al coordinar la entrega, o bien pagar en efectivo contra entrega al recibir tu paquete en tu puerta.\n\n👇 **Tu pedido sigue listo para ser confirmado:**`,
+              order: confirmation.order
+            };
+          }
+
+          if (isCard) {
+            return {
+              text: `¡Sí! Aceptamos tarjetas Visa y Mastercard mediante enlace de pago seguro de BAC Credomatic con opción a cuotas sin intereses al 0%.\n\nTambién puedes pagar en efectivo contra entrega al recibir en tu puerta.\n\n👇 **Tu pedido sigue listo para ser confirmado:**`,
+              order: confirmation.order
+            };
+          }
+
+          if (isPaymentGeneral) {
+            return {
+              text: `Aceptamos dos modalidades de pago:\n1. **Efectivo contra entrega:** Pagas al recibir en tu puerta.\n2. **Transferencia bancaria previa:** A nuestras cuentas en BAC (742-108-951), Ficohsa (2000-098-432) o Atlántida (110-045-892).\n\n👇 **Tu pedido sigue listo para ser confirmado:**`,
+              order: confirmation.order
+            };
+          }
+
+          return {
+            text: `Entendido. Tu orden **${c.orderNumber}** para **${c.product.name}** sigue lista.\n\nPuedes presionar el botón abajo para confirmar tu compra:`,
+            order: confirmation.order
+          };
+        }
       }
 
       // 1b. Consulta de Rastreo / Estado de Pedido
@@ -345,10 +386,20 @@
         };
       }
 
+      // 5b. Consulta de Transferencia Bancaria
+      const isTransferQuery = cleanText.includes("transferencia") || cleanText.includes("transfer") || (cleanText.includes("cuenta") && (cleanText.includes("banco") || cleanText.includes("transferir") || cleanText.includes("depositar")));
+      if (isTransferQuery) {
+        const prod = this.selectedProduct || (window.SMAK_PRODUCTS && window.SMAK_PRODUCTS[0]);
+        return {
+          text: `¡Sí, aceptamos transferencia bancaria! 🏦\n\nPuedes realizar tu pago a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes pagar vía transferencia y adjuntar tu comprobante por el chat, o pagar en efectivo contra entrega al recibir tu paquete en tu puerta.\n\n¿Deseas realizar tu pedido${prod ? ` para **${prod.name}**` : ''}?`,
+          product: prod || null
+        };
+      }
+
       // 6. Métodos de Pago
       if (matchesConcept(tokens, "pago") || cleanText.includes("como se paga")) {
         return {
-          text: `💳 **Formas de Pago**:\n\n1. **Pago contra entrega en efectivo:** Pagas al recibir tu paquete en tu domicilio.\n2. **Transferencia bancaria:** Disponible en BAC, Ficohsa, Atlántida y Banpaís.\n\nTodos nuestros pedidos incluyen garantía de satisfacción y factura.`
+          text: `💳 **Formas de Pago**:\n\n1. **Pago contra entrega en efectivo:** Pagas al recibir tu paquete en tu domicilio.\n2. **Transferencia bancaria previa:** A nuestras cuentas en BAC (742-108-951), Ficohsa (2000-098-432) o Atlántida (110-045-892).\n\nTodos nuestros pedidos incluyen garantía de satisfacción y factura fiscal con RTN.`
         };
       }
 
@@ -394,6 +445,8 @@
       };
     }
   }
+
+  window.WebBotEngine = WebBotEngine;
 
   // ---- CONTROLADOR DEL WIDGET EN EL DOM ----
   function initWebBotUI() {
@@ -537,7 +590,7 @@
           <div><b>Entrega:</b> ${o.address}</div>
           <div><b>Teléfono:</b> ${o.phone}</div>
           <div><b>Facturación:</b> <span style="background:${o.requiresInvoice ? '#FEF3C7' : '#F1F5F9'};color:${o.requiresInvoice ? '#92400E' : '#475569'};padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;">${o.requiresInvoice ? `Sí (RTN: ${o.rtn || 'Con RTN'})` : 'No (Consumidor Final)'}</span></div>
-          <div style="font-weight:700;color:#0F172A;font-size:13px;margin-top:6px;padding-top:4px;border-top:1px dashed #E2E8F0;">Total a pagar: L.${Number(o.price).toLocaleString('es-HN')}</div>
+          <div style="font-weight:700;color:#0F172A;font-size:13px;margin-top:6px;padding-top:4px;border-top:1px dashed #E2E8F0;">Total a pagar: L.${Number(o.total || o.price || 0).toLocaleString('es-HN')}</div>
           <button type="button" class="web-bot-order-confirm-btn" data-action="confirm-order">✓ Confirmar pedido contra entrega</button>
         `;
         const confirmBtn = oCard.querySelector('[data-action="confirm-order"]');
