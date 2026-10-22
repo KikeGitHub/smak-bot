@@ -233,6 +233,34 @@ export const TENANTS = [
         response: "En Tegucigalpa y San Pedro Sula contamos con mensajería express para entrega el mismo día si realizas tu pedido antes de la 1:00 PM con un recargo de L.80."
       },
       {
+        id: "rule-horarios-agencias",
+        name: "Horarios Específicos y Retiro en Agencias Cargo Expreso",
+        type: "static",
+        category: "Envíos",
+        enabled: true,
+        trainingPhrases: [
+          "entregan en sabado",
+          "entregan los sabados",
+          "hacen entregas los sabados",
+          "pueden entregar en horario especifico",
+          "puedo pedir un horario especifico",
+          "pueden entregar a una hora especifica",
+          "a que hora entregan",
+          "entregan por la tarde",
+          "entregan en la manana",
+          "puedo recoger en agencia",
+          "puedo retirar en agencia de cargo expreso",
+          "tienen retiro en oficina cargo expreso",
+          "oficinas de cargo expreso",
+          "agencias de cargo expreso",
+          "mandar a agencia de cargo expreso",
+          "retirar en agencia",
+          "agencias de delivery",
+          "ocurre agencia"
+        ],
+        response: "🚚 **Información sobre Horarios y Agencias de Cargo Expreso:**\n\n• **Ruta a domicilio:** Las entregas se realizan de Lunes a Viernes de 8:00 AM a 5:00 PM, y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n• **Dependencia de la agencia:** Al ser un servicio tercerizado con Cargo Expreso, las rutas dependen enteramente de su logística, por lo que **no depende de nosotros garantizar una hora o día exacto en tiempo y forma** (el motorista siempre te llamará antes de llegar).\n\n💡 **Retiro en Agencia:** Si necesitas un horario muy específico o no estás en casa, podemos enviar tu paquete para **retiro en la oficina o agencia de Cargo Expreso más cercana**, donde te esperará seguro en ventanilla para recogerlo a tu conveniencia (Sábados medio día)."
+      },
+      {
         id: "rule-transferencia",
         name: "Pago por Transferencia Bancaria",
         type: "static",
@@ -641,6 +669,28 @@ export const TENANTS = [
           "como me llega el paquete"
         ],
         response: "Envíos express en 24 a 48 horas a las principales ciudades de Honduras con Cargo Expreso. Flete gratis en compras de 2 o más pares."
+      },
+      {
+        id: "rule-horarios-agencias-c",
+        name: "Horarios de Entrega y Retiro en Agencias Cargo Expreso",
+        type: "static",
+        category: "Envíos",
+        enabled: true,
+        trainingPhrases: [
+          "entregan en sabado",
+          "entregan los sabados",
+          "hacen entregas los sabados",
+          "pueden entregar en horario especifico",
+          "puedo pedir un horario especifico",
+          "pueden entregar a una hora especifica",
+          "a que hora entregan",
+          "puedo recoger en agencia",
+          "puedo retirar en agencia de cargo expreso",
+          "oficinas de cargo expreso",
+          "agencias de cargo expreso",
+          "retirar en agencia"
+        ],
+        response: "🚚 **Horarios de Entrega con Cargo Expreso:**\n\n• **A domicilio:** De Lunes a Viernes de 8:00 AM a 5:00 PM, y **Sábados medio día** (hasta las 12:00 PM).\n• **Dependencia de la agencia:** Las rutas dependen de Cargo Expreso, por lo que **no depende de nosotros asegurar una hora exacta o día fijo en tiempo y forma**.\n\n💡 **Retiro en Agencia:** Si necesitas retirar a tu propio horario, te recomendamos enviarlo para **retiro en la agencia u oficina de Cargo Expreso más cercana**, donde puedes recogerlo cuando mejor te convenga (Sábados medio día)."
       },
       {
         id: "rule-transferencia-c",

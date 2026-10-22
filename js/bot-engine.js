@@ -70,6 +70,7 @@ export class BotEngine {
       name: "",
       recipientName: "",
       address: "",
+      isAgencyPickup: false,
       phone: "",
       postalCode: null,
       location: null,
@@ -87,14 +88,18 @@ export class BotEngine {
     const invoiceTxt = c.requiresInvoice 
       ? `Sí (RTN: ${c.rtn} · ${c.businessName})` 
       : "No (Consumidor Final)";
+    const deliverySummary = c.isAgencyPickup
+      ? `🏢 Retiro en Agencia Cargo Expreso (${c.address})`
+      : `${c.address}${c.location ? `\n• 📍 Mapa GPS: [Ver en Google Maps](${c.location.mapUrl})` : ""}`;
 
     return {
-      text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}** (SKU: ${prod.sku})\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Destinatario: ${c.recipientName || c.name}\n• Entrega: ${c.address}${c.location ? `\n• 📍 Mapa GPS: [Ver en Google Maps](${c.location.mapUrl})` : ""}\n• Contacto (Llamadas Cargo Expreso): ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra con pago contra entrega.`,
+      text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}** (SKU: ${prod.sku})\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Destinatario: ${c.recipientName || c.name}\n• Entrega: ${deliverySummary}\n• Contacto (Llamadas Cargo Expreso): ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra con pago contra entrega.`,
       order: {
         orderNumber: c.orderNumber,
         name: c.name,
         recipientName: c.recipientName || c.name,
         address: c.address,
+        isAgencyPickup: Boolean(c.isAgencyPickup),
         phone: c.phone,
         postalCode: c.postalCode || null,
         productName: `${prod.name} (${prod.sku})`,
@@ -118,6 +123,7 @@ export class BotEngine {
       name: c.name,
       recipientName: c.recipientName || c.name,
       address: c.address,
+      isAgencyPickup: Boolean(c.isAgencyPickup),
       phone: c.phone,
       postalCode: c.postalCode || null,
       productName: c.product.name,
@@ -187,12 +193,16 @@ export class BotEngine {
       const newAddress = addressChangeMatch[1].trim();
       if (!newAddress.includes("?") && !newAddress.includes("¿") && !cleanText.startsWith("donde")) {
         c.address = newAddress;
+        c.isAgencyPickup = this._isAgencyAddress(newAddress);
         const cpMatch = newAddress.match(/\b\d{5}\b/);
         if (cpMatch) c.postalCode = cpMatch[0];
+        const ackText = c.isAgencyPickup
+          ? `✏️ ¡Listo! Hemos actualizado tu entrega para **retiro en agencia de Cargo Expreso**: **${c.address}** (Recordando que los sábados atienden únicamente medio día).`
+          : `✏️ ¡Listo! Hemos actualizado tu dirección de entrega a: **${c.address}**.`;
         return {
           modified: true,
           field: "address",
-          ack: `✏️ ¡Listo! Hemos actualizado tu dirección de entrega a: **${c.address}**.`
+          ack: ackText
         };
       }
     }
@@ -512,6 +522,66 @@ export class BotEngine {
     return this.matchesSynonym(tokens, synonyms, "dimensiones");
   }
 
+  // Detection of Agency Pickup Addresses (Cargo Expreso / Delivery agencies in Honduras)
+  _isAgencyAddress(rawText) {
+    if (!rawText) return false;
+    if (rawText.includes("?") || rawText.includes("¿")) return false;
+    const text = clean(rawText);
+    if (/^(?:tienen|donde|d[oó]nde|cu[aá]l|cual|cu[aá]ndo|cuando|a qu[eé]|a que|horario|qu[eé]|que)\b/i.test(text)) {
+      return false;
+    }
+    const agencyTerms = [
+      "agencia", "oficina", "sucursal", "ocurre", "bodega", "punto caex",
+      "retirar en agencia", "recoger en agencia", "retiro en agencia",
+      "reclamar en agencia", "reclamar en oficina", "retirar en oficina", "recoger en oficina"
+    ];
+    const hasAgencyTerm = agencyTerms.some(t => text.includes(t));
+    if (!hasAgencyTerm) return false;
+
+    const carrierOrHonduras = [
+      "cargo", "expreso", "caex", "paqueteria", "delivery", "encomienda",
+      "tegucigalpa", "san pedro", "sps", "ceiba", "choluteca", "comayagua",
+      "danli", "juticalpa", "progreso", "puerto cortes", "siguatepeque", "santa rosa",
+      "la granja", "kennedy", "los andes", "centro", "circunvalacion", "toncontin"
+    ];
+    const hasCarrierOrLoc = carrierOrHonduras.some(t => text.includes(t));
+    return hasCarrierOrLoc || text.length >= 10;
+  }
+
+  // Detection of Delivery Schedule / Specific Hours / Saturdays Queries
+  _isScheduleDeliveryQuery(cleanText, tokens) {
+    const schedulePhrases = [
+      "horario especifico", "hora especifica", "hora exacta", "horario exacto",
+      "a que hora", "que hora", "a que horas", "que horas",
+      "pueden entregar a las", "puedo pedir horario", "puedo pedir hora", "pueden venir a las",
+      "en la tarde", "en la manana", "por la tarde", "por la manana",
+      "despues de las", "antes de las", "medio dia",
+      "dia especifico", "que dia", "puedo elegir dia", "puedo escoger dia",
+      "sabado", "sabados", "los sabados", "el sabado", "sabado en la tarde", "sabados en la tarde", "sabado por la tarde"
+    ];
+    if (schedulePhrases.some(p => cleanText.includes(p))) return true;
+
+    const hasTimeWord = tokens.some(t => ["horario", "hora", "horas", "sabado", "sabados"].includes(t));
+    const hasDeliveryContext = cleanText.includes("especific") || cleanText.includes("entrega") || cleanText.includes("venir") || cleanText.includes("llegar") || cleanText.includes("tarde") || cleanText.includes("medio dia");
+    return Boolean(hasTimeWord && hasDeliveryContext);
+  }
+
+  // Detection of Agency Pickup General Inquiries
+  _isAgencyPickupQuery(cleanText, tokens) {
+    const agencyPhrases = [
+      "recoger en agencia", "retirar en agencia", "pasar a recoger", "pasar a traer",
+      "recoger en oficina", "retirar en oficina", "oficinas de cargo", "agencias de cargo",
+      "agencia de cargo", "oficina de cargo", "mandar a agencia", "mandar a oficina",
+      "enviar a agencia", "enviar a oficina", "agencias de delivery", "agencia de delivery",
+      "oficina cargo expreso", "agencia cargo expreso", "ocurre", "sucursal cargo expreso"
+    ];
+    return agencyPhrases.some(p => cleanText.includes(p));
+  }
+
+  _getScheduleAndAgencyExplanation() {
+    return `🚚 **Información sobre Horarios y Agencias de Cargo Expreso:**\n\n• **Ruta a domicilio:** Las entregas se realizan de Lunes a Viernes de 8:00 AM a 5:00 PM, y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n• **Dependencia de la agencia:** Como las entregas se coordinan con la empresa de transporte (**Cargo Expreso / agencias de delivery en Honduras**), las rutas dependen directamente de su logística diaria. Por esta razón, **no depende de nosotros garantizar un horario específico o día fijo en tiempo y forma** (el motorista siempre te llamará antes de llegar a tu domicilio).\n\n💡 **Recomendación (Retiro en Agencia):** Si necesitas un horario muy específico o no estás seguro de estar en casa, **te sugerimos solicitar el paquete para retiro en una agencia u oficina de Cargo Expreso** en tu ciudad. Tu paquete te esperará en ventanilla para recogerlo a tu conveniencia (ten presente que los sábados también atienden medio día).`;
+  }
+
   async reply(message, opts = {}) {
     const isVoice = Boolean(opts.audio || opts.audioTranscript || this.voicePreferred);
     const result = await this._internalReply(message, opts);
@@ -556,6 +626,12 @@ export class BotEngine {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nCuentas oficiales (SMAK Honduras S. de R.L.):\n• BAC: 742-108-951 · Ficohsa: 2000-098-432 · Atlántida: 110-045-892\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
           };
         }
+        if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+          const expl = this._getScheduleAndAgencyExplanation();
+          return {
+            text: `${expl}\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
+          };
+        }
         if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
           const p = c.product;
           return {
@@ -570,6 +646,12 @@ export class BotEngine {
         };
       }
       if (c.step === "quantity") {
+        if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+          const expl = this._getScheduleAndAgencyExplanation();
+          return {
+            text: `${expl}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+          };
+        }
         if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
           const p = c.product;
           return {
@@ -583,7 +665,7 @@ export class BotEngine {
         c.total = Number(c.product.salePrice) * q;
         c.step = "address";
         return {
-          text: `Anotado: **${c.quantityLabel}** (Total: L.${Number(c.total).toLocaleString("es-HN")}).\n\n🚚 Para coordinar la entrega a domicilio con **Cargo Expreso**, por favor compártenos los datos de tu dirección (o bien presiona el botón 📍 abajo para enviar tu ubicación GPS de WhatsApp):\n\n1. **Nombre del destinatario:** (quién recibe el paquete)\n2. **Calle y número de casa / referencia:**\n3. **Colonia, barrio o sector:**\n4. **Ciudad / Municipio:**\n5. **Código postal:** (opcional o de tu zona)\n\n💡 *Ejemplo:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Palmira, Tegucigalpa, CP 11101`
+          text: `Anotado: **${c.quantityLabel}** (Total: L.${Number(c.total).toLocaleString("es-HN")}).\n\n🚚 Para coordinar la entrega con **Cargo Expreso**, por favor compártenos tus datos de entrega:\n\n• **Entrega a domicilio:** Destinatario, Calle y número de casa / referencia, Colonia o barrio, Ciudad y Código postal (o presiona el botón 📍 abajo para enviar tu ubicación GPS de WhatsApp).\n• **¿Prefieres retirar en agencia?** Puedes indicarnos la **oficina o agencia de Cargo Expreso** de tu ciudad donde prefieres retirar (teniendo en cuenta que los sábados trabajan medio día).\n\n💡 *Ejemplo domicilio:* ${c.name}, Calle Principal #15 frente a pulpería, Col. Palmira, Tegucigalpa, CP 11101\n💡 *Ejemplo agencia:* Agencia Cargo Expreso San Pedro Sula Centro`
         };
       }
       if (c.step === "address") {
@@ -596,6 +678,24 @@ export class BotEngine {
           const p = c.product;
           return {
             text: `📏 **Medidas de ${p.name} (${p.sku}):** **${p.dimensions || 'Estándar'}** (Soporte: ${p.weightLimit || 'Uso comercial y residencial'}).\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
+          };
+        }
+
+        // Detección directa de entrega en agencia u oficina Cargo Expreso (Ocurre)
+        if (this._isAgencyAddress(rawText)) {
+          c.isAgencyPickup = true;
+          c.address = rawText.trim();
+          c.recipientName = c.recipientName || c.name;
+          c.step = "phone";
+          return {
+            text: `¡Excelente elección! 🏢 Registrado para **retiro en agencia de Cargo Expreso**:\n\n📌 **Agencia de retiro:** ${c.address}\n👤 **Destinatario para reclamar en ventanilla:** ${c.recipientName}\n\n⚠️ **Horarios de agencia:** Atienden de Lunes a Viernes (8:00 AM - 5:00 PM) y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega y notificarte la guía de rastreo?\n\n⚠️ **Importante:** Cargo Expreso coordina y avisa la llegada del paquete **únicamente vía llamada telefónica** (asegúrate de que la línea pueda recibir llamadas directas).`
+          };
+        }
+
+        if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+          const expl = this._getScheduleAndAgencyExplanation();
+          return {
+            text: `${expl}\n\n📍 Para continuar con tu orden, indícanos si prefieres que lo enviemos a tu **dirección de domicilio** (con destinatario, colonia y ciudad) o la **oficina/agencia de Cargo Expreso** donde pasarás a retirar:`
           };
         }
 
@@ -626,7 +726,7 @@ export class BotEngine {
 
         if (isTooShort) {
           return {
-            text: `Para que **Cargo Expreso** pueda entregar tu paquete en tu puerta sin retrasos, por favor indícanos una dirección más detallada (o presiona el botón 📍 abajo para enviar tu ubicación GPS):\n\n• **Nombre del destinatario**\n• **Calle y número de casa / referencia**\n• **Colonia, barrio o sector**\n• **Ciudad / Municipio**\n• **Código postal**\n\n💡 *Ejemplo:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Miramontes, Tegucigalpa.`
+            text: `Para que **Cargo Expreso** pueda entregar tu paquete sin retrasos, por favor indícanos una dirección más detallada (o presiona el botón 📍 abajo para enviar tu ubicación GPS):\n\n• **A domicilio:** Nombre del destinatario, Calle y casa / referencia, Colonia o barrio, y Ciudad / Municipio.\n• **En agencia:** Oficina o sucursal de Cargo Expreso de tu ciudad donde prefieres retirar en ventanilla.\n\n💡 *Ejemplo domicilio:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Miramontes, Tegucigalpa.\n💡 *Ejemplo agencia:* Agencia Cargo Expreso San Pedro Sula Centro.`
           };
         }
 
@@ -644,6 +744,12 @@ export class BotEngine {
         if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
           return {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega de tu paquete 📞:`
+          };
+        }
+        if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+          const expl = this._getScheduleAndAgencyExplanation();
+          return {
+            text: `${expl}\n\nPara continuar con tu pedido, compártenos tu **número telefónico que reciba llamadas** para coordinar la entrega con Cargo Expreso 📞:`
           };
         }
         if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
@@ -922,6 +1028,16 @@ export class BotEngine {
         text: `¡Claro! Aquí tienes fotografías reales de **${currentProduct.name}** (${currentProduct.sku}):\n\n🏷️ **Precio:** L.${Number(currentProduct.salePrice).toLocaleString("es-HN")}\n📦 **Medidas / Detalle:** ${currentProduct.dimensions || "Estándar"}${drainageNote}\n\n✅ **Disponibilidad:** ${currentProduct.stock > 0 ? `${currentProduct.stock} unidades en stock` : "Agotado"}. ¿Deseas hacer tu pedido?`,
         product: currentProduct,
         images: currentProduct.images || []
+      };
+    }
+
+    // 7b. SCHEDULES, SPECIFIC HOURS & AGENCY PICKUP INQUIRY (Cargo Expreso constraints)
+    if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+      const expl = this._getScheduleAndAgencyExplanation();
+      const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || products[0];
+      return {
+        text: `${expl}\n\n¿Deseas que preparemos tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
+        product: activeProd || null
       };
     }
 

@@ -310,7 +310,7 @@ function bubble(text, own = false, extra = {}) {
       <div><b>Destinatario:</b> ${o.recipientName || o.name}</div>
       <div><b>Producto:</b> ${o.productName}</div>
       <div><b>Cantidad / Piezas:</b> <span class="text-emerald-800 font-semibold">${o.quantityLabel || (o.quantity + " unid.")}</span></div>
-      <div><b>Entrega:</b> ${o.address} ${o.location ? `<a href="${o.location.mapUrl}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 underline ml-1">📍 Ver GPS</a>` : ""}</div>
+      <div><b>Entrega:</b> ${o.isAgencyPickup ? `🏢 Retiro en Agencia Cargo Expreso (${o.address})` : o.address} ${o.location ? `<a href="${o.location.mapUrl}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 underline ml-1">📍 Ver GPS</a>` : ""}</div>
       <div><b>Teléfono (Llamadas Cargo Expreso):</b> <span class="font-semibold text-emerald-900">${o.phone}</span></div>
       <div><b>Facturación:</b> <span class="rounded px-1.5 py-0.5 text-[11px] font-semibold ${o.requiresInvoice ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600'}">${o.requiresInvoice ? `Sí (RTN: ${o.rtn || 'Con RTN'})` : 'No (Consumidor Final)'}</span></div>
       <div class="mt-1 pt-1 border-t border-emerald-200/60 font-bold text-emerald-950 text-sm">Total a pagar: L.${Number(o.total).toLocaleString("es-HN")}</div>
@@ -719,6 +719,64 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
         const ans3 = await engine.reply("+504 9876-1204");
         bubble(ans3.text, false, ans3);
       }, 3100);
+
+    // SCENARIO AGENCIAS Y HORARIOS: CONSULTA DE SÁBADO + CHECKOUT CON RETIRO EN AGENCIA
+    if (text === "__agency_pickup_test") {
+      thread.replaceChildren();
+      engine.reset();
+      const t = StorageFacade.getTenant();
+      const prod = t.products?.[0] || { name: "Kit de Sillas Tolix", sku: "SILL-01", salePrice: 1250 };
+
+      // 1. Cliente pregunta por entrega en sábado o agencia
+      bubble("¿Pueden entregar el sábado a las 3pm o mandar a oficina de Cargo Expreso?", true);
+
+      // 2. Bot responde explicando horarios, sábados medio día, dependencia de Cargo Expreso y sugiere retiro en agencia
+      setTimeout(async () => {
+        const ans1 = await engine.reply("¿Pueden entregar el sábado a las 3pm o mandar a oficina de Cargo Expreso?");
+        bubble(ans1.text, false, ans1);
+      }, 500);
+
+      // 3. Cliente decide pedir para agencia de San Pedro Sula
+      setTimeout(() => {
+        bubble(`Excelente, quiero ordenar 1 kit de ${prod.name}`, true);
+        const ans2 = engine.startCheckout(prod, 1);
+        bubble(ans2.text, false, ans2);
+      }, 1600);
+
+      // 4. Cliente da su nombre
+      setTimeout(async () => {
+        bubble("Carlos Barahona", true);
+        const ans3 = await engine.reply("Carlos Barahona");
+        bubble(ans3.text, false, ans3);
+      }, 2700);
+
+      // 5. Cliente indica cantidad
+      setTimeout(async () => {
+        bubble("1 kit", true);
+        const ans4 = await engine.reply("1 kit");
+        bubble(ans4.text, false, ans4);
+      }, 3800);
+
+      // 6. Cliente envía la agencia como dirección
+      setTimeout(async () => {
+        bubble("Agencia Cargo Expreso San Pedro Sula Centro", true);
+        const ans5 = await engine.reply("Agencia Cargo Expreso San Pedro Sula Centro");
+        bubble(ans5.text, false, ans5);
+      }, 5000);
+
+      // 7. Cliente da su teléfono
+      setTimeout(async () => {
+        bubble("+504 9912-3456", true);
+        const ans6 = await engine.reply("+504 9912-3456");
+        bubble(ans6.text, false, ans6);
+      }, 6200);
+
+      // 8. Cliente indica No factura
+      setTimeout(async () => {
+        bubble("No", true);
+        const ans7 = await engine.reply("No");
+        bubble(ans7.text, false, ans7);
+      }, 7300);
 
       return;
     }

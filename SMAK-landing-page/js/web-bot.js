@@ -78,6 +78,66 @@
       return matchesConcept(tokens, "dimensiones");
     }
 
+    // Detección de retiro en oficinas / agencias de Cargo Expreso o Delivery en Honduras
+    _isAgencyAddress(rawText) {
+      if (!rawText) return false;
+      if (rawText.includes("?") || rawText.includes("¿")) return false;
+      const text = clean(rawText);
+      if (/^(?:tienen|donde|d[oó]nde|cu[aá]l|cual|cu[aá]ndo|cuando|a qu[eé]|a que|horario|qu[eé]|que)\b/i.test(text)) {
+        return false;
+      }
+      const agencyTerms = [
+        "agencia", "oficina", "sucursal", "ocurre", "bodega", "punto caex",
+        "retirar en agencia", "recoger en agencia", "retiro en agencia",
+        "reclamar en agencia", "reclamar en oficina", "retirar en oficina", "recoger en oficina"
+      ];
+      const hasAgencyTerm = agencyTerms.some(t => text.includes(t));
+      if (!hasAgencyTerm) return false;
+
+      const carrierOrHonduras = [
+        "cargo", "expreso", "caex", "paqueteria", "delivery", "encomienda",
+        "tegucigalpa", "san pedro", "sps", "ceiba", "choluteca", "comayagua",
+        "danli", "juticalpa", "progreso", "puerto cortes", "siguatepeque", "santa rosa",
+        "la granja", "kennedy", "los andes", "centro", "circunvalacion", "toncontin"
+      ];
+      const hasCarrierOrLoc = carrierOrHonduras.some(t => text.includes(t));
+      return hasCarrierOrLoc || text.length >= 10;
+    }
+
+    // Detección de consultas sobre horarios específicos, sábados y días de entrega
+    _isScheduleDeliveryQuery(cleanText, tokens) {
+      const schedulePhrases = [
+        "horario especifico", "hora especifica", "hora exacta", "horario exacto",
+        "a que hora", "que hora", "a que horas", "que horas",
+        "pueden entregar a las", "puedo pedir horario", "puedo pedir hora", "pueden venir a las",
+        "en la tarde", "en la manana", "por la tarde", "por la manana",
+        "despues de las", "antes de las", "medio dia",
+        "dia especifico", "que dia", "puedo elegir dia", "puedo escoger dia",
+        "sabado", "sabados", "los sabados", "el sabado", "sabado en la tarde", "sabados en la tarde", "sabado por la tarde"
+      ];
+      if (schedulePhrases.some(p => cleanText.includes(p))) return true;
+
+      const hasTimeWord = tokens.some(t => ["horario", "hora", "horas", "sabado", "sabados"].includes(t));
+      const hasDeliveryContext = cleanText.includes("especific") || cleanText.includes("entrega") || cleanText.includes("venir") || cleanText.includes("llegar") || cleanText.includes("tarde") || cleanText.includes("medio dia");
+      return Boolean(hasTimeWord && hasDeliveryContext);
+    }
+
+    // Detección de consultas generales sobre retiro en agencia
+    _isAgencyPickupQuery(cleanText, tokens) {
+      const agencyPhrases = [
+        "recoger en agencia", "retirar en agencia", "pasar a recoger", "pasar a traer",
+        "recoger en oficina", "retirar en oficina", "oficinas de cargo", "agencias de cargo",
+        "agencia de cargo", "oficina de cargo", "mandar a agencia", "mandar a oficina",
+        "enviar a agencia", "enviar a oficina", "agencias de delivery", "agencia de delivery",
+        "oficina cargo expreso", "agencia cargo expreso", "ocurre", "sucursal cargo expreso"
+      ];
+      return agencyPhrases.some(p => cleanText.includes(p));
+    }
+
+    _getScheduleAndAgencyExplanation() {
+      return `🚚 **Información sobre Horarios y Agencias de Cargo Expreso:**\n\n• **Ruta a domicilio:** Las entregas se realizan de Lunes a Viernes de 8:00 AM a 5:00 PM, y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n• **Dependencia de la agencia:** Como las entregas se coordinan con la empresa de transporte (**Cargo Expreso / agencias de delivery en Honduras**), las rutas dependen directamente de su logística diaria. Por esta razón, **no depende de nosotros garantizar un horario específico o día fijo en tiempo y forma** (el motorista siempre te llamará antes de llegar a tu domicilio).\n\n💡 **Recomendación (Retiro en Agencia):** Si necesitas un horario muy específico o no estás seguro de estar en casa, **te sugerimos solicitar el paquete para retiro en una agencia u oficina de Cargo Expreso** en tu ciudad. Tu paquete te esperará en ventanilla para recogerlo a tu conveniencia (ten presente que los sábados también atienden medio día).`;
+    }
+
     startCheckout(product = null, initialQty = 1) {
       const allProducts = window.SMAK_PRODUCTS || [];
       const prod = product || this.selectedProduct || allProducts[0] || { name: "Mueble SMAK", category: "Muebles y Organización" };
@@ -106,6 +166,7 @@
         name: "",
         recipientName: "",
         address: "",
+        isAgencyPickup: false,
         phone: "",
         postalCode: null,
         requiresInvoice: false,
@@ -123,14 +184,18 @@
       const invoiceTxt = c.requiresInvoice 
         ? `Sí (RTN: ${c.rtn} · ${c.businessName})` 
         : "No (Consumidor Final)";
+      const deliverySummary = c.isAgencyPickup
+        ? `🏢 Retiro en Agencia Cargo Expreso (${c.address})`
+        : c.address;
 
       return {
-        text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}**\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Destinatario: ${c.recipientName || c.name}\n• Entrega: ${c.address}\n• Contacto (Llamadas Cargo Expreso): ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
+        text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}**\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Destinatario: ${c.recipientName || c.name}\n• Entrega: ${deliverySummary}\n• Contacto (Llamadas Cargo Expreso): ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
         order: {
           orderNumber: c.orderNumber,
           name: c.name,
           recipientName: c.recipientName || c.name,
           address: c.address,
+          isAgencyPickup: Boolean(c.isAgencyPickup),
           phone: c.phone,
           postalCode: c.postalCode || null,
           productName: prod.name,
@@ -158,6 +223,7 @@
         name: c.name,
         recipientName: c.recipientName || c.name,
         address: c.address,
+        isAgencyPickup: Boolean(c.isAgencyPickup),
         phone: c.phone,
         postalCode: c.postalCode || null,
         productName: c.product.name,
@@ -254,12 +320,16 @@
         const newAddress = addressChangeMatch[1].trim();
         if (!newAddress.includes("?") && !newAddress.includes("¿") && !cleanText.startsWith("donde")) {
           c.address = newAddress;
+          c.isAgencyPickup = this._isAgencyAddress(newAddress);
           const cpMatch = newAddress.match(/\b\d{5}\b/);
           if (cpMatch) c.postalCode = cpMatch[0];
+          const ackText = c.isAgencyPickup
+            ? `✏️ ¡Listo! Hemos actualizado tu entrega para **retiro en agencia de Cargo Expreso**: **${c.address}** (Recordando que los sábados atienden únicamente medio día).`
+            : `✏️ ¡Listo! Hemos actualizado tu dirección de entrega a: **${c.address}**.`;
           return {
             modified: true,
             field: "address",
-            ack: `✏️ ¡Listo! Hemos actualizado tu dirección de entrega a: **${c.address}**.`
+            ack: ackText
           };
         }
       }
@@ -480,6 +550,12 @@
               text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nCuentas oficiales (SMAK Honduras S. de R.L.):\n• BAC: 742-108-951 · Ficohsa: 2000-098-432 · Atlántida: 110-045-892\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
             };
           }
+          if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+            const expl = this._getScheduleAndAgencyExplanation();
+            return {
+              text: `${expl}\n\nPara preparar tu orden, ¿a qué nombre registramos tu pedido?`
+            };
+          }
           if (this._isDimensionIntent(cleanText, tokens)) {
             const p = c.product;
             return {
@@ -494,6 +570,12 @@
           };
         }
         if (c.step === "quantity") {
+          if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+            const expl = this._getScheduleAndAgencyExplanation();
+            return {
+              text: `${expl}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+            };
+          }
           if (this._isDimensionIntent(cleanText, tokens)) {
             const p = c.product;
             return {
@@ -507,7 +589,7 @@
           c.total = c.unitPrice * q;
           c.step = "address";
           return {
-            text: `Anotado: **${c.quantityLabel}** (Total: L.${c.total.toLocaleString("es-HN")}).\n\n🚚 Para coordinar la entrega a domicilio con **Cargo Expreso**, por favor compártenos los datos de tu dirección en Honduras:\n\n1. **Nombre del destinatario:** (quién recibe el paquete)\n2. **Calle y número de casa / referencia:**\n3. **Colonia, barrio o sector:**\n4. **Ciudad / Municipio:**\n5. **Código postal:** (opcional o de tu zona)\n\n💡 *Ejemplo:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Palmira, Tegucigalpa, CP 11101`
+            text: `Anotado: **${c.quantityLabel}** (Total: L.${c.total.toLocaleString("es-HN")}).\n\n🚚 Para coordinar la entrega con **Cargo Expreso**, por favor compártenos tus datos de entrega en Honduras:\n\n• **Entrega a domicilio:** Destinatario, Calle y número de casa / referencia, Colonia o barrio, Ciudad y Código postal.\n• **¿Prefieres retirar en agencia?** Puedes indicarnos la **oficina o agencia de Cargo Expreso** de tu ciudad donde prefieres retirar (recordando que los sábados trabajan medio día).\n\n💡 *Ejemplo domicilio:* ${c.name}, Calle Principal #15 frente a pulpería, Col. Palmira, Tegucigalpa, CP 11101\n💡 *Ejemplo agencia:* Agencia Cargo Expreso San Pedro Sula Centro`
           };
         }
         if (c.step === "address") {
@@ -523,6 +605,24 @@
             };
           }
 
+          // Detección directa de entrega en agencia u oficina Cargo Expreso (Ocurre)
+          if (this._isAgencyAddress(rawText)) {
+            c.isAgencyPickup = true;
+            c.address = rawText.trim();
+            c.recipientName = c.recipientName || c.name;
+            c.step = "phone";
+            return {
+              text: `¡Excelente elección! 🏢 Registrado para **retiro en agencia de Cargo Expreso**:\n\n📌 **Agencia de retiro:** ${c.address}\n👤 **Destinatario para reclamar en ventanilla:** ${c.recipientName}\n\n⚠️ **Horarios de agencia:** Atienden de Lunes a Viernes (8:00 AM - 5:00 PM) y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega y notificarte la guía de rastreo?\n\n⚠️ **Importante:** Cargo Expreso coordina y avisa la llegada del paquete **únicamente vía llamada telefónica** (asegúrate de que la línea pueda recibir llamadas directas).`
+            };
+          }
+
+          if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+            const expl = this._getScheduleAndAgencyExplanation();
+            return {
+              text: `${expl}\n\n📍 Para continuar con tu orden, indícanos si prefieres que lo enviemos a tu **dirección de domicilio** (con destinatario, colonia y ciudad) o la **oficina/agencia de Cargo Expreso** donde pasarás a retirar:`
+            };
+          }
+
           // Validación y condicionamiento de dirección en texto
           const cleaned = clean(rawText);
           const words = rawText.trim().split(/\s+/);
@@ -531,7 +631,7 @@
 
           if (isTooShort) {
             return {
-              text: `Para que **Cargo Expreso** pueda entregar tu paquete en tu puerta sin retrasos, por favor indícanos una dirección más detallada:\n\n• **Nombre del destinatario**\n• **Calle y número de casa / referencia**\n• **Colonia, barrio o sector**\n• **Ciudad / Municipio**\n• **Código postal**\n\n💡 *Ejemplo:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Miramontes, Tegucigalpa.`
+              text: `Para que **Cargo Expreso** pueda entregar tu paquete sin retrasos, por favor indícanos una dirección más detallada:\n\n• **A domicilio:** Nombre del destinatario, Calle y casa / referencia, Colonia o barrio, y Ciudad / Municipio.\n• **En agencia:** Oficina o sucursal de Cargo Expreso de tu ciudad donde prefieres retirar en ventanilla.\n\n💡 *Ejemplo domicilio:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Miramontes, Tegucigalpa.\n💡 *Ejemplo agencia:* Agencia Cargo Expreso San Pedro Sula Centro.`
             };
           }
 
@@ -548,6 +648,12 @@
           if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
             return {
               text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
+            };
+          }
+          if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+            const expl = this._getScheduleAndAgencyExplanation();
+            return {
+              text: `${expl}\n\nPara continuar: compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
             };
           }
           if (this._isDimensionIntent(cleanText, tokens)) {
@@ -725,6 +831,16 @@
         return {
           text: `📦 **Catálogo Destacado de SMAK Honduras**:\n\nContamos con mobiliario prémium para hogar, oficina y proyectos comerciales. Aquí tienes algunos de nuestros artículos más solicitados:`,
           catalog: topSamples
+        };
+      }
+
+      // 4b. Horarios Específicos, Sábados y Retiro en Agencia Cargo Expreso
+      if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+        const expl = this._getScheduleAndAgencyExplanation();
+        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || (window.SMAK_PRODUCTS && window.SMAK_PRODUCTS[0]);
+        return {
+          text: `${expl}\n\n¿Deseas que preparemos tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
+          product: activeProd || null
         };
       }
 
@@ -936,7 +1052,7 @@
           <div><b>Destinatario:</b> ${o.recipientName || o.name}</div>
           <div><b>Producto:</b> ${o.productName}</div>
           <div><b>Piezas / Cantidad:</b> <span style="color:#D97706;font-weight:700;">${o.quantityLabel || (o.quantity + " unid.")}</span></div>
-          <div><b>Entrega:</b> ${o.address}</div>
+          <div><b>Entrega:</b> ${o.isAgencyPickup ? `🏢 Retiro en Agencia Cargo Expreso (${o.address})` : o.address}</div>
           <div><b>Teléfono (Llamadas Cargo Expreso):</b> <span style="font-weight:600;color:#0F172A;">${o.phone}</span></div>
           <div><b>Facturación:</b> <span style="background:${o.requiresInvoice ? '#FEF3C7' : '#F1F5F9'};color:${o.requiresInvoice ? '#92400E' : '#475569'};padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;">${o.requiresInvoice ? `Sí (RTN: ${o.rtn || 'Con RTN'})` : 'No (Consumidor Final)'}</span></div>
           <div style="font-weight:700;color:#0F172A;font-size:13px;margin-top:6px;padding-top:4px;border-top:1px dashed #E2E8F0;">Total a pagar: L.${Number(o.total || o.price || 0).toLocaleString('es-HN')}</div>
@@ -963,6 +1079,7 @@
           { label: "📏 Medidas y dimensiones", query: "¿Cuáles son las medidas y dimensiones?" },
           { label: "🏷️ ¿Tienen stock?", query: "¿Tienen stock disponible?" },
           { label: "🚚 Envíos y entregas", query: "¿Cuánto tardan los envíos?" },
+          { label: "🏢 Agencias y horarios", query: "¿Puedo pedir horario específico o retirar en agencia de Cargo Expreso?" },
           { label: "💳 Formas de pago", query: "¿Cuáles son las formas de pago?" },
           { label: "👤 Hablar con asesor", query: "Quiero hablar con un asesor" }
         ];
