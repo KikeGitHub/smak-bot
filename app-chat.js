@@ -720,6 +720,9 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
         bubble(ans3.text, false, ans3);
       }, 3100);
 
+      return;
+    }
+
     // SCENARIO AGENCIAS Y HORARIOS: CONSULTA DE SÁBADO + CHECKOUT CON RETIRO EN AGENCIA
     if (text === "__agency_pickup_test") {
       thread.replaceChildren();
