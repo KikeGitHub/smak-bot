@@ -307,11 +307,11 @@ function bubble(text, own = false, extra = {}) {
         <span>📦 Confirmación de Pedido</span>
         <span class="rounded bg-emerald-700 text-white px-1.5 py-0.5 text-[10px] font-mono">${o.orderNumber || "ORD-SMAK"}</span>
       </div>
-      <div><b>Cliente:</b> ${o.name}</div>
+      <div><b>Destinatario:</b> ${o.recipientName || o.name}</div>
       <div><b>Producto:</b> ${o.productName}</div>
       <div><b>Cantidad / Piezas:</b> <span class="text-emerald-800 font-semibold">${o.quantityLabel || (o.quantity + " unid.")}</span></div>
       <div><b>Entrega:</b> ${o.address} ${o.location ? `<a href="${o.location.mapUrl}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 underline ml-1">📍 Ver GPS</a>` : ""}</div>
-      <div><b>Teléfono:</b> ${o.phone}</div>
+      <div><b>Teléfono (Llamadas Cargo Expreso):</b> <span class="font-semibold text-emerald-900">${o.phone}</span></div>
       <div><b>Facturación:</b> <span class="rounded px-1.5 py-0.5 text-[11px] font-semibold ${o.requiresInvoice ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600'}">${o.requiresInvoice ? `Sí (RTN: ${o.rtn || 'Con RTN'})` : 'No (Consumidor Final)'}</span></div>
       <div class="mt-1 pt-1 border-t border-emerald-200/60 font-bold text-emerald-950 text-sm">Total a pagar: L.${Number(o.total).toLocaleString("es-HN")}</div>
     `;

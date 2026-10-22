@@ -705,8 +705,8 @@ function renderOrders() {
         <div class="text-[10px] text-slate-400 mt-1">${new Date(o.createdAt).toLocaleString("es-HN", { dateStyle: "short", timeStyle: "short" })}</div>
       </td>
       <td class="px-4 py-3">
-        <div class="font-bold text-slate-900">${escapeHtml(o.name)}</div>
-        <div class="font-mono text-xs text-slate-500 mt-0.5">${escapeHtml(o.phone)}</div>
+        <div class="font-bold text-slate-900">${escapeHtml(o.recipientName || o.name)}</div>
+        <div class="font-mono text-xs text-indigo-700 font-semibold mt-0.5">📞 ${escapeHtml(o.phone)}</div>
       </td>
       <td class="px-4 py-3 text-slate-600">
         <div class="flex items-center gap-1.5 flex-wrap">

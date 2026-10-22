@@ -78,8 +78,10 @@
         quantityLabel: "",
         total: unitPrice * qty,
         name: "",
+        recipientName: "",
         address: "",
         phone: "",
+        postalCode: null,
         requiresInvoice: false,
         rtn: null,
         businessName: null
@@ -97,19 +99,23 @@
         : "No (Consumidor Final)";
 
       return {
-        text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}**\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Cliente: ${c.name}\n• Entrega: ${c.address}\n• Contacto: ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
+        text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}**\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Destinatario: ${c.recipientName || c.name}\n• Entrega: ${c.address}\n• Contacto (Llamadas Cargo Expreso): ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra contra entrega.`,
         order: {
           orderNumber: c.orderNumber,
           name: c.name,
+          recipientName: c.recipientName || c.name,
           address: c.address,
           phone: c.phone,
+          postalCode: c.postalCode || null,
           productName: prod.name,
+          sku: prod.sku || "",
           quantity: c.quantity,
           quantityLabel: c.quantityLabel || `${c.quantity} unid.`,
           requiresInvoice: c.requiresInvoice,
           rtn: c.rtn,
           businessName: c.businessName,
-          price: c.total
+          total: Number(c.total),
+          price: Number(c.total)
         }
       };
     }
@@ -124,8 +130,10 @@
         tenantId: "smak",
         orderNumber: c.orderNumber,
         name: c.name,
+        recipientName: c.recipientName || c.name,
         address: c.address,
         phone: c.phone,
+        postalCode: c.postalCode || null,
         productName: c.product.name,
         sku: c.product.id ? c.product.id.slice(0, 8).toUpperCase() : "SMAK-WEB",
         quantity: c.quantity,
@@ -213,6 +221,7 @@
         const c = this.checkout;
         if (c.step === "name") {
           c.name = rawText.trim();
+          c.recipientName = c.name;
           c.step = "quantity";
           return {
             text: `Mucho gusto, ${c.name}. ¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
@@ -226,21 +235,55 @@
           c.total = c.unitPrice * q;
           c.step = "address";
           return {
-            text: `Anotado: **${c.quantityLabel}** (Total: L.${c.total.toLocaleString("es-HN")}). ¿Cuál es la dirección completa de entrega en Honduras (ciudad y colonia)?`
+            text: `Anotado: **${c.quantityLabel}** (Total: L.${c.total.toLocaleString("es-HN")}).\n\n🚚 Para coordinar la entrega a domicilio con **Cargo Expreso**, por favor compártenos los datos de tu dirección en Honduras:\n\n1. **Nombre del destinatario:** (quién recibe el paquete)\n2. **Calle y número de casa / referencia:**\n3. **Colonia, barrio o sector:**\n4. **Ciudad / Municipio:**\n5. **Código postal:** (opcional o de tu zona)\n\n💡 *Ejemplo:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Palmira, Tegucigalpa, CP 11101`
           };
         }
         if (c.step === "address") {
+          if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
+            return {
+              text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
+            };
+          }
+
+          // Validación y condicionamiento de dirección en texto
+          const cleaned = clean(rawText);
+          const words = rawText.trim().split(/\s+/);
+          const hasKeyword = ["col", "colonia", "barrio", "b°", "sector", "calle", "ave", "avenida", "casa", "bloque", "res", "residencial", "tegucigalpa", "san pedro", "sps", "ceiba", "choluteca", "comayagua", "frente", "cerca", "etapa", "aldea"].some(k => cleaned.includes(k));
+          const isTooShort = rawText.trim().length < 12 || words.length < 3 || (!hasKeyword && words.length < 4);
+
+          if (isTooShort) {
+            return {
+              text: `Para que **Cargo Expreso** pueda entregar tu paquete en tu puerta sin retrasos, por favor indícanos una dirección más detallada:\n\n• **Nombre del destinatario**\n• **Calle y número de casa / referencia**\n• **Colonia, barrio o sector**\n• **Ciudad / Municipio**\n• **Código postal**\n\n💡 *Ejemplo:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Miramontes, Tegucigalpa.`
+            };
+          }
+
           c.address = rawText.trim();
+          const cpMatch = rawText.match(/\b\d{5}\b/);
+          if (cpMatch) c.postalCode = cpMatch[0];
+          c.recipientName = c.recipientName || c.name;
           c.step = "phone";
           return {
-            text: `Dirección registrada: ${c.address}.\n\n¿A qué número de teléfono o WhatsApp te contactamos para coordinar la entrega?`
+            text: `¡Dirección registrada con éxito! 📦\n\n📌 **Dirección de entrega:** ${c.address}\n👤 **Destinatario:** ${c.recipientName}\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega?\n\n⚠️ **Importante:** Cargo Expreso coordina la entrega **únicamente vía llamada telefónica** antes de llegar a tu domicilio (asegúrate de que la línea pueda recibir llamadas directas).`
           };
         }
         if (c.step === "phone") {
+          if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
+            return {
+              text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
+            };
+          }
+
+          const phoneDigits = rawText.replace(/\D/g, "");
+          if (phoneDigits.length < 8) {
+            return {
+              text: `Por favor compártenos un número telefónico válido de al menos 8 dígitos (ejemplo: **9800-8559** o **+504 9876-5432**).\n\n⚠️ **Recordatorio importante:** Cargo Expreso **solo coordina las entregas mediante llamada telefónica** directa al destinatario. Es indispensable contar con un número activo para llamadas para recibir el paquete.`
+            };
+          }
+
           c.phone = rawText.trim();
           c.step = "requires_invoice";
           return {
-            text: `¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):`
+            text: `Teléfono registrado para llamadas: **${c.phone}** 📞\n\n¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):`
           };
         }
         if (c.step === "requires_invoice") {
@@ -584,11 +627,11 @@
             <span>📦 Confirmación de Pedido</span>
             <span style="background:#D97706;color:#FFF;padding:2px 6px;border-radius:4px;font-size:10px;font-family:monospace;">${o.orderNumber || 'SMAK-ORD'}</span>
           </div>
-          <div><b>Cliente:</b> ${o.name}</div>
+          <div><b>Destinatario:</b> ${o.recipientName || o.name}</div>
           <div><b>Producto:</b> ${o.productName}</div>
           <div><b>Piezas / Cantidad:</b> <span style="color:#D97706;font-weight:700;">${o.quantityLabel || (o.quantity + " unid.")}</span></div>
           <div><b>Entrega:</b> ${o.address}</div>
-          <div><b>Teléfono:</b> ${o.phone}</div>
+          <div><b>Teléfono (Llamadas Cargo Expreso):</b> <span style="font-weight:600;color:#0F172A;">${o.phone}</span></div>
           <div><b>Facturación:</b> <span style="background:${o.requiresInvoice ? '#FEF3C7' : '#F1F5F9'};color:${o.requiresInvoice ? '#92400E' : '#475569'};padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;">${o.requiresInvoice ? `Sí (RTN: ${o.rtn || 'Con RTN'})` : 'No (Consumidor Final)'}</span></div>
           <div style="font-weight:700;color:#0F172A;font-size:13px;margin-top:6px;padding-top:4px;border-top:1px dashed #E2E8F0;">Total a pagar: L.${Number(o.total || o.price || 0).toLocaleString('es-HN')}</div>
           <button type="button" class="web-bot-order-confirm-btn" data-action="confirm-order">✓ Confirmar pedido contra entrega</button>

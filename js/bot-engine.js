@@ -68,8 +68,10 @@ export class BotEngine {
       quantityLabel: "",
       total: Number(targetProduct.salePrice) * qty,
       name: "",
+      recipientName: "",
       address: "",
       phone: "",
+      postalCode: null,
       location: null,
       requiresInvoice: false,
       rtn: null,
@@ -87,12 +89,14 @@ export class BotEngine {
       : "No (Consumidor Final)";
 
     return {
-      text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}** (SKU: ${prod.sku})\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Cliente: ${c.name}\n• Entrega: ${c.address}${c.location ? `\n• 📍 Mapa GPS: [Ver en Google Maps](${c.location.mapUrl})` : ""}\n• Contacto: ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra con pago contra entrega.`,
+      text: `📋 **Resumen de tu pedido (${c.orderNumber})**:\n• Producto: **${prod.name}** (SKU: ${prod.sku})\n• Cantidad / Piezas: **${c.quantityLabel || (c.quantity + " unid.")}**\n• Total a pagar: **L.${Number(c.total).toLocaleString("es-HN")}**\n• Destinatario: ${c.recipientName || c.name}\n• Entrega: ${c.address}${c.location ? `\n• 📍 Mapa GPS: [Ver en Google Maps](${c.location.mapUrl})` : ""}\n• Contacto (Llamadas Cargo Expreso): ${c.phone}\n• Facturación: **${invoiceTxt}**\n\nPresiona el botón abajo para confirmar tu compra con pago contra entrega.`,
       order: {
         orderNumber: c.orderNumber,
         name: c.name,
+        recipientName: c.recipientName || c.name,
         address: c.address,
         phone: c.phone,
+        postalCode: c.postalCode || null,
         productName: `${prod.name} (${prod.sku})`,
         sku: prod.sku,
         quantity: c.quantity,
@@ -112,8 +116,10 @@ export class BotEngine {
     const saved = StorageFacade.saveOrder({
       orderNumber: c.orderNumber,
       name: c.name,
+      recipientName: c.recipientName || c.name,
       address: c.address,
       phone: c.phone,
+      postalCode: c.postalCode || null,
       productName: c.product.name,
       sku: c.product.sku,
       quantity: c.quantity,
@@ -288,7 +294,13 @@ export class BotEngine {
     if (this.checkout) {
       const c = this.checkout;
       if (c.step === "name") {
+        if (cleanText.includes("transferencia") || cleanText.includes("transfer") || cleanText.includes("como pago")) {
+          return {
+            text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nCuentas oficiales (SMAK Honduras S. de R.L.):\n• BAC: 742-108-951 · Ficohsa: 2000-098-432 · Atlántida: 110-045-892\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
+          };
+        }
         c.name = rawText.trim();
+        c.recipientName = c.name;
         c.step = "quantity";
         return { 
           text: `Gracias, ${c.name}. ¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):` 
@@ -302,14 +314,21 @@ export class BotEngine {
         c.total = Number(c.product.salePrice) * q;
         c.step = "address";
         return {
-          text: `Anotado: **${c.quantityLabel}** (Total: L.${Number(c.total).toLocaleString("es-HN")}). ¿Cuál es la dirección completa de entrega (ciudad y colonia)?\n\n💡 *Tip: Puedes presionar el botón 📍 abajo o enviar tu ubicación GPS de WhatsApp.*`
+          text: `Anotado: **${c.quantityLabel}** (Total: L.${Number(c.total).toLocaleString("es-HN")}).\n\n🚚 Para coordinar la entrega a domicilio con **Cargo Expreso**, por favor compártenos los datos de tu dirección (o bien presiona el botón 📍 abajo para enviar tu ubicación GPS de WhatsApp):\n\n1. **Nombre del destinatario:** (quién recibe el paquete)\n2. **Calle y número de casa / referencia:**\n3. **Colonia, barrio o sector:**\n4. **Ciudad / Municipio:**\n5. **Código postal:** (opcional o de tu zona)\n\n💡 *Ejemplo:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Palmira, Tegucigalpa, CP 11101`
         };
       }
       if (c.step === "address") {
+        if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
+          return {
+            text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
+          };
+        }
+
         const detectedLoc = location || LocationService.parseLocationFromText(rawText);
         if (detectedLoc) {
           const locName = detectedLoc.address || detectedLoc.name || `Ubicación GPS (${detectedLoc.lat.toFixed(4)}, ${detectedLoc.lng.toFixed(4)})`;
           c.address = locName;
+          c.recipientName = c.recipientName || c.name;
           c.location = {
             lat: detectedLoc.lat,
             lng: detectedLoc.lng,
@@ -319,20 +338,51 @@ export class BotEngine {
           };
           c.step = "phone";
           return {
-            text: `¡Ubicación de entrega recibida con éxito! 📍\n\n📌 **Dirección registrada:** ${locName}\n🗺️ [Ver en Google Maps](${c.location.mapUrl})\n\n¿A qué número de teléfono o WhatsApp te contactamos para coordinar la entrega?`,
+            text: `¡Ubicación GPS registrada con éxito! 📍\n\n📌 **Dirección de entrega:** ${locName}\n🗺️ [Ver en Google Maps](${c.location.mapUrl})\n👤 **Destinatario:** ${c.recipientName}\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega?\n\n⚠️ **Importante:** Cargo Expreso coordina la entrega **únicamente vía llamada telefónica** antes de llegar a tu domicilio (asegúrate de que la línea pueda recibir llamadas directas).`,
             location: c.location
           };
-        } else {
-          c.address = rawText.trim();
-          c.step = "phone";
-          return { text: `Dirección registrada: ${c.address}.\n\n¿A qué número de teléfono o WhatsApp te contactamos para la entrega?` };
         }
+
+        // Validación y condicionamiento de dirección en texto
+        const cleaned = clean(rawText);
+        const words = rawText.trim().split(/\s+/);
+        const hasKeyword = ["col", "colonia", "barrio", "b°", "sector", "calle", "ave", "avenida", "casa", "bloque", "res", "residencial", "tegucigalpa", "san pedro", "sps", "ceiba", "choluteca", "comayagua", "frente", "cerca", "etapa", "aldea"].some(k => cleaned.includes(k));
+        const isTooShort = rawText.trim().length < 12 || words.length < 3 || (!hasKeyword && words.length < 4);
+
+        if (isTooShort) {
+          return {
+            text: `Para que **Cargo Expreso** pueda entregar tu paquete en tu puerta sin retrasos, por favor indícanos una dirección más detallada (o presiona el botón 📍 abajo para enviar tu ubicación GPS):\n\n• **Nombre del destinatario**\n• **Calle y número de casa / referencia**\n• **Colonia, barrio o sector**\n• **Ciudad / Municipio**\n• **Código postal**\n\n💡 *Ejemplo:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Miramontes, Tegucigalpa.`
+          };
+        }
+
+        // Dirección válida en texto
+        c.address = rawText.trim();
+        const cpMatch = rawText.match(/\b\d{5}\b/);
+        if (cpMatch) c.postalCode = cpMatch[0];
+        c.recipientName = c.recipientName || c.name;
+        c.step = "phone";
+        return {
+          text: `¡Dirección registrada con éxito! 📦\n\n📌 **Dirección de entrega:** ${c.address}\n👤 **Destinatario:** ${c.recipientName}\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega?\n\n⚠️ **Importante:** Cargo Expreso coordina la entrega **únicamente vía llamada telefónica** antes de llegar a tu domicilio (asegúrate de que la línea pueda recibir llamadas directas).`
+        };
       }
       if (c.step === "phone") {
+        if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
+          return {
+            text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega de tu paquete 📞:`
+          };
+        }
+
+        const phoneDigits = rawText.replace(/\D/g, "");
+        if (phoneDigits.length < 8) {
+          return {
+            text: `Por favor compártenos un número telefónico válido de al menos 8 dígitos (ejemplo: **9800-8559** o **+504 9876-5432**).\n\n⚠️ **Recordatorio importante:** Cargo Expreso **solo coordina las entregas mediante llamada telefónica** directa al destinatario. Es indispensable contar con un número activo para llamadas para recibir el paquete.`
+          };
+        }
+
         c.phone = rawText.trim();
         c.step = "requires_invoice";
         return {
-          text: `¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):`
+          text: `Teléfono registrado para llamadas: **${c.phone}** 📞\n\n¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):`
         };
       }
       if (c.step === "requires_invoice") {
