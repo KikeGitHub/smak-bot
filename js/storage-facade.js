@@ -122,6 +122,27 @@ export class StorageFacade {
               modified = true;
             }
           });
+          // Merge updated synonyms (especially dimensiones & spelling variations)
+          if (defT.synonyms) {
+            if (!curTenant.synonyms) {
+              curTenant.synonyms = clone(defT.synonyms);
+              modified = true;
+            } else {
+              Object.keys(defT.synonyms).forEach(k => {
+                if (!curTenant.synonyms[k]) {
+                  curTenant.synonyms[k] = clone(defT.synonyms[k]);
+                  modified = true;
+                } else if (k === "dimensiones") {
+                  (defT.synonyms[k] || []).forEach(word => {
+                    if (!curTenant.synonyms[k].includes(word)) {
+                      curTenant.synonyms[k].push(word);
+                      modified = true;
+                    }
+                  });
+                }
+              });
+            }
+          }
         }
       });
 

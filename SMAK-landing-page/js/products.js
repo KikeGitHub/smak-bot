@@ -5,67 +5,62 @@
  * 
  * Este archivo centraliza la configuración general y el catálogo de
  * productos de SMAK Honduras.
- * 
- * CÓMO AGREGAR UN PRODUCTO:
- * Copia uno de los bloques de producto dentro del arreglo SMAK_PRODUCTS
- * y cambia su nombre, categoría, fotos y características.
- * 
- * CÓMO QUITAR UN PRODUCTO:
- * Simplemente borra el bloque del producto deseado o cambia "inStock: false".
  * ====================================================================
  */
 
 const SMAK_CONFIG = {
-  storeName: "SMAK Honduras",
-  slogan: "Creamos los espacios donde vives, trabajas y disfrutas",
-  // WhatsApp oficial (formato internacional sin signos: 50498008559)
-  whatsappNumber: "50498008559",
-  whatsappDisplay: "+504 9800-8559",
-  email: "smakhonduras@gmail.com",
-  schedule: "Lunes a Viernes: 9:00 am - 7:00 pm",
-  shippingNotice: "Envíos disponibles a toda Honduras",
-  instagramUrl: "https://www.instagram.com/",
-  facebookUrl: "https://www.facebook.com/",
-  // Mensaje base para consultas generales de WhatsApp
-  generalMessage: "¡Hola SMAK Honduras! Deseo consultar el catálogo y disponibilidad de productos."
+  "storeName": "SMAK Honduras",
+  "slogan": "Creamos los espacios donde vives, trabajas y disfrutas",
+  "whatsappNumber": "50498008559",
+  "whatsappDisplay": "+504 9800-8559",
+  "email": "smakhonduras@gmail.com",
+  "schedule": "Lunes a Viernes: 9:00 am - 7:00 pm",
+  "shippingNotice": "Envíos disponibles a toda Honduras",
+  "instagramUrl": "https://www.instagram.com/",
+  "facebookUrl": "https://www.facebook.com/",
+  "generalMessage": "¡Hola SMAK Honduras! Deseo consultar el catálogo y disponibilidad de productos."
 };
 
 const SMAK_CATEGORIES = [
-  { id: "all", name: "Todos los Productos", icon: "grid" },
-  { 
-    id: "Sillas y Bancos", 
-    name: "Sillas y Bancos", 
-    displayName: "SILLAS",
-    subtitle: "Línea Tolix, Ejecutivas y Bancos",
-    image: "https://static.wixstatic.com/media/f6ccd1_585455612c3744408a737c745f312c3c~mv2.jpeg/v1/fit/w_500,h_500,q_90/file.jpg"
+  {
+    "id": "all",
+    "name": "Todos los Productos",
+    "icon": "grid"
   },
-  { 
-    id: "Muebles y Organización", 
-    name: "Muebles y Organización", 
-    displayName: "MUEBLES",
-    subtitle: "Mesas Mármol, Escritorios y Percheros",
-    image: "https://static.wixstatic.com/media/f6ccd1_2c34eb84c77e430dbc3e36343249ddcd~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+  {
+    "id": "Sillas y Bancos",
+    "name": "Sillas y Bancos",
+    "displayName": "SILLAS",
+    "subtitle": "Línea Tolix, Ejecutivas y Bancos",
+    "image": "https://static.wixstatic.com/media/f6ccd1_585455612c3744408a737c745f312c3c~mv2.jpeg/v1/fit/w_500,h_500,q_90/file.jpg"
   },
-  { 
-    id: "Cocina y Baño", 
-    name: "Cocina y Baño", 
-    displayName: "COCINA Y BAÑO",
-    subtitle: "Columnas de Ducha en Acero Inoxidable",
-    image: "https://static.wixstatic.com/media/f6ccd1_cede824b013d41a0bfcbd7b870bf6211~mv2.png/v1/fit/w_500,h_500,q_90/file.png"
+  {
+    "id": "Muebles y Organización",
+    "name": "Muebles y Organización",
+    "displayName": "MUEBLES",
+    "subtitle": "Mesas Mármol, Escritorios y Percheros",
+    "image": "https://static.wixstatic.com/media/f6ccd1_2c34eb84c77e430dbc3e36343249ddcd~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
   },
-  { 
-    id: "Escaleras", 
-    name: "Escaleras", 
-    displayName: "ESCALERAS",
-    subtitle: "Aluminio Multipropósito de Alta Resistencia",
-    image: "https://static.wixstatic.com/media/f6ccd1_298a5327119e41eca093ab5b636ff305~mv2.png/v1/fit/w_500,h_500,q_90/file.png"
+  {
+    "id": "Cocina y Baño",
+    "name": "Cocina y Baño",
+    "displayName": "COCINA Y BAÑO",
+    "subtitle": "Columnas de Ducha en Acero Inoxidable",
+    "image": "https://static.wixstatic.com/media/f6ccd1_cede824b013d41a0bfcbd7b870bf6211~mv2.png/v1/fit/w_500,h_500,q_90/file.png"
   },
-  { 
-    id: "Salud y Cuidado", 
-    name: "Salud y Cuidado", 
-    displayName: "SALUD Y MOVILIDAD",
-    subtitle: "Sillas de Ruedas Plegables y Confort",
-    image: "https://static.wixstatic.com/media/f6ccd1_25b1c5d058b548d0aa0a256ded90d9b9~mv2.png/v1/fit/w_500,h_500,q_90/file.png"
+  {
+    "id": "Escaleras",
+    "name": "Escaleras",
+    "displayName": "ESCALERAS",
+    "subtitle": "Aluminio Multipropósito de Alta Resistencia",
+    "image": "https://static.wixstatic.com/media/f6ccd1_298a5327119e41eca093ab5b636ff305~mv2.png/v1/fit/w_500,h_500,q_90/file.png"
+  },
+  {
+    "id": "Salud y Cuidado",
+    "name": "Salud y Cuidado",
+    "displayName": "SALUD Y MOVILIDAD",
+    "subtitle": "Sillas de Ruedas Plegables y Confort",
+    "image": "https://static.wixstatic.com/media/f6ccd1_25b1c5d058b548d0aa0a256ded90d9b9~mv2.png/v1/fit/w_500,h_500,q_90/file.png"
   }
 ];
 
@@ -90,7 +85,9 @@ const SMAK_PRODUCTS = [
       "Asiento ergonómico reforzado con ranuras de fácil manipulación",
       "Topes protectores de goma antideslizantes para proteger el piso",
       "Diseño apilable / fácil mantenimiento"
-    ]
+    ],
+    "dimensions": "Alto total 94 cm, Altura asiento 76 cm, Base 42 × 42 cm",
+    "weightLimit": "150 kg por banco (Acero prensado)"
   },
   {
     "id": "f6904b50-8404-405c-90d3-3d39291a0ec1",
@@ -111,7 +108,9 @@ const SMAK_PRODUCTS = [
       "Asiento de madera maciza tratada con barniz protector",
       "Topes protectores de goma antideslizantes para proteger el piso",
       "Diseño apilable / fácil mantenimiento"
-    ]
+    ],
+    "dimensions": "Alto total 95 cm, Altura asiento 76 cm, Asiento 31 × 31 cm",
+    "weightLimit": "150 kg por banco (Madera maciza y acero)"
   },
   {
     "id": "20ccd6a1-e83f-45ab-ac5a-850009742278",
@@ -133,7 +132,9 @@ const SMAK_PRODUCTS = [
       "Asiento de madera maciza tratada con barniz protector",
       "Topes protectores de goma antideslizantes para proteger el piso",
       "Diseño apilable / fácil mantenimiento"
-    ]
+    ],
+    "dimensions": "Alto total 85 cm, Altura asiento 45 cm, Asiento 36 × 36 cm",
+    "weightLimit": "150 kg por silla"
   },
   {
     "id": "32ca80d6-80e1-4967-9d66-d3c6ce2ade12",
@@ -155,7 +156,9 @@ const SMAK_PRODUCTS = [
       "Asiento ergonómico reforzado con ranuras de fácil manipulación",
       "Topes protectores de goma antideslizantes para proteger el piso",
       "Diseño apilable / fácil mantenimiento"
-    ]
+    ],
+    "dimensions": "Alto total 85 cm, Altura asiento 45 cm, Asiento 36 × 36 cm",
+    "weightLimit": "150 kg por silla"
   },
   {
     "id": "eec08e24-64df-43e6-bc8f-e5e1f5dc50c8",
@@ -177,7 +180,9 @@ const SMAK_PRODUCTS = [
       "Cabezal de lluvia ultrafino con boquillas de silicona autolimpiantes",
       "Ducha de mano ergonómica con manguera reforzada flexible",
       "Barral de altura regulable y selector de flujo preciso"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "09894bc9-484e-49f4-ae35-bf194ad497da",
@@ -199,7 +204,9 @@ const SMAK_PRODUCTS = [
       "Pintura electrostática y acabados de alta resistencia al uso continuo",
       "Garantía directa de SMAK Honduras",
       "Disponibilidad para envíos a todo el territorio hondureño"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "975bdf0e-5c14-4d1a-adae-9dd30786b5e7",
@@ -221,7 +228,9 @@ const SMAK_PRODUCTS = [
       "Pintura electrostática y acabados de alta resistencia al uso continuo",
       "Garantía directa de SMAK Honduras",
       "Disponibilidad para envíos a todo el territorio hondureño"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "e17d8fa8-9703-4288-ae18-436c8a7cbc20",
@@ -243,7 +252,9 @@ const SMAK_PRODUCTS = [
       "Pintura electrostática y acabados de alta resistencia al uso continuo",
       "Garantía directa de SMAK Honduras",
       "Disponibilidad para envíos a todo el territorio hondureño"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "86529642-55a2-4175-a030-8576c81e7c38",
@@ -265,7 +276,9 @@ const SMAK_PRODUCTS = [
       "Ruedas giratorias 360º con sistema de freno",
       "Pintura electrostática resistente al óxido y rayaduras",
       "Estructura compacta de fácil ensamble y limpieza"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "f5d1fdf3-8eed-4d1d-8352-7b4e6cb4449b",
@@ -286,7 +299,9 @@ const SMAK_PRODUCTS = [
       "Bloqueos de seguridad automáticos reforzados en cada bisagra",
       "Peldaños estriados antideslizantes de máxima tracción",
       "Capacidad de carga garantizada hasta 150 kg"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "fc7b73e4-74fa-4491-a4a0-e9f52eb4ff3a",
@@ -308,7 +323,9 @@ const SMAK_PRODUCTS = [
       "Tapicería acolchada impermeable de fácil higienización",
       "Frenos de seguridad bilaterales de accionamiento intuitivo",
       "Reposapiés y apoyabrazos diseñados para máximo confort"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "d0e35a7d-dfed-4d18-8ab5-9c59814bd325",
@@ -330,7 +347,9 @@ const SMAK_PRODUCTS = [
       "Asiento ergonómico reforzado con ranuras de fácil manipulación",
       "Topes protectores de goma antideslizantes para proteger el piso",
       "Diseño apilable / fácil mantenimiento"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "33414446-227c-4fab-87a8-0c4c290d39ba",
@@ -351,7 +370,9 @@ const SMAK_PRODUCTS = [
       "Asiento de madera maciza tratada con barniz protector",
       "Topes protectores de goma antideslizantes para proteger el piso",
       "Diseño apilable / fácil mantenimiento"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "3e4ce701-a46c-41bd-83b2-913d370531d1",
@@ -373,7 +394,9 @@ const SMAK_PRODUCTS = [
       "Asiento de madera maciza tratada con barniz protector",
       "Topes protectores de goma antideslizantes para proteger el piso",
       "Diseño apilable / fácil mantenimiento"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "921ae859-6147-4ba4-b1e2-28a5959e1910",
@@ -394,7 +417,9 @@ const SMAK_PRODUCTS = [
       "Asiento ergonómico reforzado con ranuras de fácil manipulación",
       "Topes protectores de goma antideslizantes para proteger el piso",
       "Diseño apilable / fácil mantenimiento"
-    ]
+    ],
+    "dimensions": "Dimensiones estándar según especificación técnica",
+    "weightLimit": "100 kg"
   },
   {
     "id": "9f3ec513-05b3-48b0-97f8-917a00277f62",
@@ -414,7 +439,9 @@ const SMAK_PRODUCTS = [
       "Reposapiés integrado retráctil para momentos de descanso",
       "Regulación de altura neumática y reposabrazos confortables",
       "Base de estrella reforzada con ruedas aptas para todo tipo de piso"
-    ]
+    ],
+    "dimensions": "Altura 115–125 cm, Asiento 50 × 50 cm, Base estrella 65 cm",
+    "weightLimit": "120 kg (265 lbs)"
   },
   {
     "id": "b4384821-66b6-4b07-855b-b92673a4e6a7",
@@ -436,7 +463,9 @@ const SMAK_PRODUCTS = [
       "Estructura metálica lacada en negro mate anticorrosivo",
       "Diseño funcional y versátil para diversos estilos de decoración",
       "Topes niveladores en las patas para mayor estabilidad"
-    ]
+    ],
+    "dimensions": "Mesa Grande: 70 × 70 × 45 cm, Mesa Chica: 50 × 50 × 38 cm",
+    "weightLimit": "80 kg por módulo"
   },
   {
     "id": "138906d5-9299-4c11-a46d-a87d4d68673d",
@@ -457,7 +486,9 @@ const SMAK_PRODUCTS = [
       "Estructura metálica lacada en negro mate anticorrosivo",
       "Diseño funcional y versátil para diversos estilos de decoración",
       "Topes niveladores en las patas para mayor estabilidad"
-    ]
+    ],
+    "dimensions": "45 × 30 × 60 cm (Largo × Ancho × Alto)",
+    "weightLimit": "45 kg"
   },
   {
     "id": "187b3acb-b0c2-4f15-8058-0f69cf493e13",
@@ -479,7 +510,9 @@ const SMAK_PRODUCTS = [
       "Estructura de hierro estructural con uniones reforzadas",
       "Fácil de limpiar y resistente al desgaste continuo",
       "Espacio amplio para trabajo, estudio o reuniones"
-    ]
+    ],
+    "dimensions": "120 × 60 × 75 cm (Largo × Ancho × Alto)",
+    "weightLimit": "150 kg (330 lbs)"
   },
   {
     "id": "47b664e4-aed9-4fb2-b0d1-3f2a5893ed1f",
@@ -501,7 +534,9 @@ const SMAK_PRODUCTS = [
       "Estructura de hierro estructural con uniones reforzadas",
       "Fácil de limpiar y resistente al desgaste continuo",
       "Espacio amplio para trabajo, estudio o reuniones"
-    ]
+    ],
+    "dimensions": "120 × 80 × 75 cm (Largo × Ancho × Alto)",
+    "weightLimit": "180 kg (400 lbs)"
   },
   {
     "id": "0c198428-679f-4072-8420-4dedc667b2b6",
@@ -523,7 +558,9 @@ const SMAK_PRODUCTS = [
       "Reposapiés integrado retráctil para momentos de descanso",
       "Regulación de altura neumática y reposabrazos confortables",
       "Base de estrella reforzada con ruedas aptas para todo tipo de piso"
-    ]
+    ],
+    "dimensions": "Altura 118–128 cm, Asiento 52 × 50 cm, Reposapiés extensible 40 cm",
+    "weightLimit": "140 kg (300 lbs)"
   },
   {
     "id": "c4b9bab1-dff9-47cf-93e6-a83e7958f408",
@@ -545,7 +582,9 @@ const SMAK_PRODUCTS = [
       "Reposapiés integrado retráctil para momentos de descanso",
       "Regulación de altura neumática y reposabrazos confortables",
       "Base de estrella reforzada con ruedas aptas para todo tipo de piso"
-    ]
+    ],
+    "dimensions": "Altura 120–130 cm, Ancho 65 cm, Profundidad 68 cm",
+    "weightLimit": "140 kg (300 lbs)"
   },
   {
     "id": "52149fe7-08eb-4f1c-bef3-39bff9fa9c2c",
@@ -567,7 +606,9 @@ const SMAK_PRODUCTS = [
       "Tapizado en piel sintética prémium transpirable de alta densidad",
       "Pistón hidráulico de gas clase 4 con soporte hasta 150 kg",
       "Ruedas dobles de deslizamiento suave y silencioso"
-    ]
+    ],
+    "dimensions": "Altura 125–135 cm, Respaldo 82 × 55 cm, Asiento 52 × 50 cm",
+    "weightLimit": "150 kg (330 lbs) - Pistón Clase 4"
   },
   {
     "id": "6e6162f3-1ea0-43a0-981d-970431d2aa9e",
@@ -588,17 +629,25 @@ const SMAK_PRODUCTS = [
       "Ruedas giratorias 360º con frenos de seguridad",
       "Fácil armado y desplazamiento suave",
       "Diseño compacto que optimiza los espacios reducidos"
-    ]
+    ],
+    "dimensions": "Altura 160 cm, Ancho 80 cm, Fondo 40 cm",
+    "weightLimit": "45 kg distribuidos"
   }
 ];
 
-// Exportación compatible para navegadores
+// Helper para obtener dimensiones seguras
+function getProductDimensions(p) {
+  if (!p) return "Dimensiones estándar";
+  return p.dimensions || "Dimensiones estándar según ficha técnica";
+}
+
+// Exportación para navegadores y entornos CommonJS (Node.js)
 if (typeof window !== "undefined") {
   window.SMAK_CONFIG = SMAK_CONFIG;
   window.SMAK_CATEGORIES = SMAK_CATEGORIES;
   window.SMAK_PRODUCTS = SMAK_PRODUCTS;
+  window.getProductDimensions = getProductDimensions;
 }
-
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { SMAK_CONFIG, SMAK_CATEGORIES, SMAK_PRODUCTS };
+  module.exports = { SMAK_CONFIG, SMAK_CATEGORIES, SMAK_PRODUCTS, getProductDimensions };
 }

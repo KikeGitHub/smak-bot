@@ -411,7 +411,13 @@ export const TENANTS = [
     synonyms: {
       precio: ["presio", "rebaja", "cuanto cuesta", "cuanto vale", "costo", "valor", "cotizacion", "precio final", "tarifa", "descuento"],
       stock: ["disponible", "disponibilidad", "existencia", "inventario", "unidades", "quedan", "hay", "tienen", "piezas", "existencias"],
-      dimensiones: ["medidas", "tamano", "talla", "tallas", "alto", "ancho", "largo", "dimension", "fondo", "centimetros", "metros"],
+      dimensiones: [
+        "dimenciones", "dimencion", "dimension", "dimensiones",
+        "medidas", "medida", "mide", "miden", "medir", "cuanto mide", "cuanto miden",
+        "tamano", "tamaño", "talla", "tallas",
+        "alto", "altura", "ancho", "anchura", "largo", "longitud", "profundidad", "fondo",
+        "centimetros", "metros", "cm", "mts"
+      ],
       peso: ["cuanto aguanta", "cuanto soporta", "resistencia", "capacidad", "soporta", "kilos", "libras", "peso maximo", "carga"],
       fotos: ["fotos reales", "imagenes", "fotografias", "galeria", "mostrar fotos", "ver", "foto", "ver catalogo con fotos"],
       envio: ["entrega", "despacho", "flete", "cargo expreso", "encomienda", "paqueteria", "domicilio", "reparto"],
@@ -717,7 +723,11 @@ export const TENANTS = [
     synonyms: {
       precio: ["presio", "rebaja", "cuanto cuesta", "valor", "costo", "oferta", "precio final"],
       stock: ["disponible", "disponibilidad", "existencia", "pares", "quedan", "hay", "tienen", "inventario"],
-      dimensiones: ["talla", "tallas", "medidas", "tamano", "numero", "horma"],
+      dimensiones: [
+        "dimenciones", "dimencion", "dimension", "dimensiones",
+        "talla", "tallas", "medidas", "medida", "tamano", "tamaño", "numero", "horma",
+        "mide", "miden", "cuanto mide", "cuanto miden"
+      ],
       fotos: ["fotos reales", "imagenes", "fotografias", "ver calzado", "ver tenis", "foto"],
       envio: ["entrega", "despacho", "cargo expreso", "flete", "a domicilio"],
       pago: ["efectivo", "transferencia", "contra entrega", "tarjeta"],

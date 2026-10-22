@@ -20,6 +20,13 @@
   const SYNONYMS = {
     precio: ["costo", "cuesta", "valor", "cuanto", "vale", "presio"],
     stock: ["disponible", "disponibilidad", "quedan", "hay", "tienen", "existencia", "inventario"],
+    dimensiones: [
+      "dimenciones", "dimencion", "dimension", "dimensiones",
+      "medidas", "medida", "mide", "miden", "medir", "cuanto mide", "cuanto miden",
+      "tamano", "tamaño", "talla", "tallas",
+      "alto", "altura", "ancho", "anchura", "largo", "longitud", "profundidad", "fondo",
+      "cm", "centimetros", "metros"
+    ],
     envio: ["entrega", "entregas", "envios", "domicilio", "casa", "tardan", "tarda", "flete", "cargo expreso"],
     pago: ["pagar", "efectivo", "contra entrega", "tarjeta", "transferencia"],
     fotos: ["foto", "imagenes", "ver", "fotografias"],
@@ -50,6 +57,25 @@
     reset() {
       this.checkout = null;
       this.selectedProduct = null;
+    }
+
+    _isDimensionIntent(cleanText, tokens) {
+      const directWords = [
+        "dimension", "dimensiones", "dimencion", "dimenciones",
+        "medida", "medidas", "mide", "miden", "medir",
+        "tamano", "altura", "alto", "ancho", "anchura", "largo", "longitud", "profundidad", "fondo", "cm", "centimetros", "metros"
+      ];
+      if (tokens.some(t => directWords.includes(t))) return true;
+
+      const phrases = [
+        "cuanto mide", "cuanto miden", "que medida", "que medidas",
+        "cuales son las medidas", "cuales son las dimensiones", "cuales son las dimenciones",
+        "medidas de", "medida de", "dimensiones de", "dimenciones de",
+        "dimension de", "dimencion de", "que tamano tiene", "tamano del", "tamano de la"
+      ];
+      if (phrases.some(p => cleanText.includes(p))) return true;
+
+      return matchesConcept(tokens, "dimensiones");
     }
 
     startCheckout(product = null, initialQty = 1) {
@@ -449,6 +475,17 @@
       if (this.checkout) {
         const c = this.checkout;
         if (c.step === "name") {
+          if (cleanText.includes("transferencia") || cleanText.includes("transfer") || cleanText.includes("como pago")) {
+            return {
+              text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nCuentas oficiales (SMAK Honduras S. de R.L.):\n• BAC: 742-108-951 · Ficohsa: 2000-098-432 · Atlántida: 110-045-892\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
+            };
+          }
+          if (this._isDimensionIntent(cleanText, tokens)) {
+            const p = c.product;
+            return {
+              text: `📏 **Medidas de ${p.name}:** **${p.dimensions || 'Estándar según ficha técnica'}** (Capacidad: ${p.weightLimit || 'Uso comercial y residencial'}).\n\nPara preparar tu orden, ¿a qué nombre registramos tu pedido?`
+            };
+          }
           c.name = rawText.trim();
           c.recipientName = c.name;
           c.step = "quantity";
@@ -457,6 +494,12 @@
           };
         }
         if (c.step === "quantity") {
+          if (this._isDimensionIntent(cleanText, tokens)) {
+            const p = c.product;
+            return {
+              text: `📏 **Medidas de ${p.name}:** **${p.dimensions || 'Estándar según ficha técnica'}** (Capacidad: ${p.weightLimit || 'Uso comercial y residencial'}).\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+            };
+          }
           const match = rawText.match(/\d+/);
           const q = match ? Math.max(1, parseInt(match[0], 10)) : 1;
           c.quantity = q;
@@ -471,6 +514,12 @@
           if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
             return {
               text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
+            };
+          }
+          if (this._isDimensionIntent(cleanText, tokens)) {
+            const p = c.product;
+            return {
+              text: `📏 **Medidas de ${p.name}:** **${p.dimensions || 'Estándar según ficha técnica'}** (Capacidad: ${p.weightLimit || 'Uso comercial y residencial'}).\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
             };
           }
 
@@ -499,6 +548,12 @@
           if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
             return {
               text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
+            };
+          }
+          if (this._isDimensionIntent(cleanText, tokens)) {
+            const p = c.product;
+            return {
+              text: `📏 **Medidas de ${p.name}:** **${p.dimensions || 'Estándar según ficha técnica'}** (Capacidad: ${p.weightLimit || 'Uso comercial y residencial'}).\n\nContinuemos: compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
             };
           }
 
@@ -621,6 +676,31 @@
       if (tokens.some(t => ["comprar", "ordenar", "pedido", "pedir"].includes(t)) || cleanText.includes("hacer pedido")) {
         const prod = this.findProduct(rawText) || this.selectedProduct;
         return this.startCheckout(prod);
+      }
+
+      // 2b. Consulta de Dimensiones y Medidas ("medidas", "dimenciones", "dimensiones", "cuánto mide", etc.)
+      if (this._isDimensionIntent(cleanText, tokens)) {
+        const prod = this.findProduct(rawText) || this.selectedProduct || (this.checkout ? this.checkout.product : null);
+        if (prod) {
+          this.selectedProduct = prod;
+          const price = prod.price || DEFAULT_PRICES[prod.category] || 1500;
+          const dims = prod.dimensions || "Dimensiones estándar según ficha técnica";
+          const weight = prod.weightLimit || "100 kg / Uso comercial y residencial";
+          return {
+            text: `📏 **Medidas y Dimensiones de ${prod.name}:**\n\n• **Dimensiones:** **${dims}**\n• **Capacidad / Resistencia:** ${weight}\n• **Precio:** **L.${price.toLocaleString("es-HN")}**\n• **Disponibilidad:** ${prod.inStock ? "✅ En stock para entrega inmediata" : "⚠️ Consultar tiempo de entrega"}\n\n¿Deseas que preparemos tu pedido contra entrega o tienes alguna otra duda?`,
+            product: {
+              ...prod,
+              price
+            },
+            images: prod.gallery?.slice(0, 2) || (prod.image ? [prod.image] : [])
+          };
+        } else {
+          const allProds = window.SMAK_PRODUCTS || [];
+          const samples = allProds.slice(0, 6).map(p => `• **${p.name}**: **${p.dimensions || 'Estándar según ficha técnica'}**`).join("\n");
+          return {
+            text: `📏 **Guía de Medidas y Dimensiones de SMAK Honduras:**\n\nAquí tienes las dimensiones exactas de nuestros artículos más solicitados:\n\n${samples}\n\n¿Por las medidas de qué producto en específico deseas consultar?`
+          };
+        }
       }
 
       // 3. Consulta de Producto Específico
@@ -880,6 +960,7 @@
         chipsContainer.className = "web-bot-quick-chips";
         const chipOptions = [
           { label: "📦 Ver catálogo", query: "ver catálogo" },
+          { label: "📏 Medidas y dimensiones", query: "¿Cuáles son las medidas y dimensiones?" },
           { label: "🏷️ ¿Tienen stock?", query: "¿Tienen stock disponible?" },
           { label: "🚚 Envíos y entregas", query: "¿Cuánto tardan los envíos?" },
           { label: "💳 Formas de pago", query: "¿Cuáles son las formas de pago?" },

@@ -492,6 +492,26 @@ export class BotEngine {
     }));
   }
 
+  // Dimension and measurement intent detection
+  _isDimensionIntent(cleanText, tokens, synonyms = {}) {
+    const directWords = [
+      "dimension", "dimensiones", "dimencion", "dimenciones",
+      "medida", "medidas", "mide", "miden", "medir",
+      "tamano", "altura", "alto", "ancho", "anchura", "largo", "longitud", "profundidad", "fondo", "cm", "centimetros", "metros"
+    ];
+    if (tokens.some(t => directWords.includes(t))) return true;
+
+    const phrases = [
+      "cuanto mide", "cuanto miden", "que medida", "que medidas",
+      "cuales son las medidas", "cuales son las dimensiones", "cuales son las dimenciones",
+      "medidas de", "medida de", "dimensiones de", "dimenciones de",
+      "dimension de", "dimencion de", "que tamano tiene", "tamano del", "tamano de la"
+    ];
+    if (phrases.some(p => cleanText.includes(p))) return true;
+
+    return this.matchesSynonym(tokens, synonyms, "dimensiones");
+  }
+
   async reply(message, opts = {}) {
     const isVoice = Boolean(opts.audio || opts.audioTranscript || this.voicePreferred);
     const result = await this._internalReply(message, opts);
@@ -506,6 +526,9 @@ export class BotEngine {
     if (!cleanText && !referral && !location) {
       return { text: "Hola, ¿en qué puedo ayudarte hoy?" };
     }
+
+    const tenant = StorageFacade.getTenant();
+    const synonyms = tenant.synonyms || {};
 
     // 1. Audio mode request (only if not already an incoming transcribed audio)
     if (!audioTranscript && (audio || tokens.some(t => ["audio", "voz"].includes(t)) || cleanText.includes("no se leer"))) {
@@ -533,6 +556,12 @@ export class BotEngine {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nCuentas oficiales (SMAK Honduras S. de R.L.):\n• BAC: 742-108-951 · Ficohsa: 2000-098-432 · Atlántida: 110-045-892\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
           };
         }
+        if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `📏 **Medidas de ${p.name} (${p.sku}):** **${p.dimensions || 'Estándar'}** (Soporte: ${p.weightLimit || 'Uso comercial y residencial'}).\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
+          };
+        }
         c.name = rawText.trim();
         c.recipientName = c.name;
         c.step = "quantity";
@@ -541,6 +570,12 @@ export class BotEngine {
         };
       }
       if (c.step === "quantity") {
+        if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `📏 **Medidas de ${p.name} (${p.sku}):** **${p.dimensions || 'Estándar'}** (Soporte: ${p.weightLimit || 'Uso comercial y residencial'}).\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+          };
+        }
         const match = rawText.match(/\d+/);
         const q = match ? Math.max(1, parseInt(match[0], 10)) : 1;
         c.quantity = q;
@@ -555,6 +590,12 @@ export class BotEngine {
         if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
           return {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
+          };
+        }
+        if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `📏 **Medidas de ${p.name} (${p.sku}):** **${p.dimensions || 'Estándar'}** (Soporte: ${p.weightLimit || 'Uso comercial y residencial'}).\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
           };
         }
 
@@ -603,6 +644,12 @@ export class BotEngine {
         if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
           return {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega de tu paquete 📞:`
+          };
+        }
+        if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `📏 **Medidas de ${p.name} (${p.sku}):** **${p.dimensions || 'Estándar'}** (Soporte: ${p.weightLimit || 'Uso comercial y residencial'}).\n\nContinuemos con tu pedido: compártenos tu **número telefónico que reciba llamadas** para coordinar la entrega con Cargo Expreso 📞:`
           };
         }
 
@@ -823,7 +870,47 @@ export class BotEngine {
     }
     const currentProduct = this.selectedProduct || (this.checkout ? this.checkout.product : null) || products[0] || null;
 
-    // 7. SPECIFIC PRODUCT INTENTS (Photos, Shipping/Delivery, Price, Dimensions)
+    // 7. SPECIFIC PRODUCT INTENTS (Dimensions/Medidas, Photos, Shipping/Delivery, Price)
+
+    // 7a. DIMENSIONS & MEASUREMENTS QUERY ("medidas", "dimenciones", "dimensiones", "cuánto mide", "mide", etc.)
+    const isDimensionQuery = this._isDimensionIntent(cleanText, tokens, synonyms);
+    if (isDimensionQuery) {
+      const targetProd = (skuExtraction && skuExtraction.product)
+        || products.find(p => {
+             const pName = clean(p.name);
+             const pSku = clean(p.sku);
+             return (pSku && cleanText.includes(pSku)) ||
+                    (p.keywords || []).some(k => k.length > 2 && cleanText.includes(clean(k))) ||
+                    pName.split(/\s+/).filter(w => w.length > 3).some(w => cleanText.includes(w));
+           })
+        || this.selectedProduct
+        || (this.checkout ? this.checkout.product : null);
+
+      if (targetProd) {
+        this.selectedProduct = targetProd;
+        const isAvailable = targetProd.stock > 0;
+        const isCalzado = tenant.id === "calzado";
+        let detailNote = "";
+        if (cleanText.includes("drenaje") || cleanText.includes("crenaje") || targetProd.sku === "REG-10") {
+          detailNote = "\n• **Drenaje lineal de piso:** 16 × 2.5 cm (acero inoxidable 304, desagüe continuo y sello anti-olores).";
+        }
+
+        const dimensionText = `📏 **Medidas y Especificaciones de ${targetProd.name} (SKU: ${targetProd.sku}):**\n\n• **${isCalzado ? 'Tallas disponibles' : 'Dimensiones'}:** **${targetProd.dimensions || 'Estándar según especificación técnica'}**\n• **${isCalzado ? 'Especificación' : 'Capacidad / Soporte'}:** ${targetProd.weightLimit || 'Uso comercial y residencial'}${detailNote}\n• **Precio de oferta:** **L.${Number(targetProd.salePrice).toLocaleString("es-HN")}**\n• **Disponibilidad:** ${isAvailable ? `✅ ¡${targetProd.stock} unidades en stock!` : '⚠️ Agotado temporalmente'}\n\n¿Deseas que preparemos tu pedido contra entrega o prefieres consultar algo más?`;
+
+        return {
+          text: dimensionText,
+          product: targetProd,
+          images: targetProd.images?.slice(0, 2) || []
+        };
+      } else {
+        const sampleItems = products.slice(0, 6).map(p => `• **${p.name}** (${p.sku}): **${p.dimensions || 'Estándar'}** *(Capacidad: ${p.weightLimit || 'Estándar'})*`).join("\n");
+        return {
+          text: `📏 **Guía de Medidas y Dimensiones de ${tenant.name}:**\n\nAquí tienes las dimensiones exactas de nuestros productos más destacados:\n\n${sampleItems}\n\n¿Por las medidas o especificaciones de qué producto en específico deseas consultar?`,
+          catalog: products.slice(0, 6)
+        };
+      }
+    }
+
     const isPhotoQuery = this.matchesSynonym(tokens, synonyms, "fotos") || tokens.some(t => ["foto", "fotos", "imagen", "imagenes", "verlo"].includes(t));
     if (isPhotoQuery && currentProduct) {
       let drainageNote = "";
@@ -852,7 +939,7 @@ export class BotEngine {
     const isStockQuery = tokens.some(t => ["stock", "disponible", "disponibilidad", "quedan", "hay", "existencia", "inventario", "tienen"].includes(t)) ||
       this.matchesSynonym(tokens, synonyms, "stock");
 
-    if (skuExtraction || isStockQuery) {
+    if ((skuExtraction || isStockQuery) && !isDimensionQuery) {
       const parametricRule = rules.find(r => r.enabled && r.type === "parametric") || {
         responseInStock: "¡Sí, tenemos disponible! Del SKU **{sku}** ({name}) nos quedan **{stock} unidades** a L.{salePrice}.",
         responseOutOfStock: "El producto **{name}** (SKU: {sku}) se encuentra actualmente **agotado**.",
@@ -922,10 +1009,12 @@ export class BotEngine {
       }
     }
 
-    if (this.matchesSynonym(tokens, synonyms, "dimensiones") || tokens.some(t => ["medidas", "talla", "tallas", "tamano"].includes(t))) {
+    if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
       if (currentProduct) {
         return {
-          text: `Las medidas / tallas de **${currentProduct.name}** (SKU: ${currentProduct.sku}) son: **${currentProduct.dimensions}**.`
+          text: `📏 **Medidas de ${currentProduct.name} (${currentProduct.sku}):** **${currentProduct.dimensions || 'Estándar'}** (Soporte: ${currentProduct.weightLimit || 'Uso comercial y residencial'}).`,
+          product: currentProduct,
+          images: currentProduct.images?.slice(0, 2) || []
         };
       }
     }
