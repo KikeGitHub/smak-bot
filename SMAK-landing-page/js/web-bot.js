@@ -183,6 +183,235 @@
       return orderData;
     }
 
+    _isConfirmIntent(cleanText, rawText) {
+      const isQuestion = rawText.includes("?") || rawText.includes("¿") || 
+        /^(?:puedo|como|c[oó]mo|cu[aá]ndo|cuando|cu[aá]nto|cuanto|d[oó]nde|donde|qu[eé]|que|por qu[eé]|por que|aceptan|tienen|hay)\b/i.test(cleanText);
+      if (isQuestion) return false;
+
+      const explicitConfirm = ["confirmar", "confirmar pedido", "confirmar compra", "confirmo", "confirmo pedido", "proceder", "proceder con la compra", "cerrar pedido", "comprar ahora", "si confirmar", "si confirmo"].some(w => cleanText.includes(w));
+      if (explicitConfirm) return true;
+
+      const exactConfirmWords = ["si", "ok", "listo", "correcto", "dale", "adelante", "comprar", "proceder", "de acuerdo", "perfecto", "va", "esta bien", "todo bien", "todo correcto", "mandelo", "envielo"];
+      const isExact = exactConfirmWords.includes(cleanText);
+      const startsWithOkOrSi = /^(?:si|ok|listo|dale|adelante)\b\s*(?:por favor|amigo|amiga|gracias|esta bien|proceda|mandelo|envielo)?$/i.test(cleanText);
+
+      return (isExact || startsWithOkOrSi);
+    }
+
+    _handleOrderModifications(c, rawText, cleanText, tokens, products = [], location = null) {
+      // 1. Ubicación GPS / Location
+      if (location) {
+        const locName = location.address || location.name || "Ubicación GPS registrada";
+        c.address = locName;
+        c.location = location;
+        return {
+          modified: true,
+          field: "location",
+          ack: `✏️ ¡Listo! Hemos actualizado tu ubicación de entrega a: **${locName}** 📍`
+        };
+      }
+
+      // 2. Modificación de Dirección (Texto)
+      const isAddressPromptOnly = /^(?:cambiar|modificar|corregir)?\s*(?:la\s+)?(?:direccion|entrega|ubicacion)$/i.test(cleanText.trim());
+      if (isAddressPromptOnly) {
+        c.step = "address";
+        return {
+          redirect: true,
+          prompt: `Por favor compártenos tu nueva dirección de entrega detallada:\n\n• **Nombre del destinatario**\n• **Calle y número de casa / referencia**\n• **Colonia, barrio o sector**\n• **Ciudad / Municipio**\n• **Código postal**`
+        };
+      }
+
+      const addressChangeMatch = rawText.match(/(?:entregar|mandar|llevar|enviar)\b\s*(?:en|a)\s*[:\-]?\s*(.+)/i) ||
+                                 rawText.match(/(?:mi\s+nueva\s+direcci[oó]n\s+es|mi\s+direcci[oó]n\s+es)\s*[:\-]?\s*(.+)/i) ||
+                                 rawText.match(/(?:cambiar|modificar|corregir|actualizar)?\s*(?:la\s+)?(?:direcci[oó]n|entrega|ubicaci[oó]n)\b\s*(?:a|por|es|ser[ií]a)?\s*[:\-]?\s*(.+)/i);
+      if (addressChangeMatch && addressChangeMatch[1] && addressChangeMatch[1].trim().length >= 6) {
+        const newAddress = addressChangeMatch[1].trim();
+        if (!newAddress.includes("?") && !newAddress.includes("¿") && !cleanText.startsWith("donde")) {
+          c.address = newAddress;
+          const cpMatch = newAddress.match(/\b\d{5}\b/);
+          if (cpMatch) c.postalCode = cpMatch[0];
+          return {
+            modified: true,
+            field: "address",
+            ack: `✏️ ¡Listo! Hemos actualizado tu dirección de entrega a: **${c.address}**.`
+          };
+        }
+      }
+
+      // 3. Modificación de Teléfono
+      const isPhonePromptOnly = /^(?:cambiar|modificar|corregir)?\s*(?:el\s+)?(?:telefono|celular|cel|numero|num)$/i.test(cleanText.trim());
+      if (isPhonePromptOnly) {
+        c.step = "phone";
+        return {
+          redirect: true,
+          prompt: `Por favor compártenos tu nuevo **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
+        };
+      }
+
+      const phoneChangeMatch = rawText.match(/(?:cambiar|modificar|corregir|actualizar)?\s*(?:el\s+)?(?:tel[eé]fono|celular|cel|n[uú]mero|num)\b\s*(?:a|por|es|ser[ií]a)?\s*[:\-]?\s*([+0-9\s\-]{8,20})/i) ||
+                               rawText.match(/(?:mi\s+(?:nuevo\s+)?(?:tel[eé]fono|celular|cel|n[uú]mero)\s+es)\s*[:\-]?\s*([+0-9\s\-]{8,20})/i);
+      const standalonePhone = rawText.trim().match(/^[+]?[\d\s\-]{8,16}$/);
+
+      if ((phoneChangeMatch && phoneChangeMatch[1]) || (standalonePhone && !cleanText.includes("rtn"))) {
+        const rawNum = (phoneChangeMatch && phoneChangeMatch[1]) || standalonePhone[0];
+        const digits = rawNum.replace(/\D/g, "");
+        if (digits.length >= 8 && digits.length <= 15) {
+          c.phone = rawNum.trim();
+          return {
+            modified: true,
+            field: "phone",
+            ack: `✏️ ¡Listo! Hemos actualizado tu número de contacto para llamadas de Cargo Expreso a: **${c.phone}** 📞.`
+          };
+        }
+      }
+
+      // 4. Modificación de Facturación / RTN / Razón Social
+      const isCancelInvoice = cleanText.includes("sin factura") || cleanText.includes("no quiero factura") || cleanText.includes("no ocupo factura") || cleanText.includes("ya no quiero factura") || cleanText.includes("factura no") || cleanText.includes("consumidor final");
+      if (isCancelInvoice) {
+        c.requiresInvoice = false;
+        c.rtn = null;
+        c.businessName = null;
+        return {
+          modified: true,
+          field: "invoice",
+          ack: `✏️ ¡Listo! Se ha actualizado tu pedido a **Sin Factura (Consumidor Final)**.`
+        };
+      }
+
+      const isInvoicePromptOnly = /^(?:cambiar|modificar|agregar|ocupo|quiero|poner|solicitar)?\s*(?:la\s+)?factura$/i.test(cleanText.trim());
+      if (isInvoicePromptOnly) {
+        c.step = "invoice_rtn";
+        return {
+          redirect: true,
+          prompt: `¡Con gusto te emitimos factura fiscal! 🧾\n\nPor favor compártenos tu número de **RTN** (14 dígitos):`
+        };
+      }
+
+      const rtnChangeMatch = rawText.match(/\b\d{14}\b/) || rawText.match(/\b\d{8,14}\b/);
+      const hasInvoiceIntent = cleanText.includes("rtn") || cleanText.includes("factura") || cleanText.includes("razon social") || cleanText.includes("razón social");
+      if (hasInvoiceIntent && rtnChangeMatch) {
+        c.requiresInvoice = true;
+        c.rtn = rtnChangeMatch[0];
+        const nameMatch = rawText.match(/(?:a\s+nombre\s+de|raz[oó]n\s+social\s*[:\-]?|empresa\s*[:\-]?)\s*([a-zA-Z0-9\s\.,&]+)/i);
+        if (nameMatch && nameMatch[1]) {
+          c.businessName = nameMatch[1].trim();
+        } else if (!c.businessName) {
+          c.businessName = c.recipientName || c.name;
+        }
+        return {
+          modified: true,
+          field: "invoice",
+          ack: `✏️ ¡Listo! Hemos actualizado los datos de facturación:\n• **RTN:** ${c.rtn}\n• **Razón Social:** ${c.businessName}`
+        };
+      }
+
+      const bizNameMatch = rawText.match(/(?:cambiar|modificar|corregir)?\s*(?:la\s+)?raz[oó]n\s+social\b\s*(?:a|por|es)?\s*[:\-]?\s*(.+)/i);
+      if (bizNameMatch && bizNameMatch[1]) {
+        c.requiresInvoice = true;
+        c.businessName = bizNameMatch[1].trim();
+        return {
+          modified: true,
+          field: "invoice",
+          ack: `✏️ ¡Listo! Hemos actualizado la razón social para la factura a: **${c.businessName}**.`
+        };
+      }
+
+      // 5. Modificación de Nombre / Destinatario
+      const isNamePromptOnly = /^(?:cambiar|modificar|corregir)?\s*(?:el\s+)?(?:nombre|destinatario)$/i.test(cleanText.trim());
+      if (isNamePromptOnly) {
+        c.step = "name";
+        return {
+          redirect: true,
+          prompt: `Por favor indícanos el nuevo nombre del **destinatario** (quién recibe el paquete):`
+        };
+      }
+
+      const nameChangeMatch = rawText.match(/(?:cambiar|modificar|corregir|actualizar)?\s*(?:el\s+)?(?:nombre|destinatario)\b\s*(?:a|por|es|ser[ií]a)?\s*[:\-]?\s*([a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{3,40})/i) ||
+                              rawText.match(/(?:a\s+nombre\s+de)\s*([a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{3,40})/i) ||
+                              rawText.match(/(?:el\s+destinatario\s+es)\s*([a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{3,40})/i);
+      if (nameChangeMatch && nameChangeMatch[1] && !hasInvoiceIntent && !cleanText.includes("transferencia")) {
+        const candidateName = nameChangeMatch[1].trim();
+        if (!candidateName.toLowerCase().includes("banco") && !candidateName.toLowerCase().includes("smak")) {
+          c.recipientName = candidateName;
+          c.name = candidateName;
+          return {
+            modified: true,
+            field: "name",
+            ack: `✏️ ¡Listo! Hemos actualizado el nombre del destinatario a: **${c.recipientName}**.`
+          };
+        }
+      }
+
+      // 6. Modificación de Cantidad / Piezas
+      const isQtyPromptOnly = /^(?:cambiar|modificar|corregir)?\s*(?:la\s+)?(?:cantidad|piezas|unidades)$/i.test(cleanText.trim());
+      if (isQtyPromptOnly) {
+        c.step = "quantity";
+        return {
+          redirect: true,
+          prompt: `¿Cuántas piezas o unidades deseas ordenar para **${c.product.name}**? (Ejemplo: *1 kit*, *2 lámparas*, *3 escritorios*... o solo el número):`
+        };
+      }
+
+      const wordToNum = { una: 1, un: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+      let detectedQty = null;
+      let customQtyLabel = "";
+
+      const qtyRegex = /(?:cambiar|modificar|actualizar)?\s*(?:la\s+)?(?:cantidad|piezas?|unidades?)\b\s*(?:a|por|es|ser[ií]a)?\s*[:\-]?\s*(\d+)/i;
+      const matchExplicitQty = rawText.match(qtyRegex);
+      if (matchExplicitQty && matchExplicitQty[1]) {
+        detectedQty = parseInt(matchExplicitQty[1], 10);
+        customQtyLabel = `${detectedQty} ${detectedQty === 1 ? 'unidad' : 'unidades'}`;
+      } else {
+        const qtyPhraseRegex = /(?:ponme|poner|agregame|agregar|agr[eé]game|solo\s+quiero|solo\s+deseo|solo|quiero|deseo|ser[ií]an?|mejor|bajar\s+a|subir\s+a|aumentar\s+a|cambiar\s+a)\s+(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b\s*([a-záéíóúñ\s]+)?/i;
+        const phraseMatch = rawText.match(qtyPhraseRegex);
+        if (phraseMatch && !hasInvoiceIntent && !phoneChangeMatch && !addressChangeMatch) {
+          const tokenVal = phraseMatch[1].toLowerCase();
+          const numVal = wordToNum[tokenVal] || parseInt(tokenVal, 10);
+          if (!isNaN(numVal) && numVal > 0 && numVal <= 100) {
+            detectedQty = numVal;
+            const noun = (phraseMatch[2] || "").trim().replace(/(?:por favor|gracias|amigo|amiga).*/i, "").trim();
+            customQtyLabel = noun ? `${detectedQty} ${noun}` : `${detectedQty} ${detectedQty === 1 ? 'unidad' : 'unidades'}`;
+          }
+        }
+      }
+
+      if (detectedQty !== null && detectedQty > 0) {
+        c.quantity = detectedQty;
+        c.quantityLabel = customQtyLabel || `${detectedQty} ${detectedQty === 1 ? 'unidad' : 'unidades'}`;
+        const unitPrice = Number(c.product.price || c.unitPrice || DEFAULT_PRICES[c.product.category] || 1500);
+        c.total = unitPrice * detectedQty;
+        return {
+          modified: true,
+          field: "quantity",
+          ack: `✏️ ¡Listo! Hemos actualizado la cantidad a **${c.quantityLabel}** (Nuevo total: **L.${Number(c.total).toLocaleString("es-HN")}**).`
+        };
+      }
+
+      // 7. Modificación de Producto
+      const isProductChangeIntent = ["cambiar por", "cambiar a", "mejor el", "mejor la", "cambiar producto", "quiero el", "quiero la", "en vez de", "en lugar de"].some(p => cleanText.includes(p));
+      if (isProductChangeIntent) {
+        const allProds = (products && products.length) ? products : (window.SMAK_PRODUCTS || []);
+        for (const p of allProds) {
+          if (cleanText.includes(clean(p.name)) || (p.id && cleanText.includes(clean(p.id)))) {
+            if (p.id !== c.product.id) {
+              c.product = p;
+              const unitPrice = Number(p.price || DEFAULT_PRICES[p.category] || 1500);
+              c.unitPrice = unitPrice;
+              c.total = unitPrice * c.quantity;
+              c.quantityLabel = `${c.quantity} ${c.quantity === 1 ? 'unidad' : 'unidades'}`;
+              return {
+                modified: true,
+                field: "product",
+                ack: `✏️ ¡Listo! Hemos cambiado el producto de tu pedido a **${p.name}** (Nuevo total: **L.${Number(c.total).toLocaleString("es-HN")}**).`
+              };
+            }
+          }
+        }
+      }
+
+      return { modified: false };
+    }
+
 
     findProduct(query) {
       const allProducts = window.SMAK_PRODUCTS || [];
@@ -317,43 +546,37 @@
           return this._buildOrderConfirmation(c);
         }
         if (c.step === "confirm") {
-          const isTransfer = cleanText.includes("transferencia") || cleanText.includes("transfer") || cleanText.includes("cuenta") || cleanText.includes("bancaria") || cleanText.includes("banco");
-          const isCard = cleanText.includes("tarjeta") || cleanText.includes("credito") || cleanText.includes("debito") || cleanText.includes("cuotas") || cleanText.includes("tasa cero") || cleanText.includes("visa") || cleanText.includes("mastercard");
-          const isPaymentGeneral = cleanText.includes("pago") || cleanText.includes("pagar") || cleanText.includes("como pago");
-          const isConfirmWord = ["confirmar", "confirmo", "si", "correcto", "listo", "dale", "ok", "adelante", "comprar", "proceder"].some(w => cleanText === w || cleanText.startsWith(w + " ") || cleanText.endsWith(" " + w));
+          const products = window.SMAK_PRODUCTS || [];
 
-          if (isConfirmWord && !isTransfer && !isCard && !isPaymentGeneral) {
+          // 1. Modificación de datos ya confirmados (cantidad, dirección, teléfono, facturación, destinatario o producto)
+          const mod = this._handleOrderModifications(c, rawText, cleanText, tokens, products, null);
+          if (mod.redirect) {
+            return { text: mod.prompt };
+          }
+          if (mod.modified) {
+            const confirmation = this._buildOrderConfirmation(c);
+            return {
+              text: `${mod.ack}\n\n${confirmation.text}`,
+              order: confirmation.order
+            };
+          }
+
+          // 2. Intención genuina de confirmación de compra
+          if (this._isConfirmIntent(cleanText, rawText)) {
             const saved = this.confirmOrder();
             return {
               text: `¡Muchas gracias, ${saved ? saved.name : "estimado cliente"}! 🎉 Tu pedido **${saved ? saved.orderNumber : ""}** (${saved ? saved.quantityLabel : "1 unid."}) ha quedado formalmente registrado en nuestro sistema backend. En breve te notificaremos cuando la guía de rastreo sea asignada.`
             };
           }
 
+          // 3. Responder a cualquier pregunta manteniendo el resumen y el botón de confirmación
+          const answer = this._getGeneralAnswer(rawText, cleanText, tokens);
           const confirmation = this._buildOrderConfirmation(c);
-
-          if (isTransfer) {
-            return {
-              text: `¡Sí, con gusto aceptamos transferencia bancaria! 🏦\n\nPuedes transferir a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes realizar tu transferencia y adjuntar tu comprobante por WhatsApp al coordinar la entrega, o bien pagar en efectivo contra entrega al recibir tu paquete en tu puerta.\n\n👇 **Tu pedido sigue listo para ser confirmado:**`,
-              order: confirmation.order
-            };
-          }
-
-          if (isCard) {
-            return {
-              text: `¡Sí! Aceptamos tarjetas Visa y Mastercard mediante enlace de pago seguro de BAC Credomatic con opción a cuotas sin intereses al 0%.\n\nTambién puedes pagar en efectivo contra entrega al recibir en tu puerta.\n\n👇 **Tu pedido sigue listo para ser confirmado:**`,
-              order: confirmation.order
-            };
-          }
-
-          if (isPaymentGeneral) {
-            return {
-              text: `Aceptamos dos modalidades de pago:\n1. **Efectivo contra entrega:** Pagas al recibir en tu puerta.\n2. **Transferencia bancaria previa:** A nuestras cuentas en BAC (742-108-951), Ficohsa (2000-098-432) o Atlántida (110-045-892).\n\n👇 **Tu pedido sigue listo para ser confirmado:**`,
-              order: confirmation.order
-            };
-          }
+          const replyText = `${answer.text || ""}\n\n👇 **Tu pedido (${c.orderNumber}) sigue listo para ser confirmado:**`;
 
           return {
-            text: `Entendido. Tu orden **${c.orderNumber}** para **${c.product.name}** sigue lista.\n\nPuedes presionar el botón abajo para confirmar tu compra:`,
+            ...answer,
+            text: replyText,
             order: confirmation.order
           };
         }
@@ -390,7 +613,10 @@
         } catch (e) {}
       }
 
+      return this._getGeneralAnswer(rawText, cleanText, tokens);
+    }
 
+    _getGeneralAnswer(rawText, cleanText, tokens) {
       // 2. Intención de Compra / Iniciar Checkout
       if (tokens.some(t => ["comprar", "ordenar", "pedido", "pedir"].includes(t)) || cleanText.includes("hacer pedido")) {
         const prod = this.findProduct(rawText) || this.selectedProduct;
@@ -432,10 +658,10 @@
       // 5b. Consulta de Transferencia Bancaria
       const isTransferQuery = cleanText.includes("transferencia") || cleanText.includes("transfer") || (cleanText.includes("cuenta") && (cleanText.includes("banco") || cleanText.includes("transferir") || cleanText.includes("depositar")));
       if (isTransferQuery) {
-        const prod = this.selectedProduct || (window.SMAK_PRODUCTS && window.SMAK_PRODUCTS[0]);
+        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || (window.SMAK_PRODUCTS && window.SMAK_PRODUCTS[0]);
         return {
-          text: `¡Sí, aceptamos transferencia bancaria! 🏦\n\nPuedes realizar tu pago a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes pagar vía transferencia y adjuntar tu comprobante por el chat, o pagar en efectivo contra entrega al recibir tu paquete en tu puerta.\n\n¿Deseas realizar tu pedido${prod ? ` para **${prod.name}**` : ''}?`,
-          product: prod || null
+          text: `¡Sí, aceptamos transferencia bancaria! 🏦\n\nPuedes realizar tu pago a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes pagar vía transferencia y adjuntar tu comprobante por el chat, o pagar en efectivo contra entrega al recibir tu paquete en tu puerta.\n\n¿Deseas realizar tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
+          product: activeProd || null
         };
       }
 
@@ -448,11 +674,11 @@
 
       // 7. Pregunta de Precio General
       if (matchesConcept(tokens, "precio")) {
-        if (this.selectedProduct) {
-          const p = this.selectedProduct;
-          const price = p.price || DEFAULT_PRICES[p.category] || 1500;
+        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null);
+        if (activeProd) {
+          const price = activeProd.price || DEFAULT_PRICES[activeProd.category] || 1500;
           return {
-            text: `El producto **${p.name}** tiene un precio de **L.${price.toLocaleString("es-HN")}** con entrega contra entrega disponible.`
+            text: `El producto **${activeProd.name}** tiene un precio de **L.${price.toLocaleString("es-HN")}** con entrega contra entrega disponible.`
           };
         }
         return {
