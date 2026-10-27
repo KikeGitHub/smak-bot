@@ -30,7 +30,7 @@ export const TENANTS = [
                         "955"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_e39be5490da5499d8aebdd42217c9dd8~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1598550476439-6847785fcea6?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -56,7 +56,7 @@ export const TENANTS = [
                         "959"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_ab6cf8e2ba824f42bb241f87aa9ec241~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1505797149-43b0069ec26b?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -80,7 +80,7 @@ export const TENANTS = [
                         "skm-959-ca-ma"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_ab6cf8e2ba824f42bb241f87aa9ec241~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -105,7 +105,7 @@ export const TENANTS = [
                         "956"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_e976bd6d652542d28e2fe6643274ee8c~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1589384267710-7a170981ca78?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -128,7 +128,7 @@ export const TENANTS = [
                         "skm-956-ca-gr"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_e976bd6d652542d28e2fe6643274ee8c~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -154,7 +154,7 @@ export const TENANTS = [
                         "935"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_e2137f01d32144a9bb12852ebfa40a7a~mv2.png/v1/fit/w_500,h_500,q_90/file.png"
+                        "https://images.unsplash.com/photo-1581539250439-c96689b516dd?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -381,7 +381,7 @@ export const TENANTS = [
                         "944"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_f79ac4221ee04cc2a5a4d743a3dca3d6~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -407,7 +407,7 @@ export const TENANTS = [
                         "943"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_4c4a8d50efa54afaabbd8e9227f6ba6f~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -433,7 +433,7 @@ export const TENANTS = [
                         "032"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_e91d7101f4414098b49c596b6b80153f~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -482,7 +482,7 @@ export const TENANTS = [
                         "503"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_25b1c5d058b548d0aa0a2569527ec651~mv2.png/v1/fit/w_500,h_500,q_90/file.png"
+                        "https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -631,7 +631,7 @@ export const TENANTS = [
                         "622"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_f34e9dcc099b420b9d8bc1788775f0a0~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -677,7 +677,7 @@ export const TENANTS = [
                         "skm-955-ca-ne-bl"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_e39be5490da5499d8aebdd42217c9dd8~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1616627547584-bf28cee262db?auto=format&fit=crop&w=800&q=80"
                 ]
         },
         {
@@ -698,7 +698,7 @@ export const TENANTS = [
                         "skm-955-ca-ne-ro"
                 ],
                 "images": [
-                        "https://static.wixstatic.com/media/f6ccd1_e39be5490da5499d8aebdd42217c9dd8~mv2.webp/v1/fit/w_500,h_500,q_90/file.webp"
+                        "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?auto=format&fit=crop&w=800&q=80"
                 ]
         }
 ],

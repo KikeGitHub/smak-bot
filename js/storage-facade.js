@@ -117,10 +117,14 @@ export class StorageFacade {
               curTenant.campaigns = clone(defT.campaigns || []);
               modified = true;
             }
-            // Merge missing products (like PER-09 and REG-10)
+            // Merge missing products and update broken/placeholder images
             (defT.products || []).forEach(p => {
-              if (!curTenant.products.some(cp => cp.sku === p.sku)) {
+              const curP = curTenant.products.find(cp => cp.sku === p.sku);
+              if (!curP) {
                 curTenant.products.push(clone(p));
+                modified = true;
+              } else if (p.images && p.images[0] && (!curP.images || !curP.images[0] || curP.images[0].includes("wixstatic.com/media/f6ccd1_") || curP.images[0].includes("placeholder"))) {
+                curP.images = clone(p.images);
                 modified = true;
               }
             });

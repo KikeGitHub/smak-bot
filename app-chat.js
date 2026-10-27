@@ -959,7 +959,7 @@ function renderCatalogGrid() {
   }
 
   grid.innerHTML = filtered.map(p => {
-    const img = (p.images && p.images[0]) || "https://images.unsplash.com/photo-1580481077198-c847ad436159?w=600&auto=format&fit=crop&q=80";
+    const img = (p.images && p.images[0]) || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80";
     const price = p.salePrice || p.regularPrice || 0;
     const oldPrice = p.salePrice && p.regularPrice > p.salePrice ? p.regularPrice : null;
     const stockClass = (p.stock || 0) > 10 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200";
@@ -968,7 +968,7 @@ function renderCatalogGrid() {
       <div class="group flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-sm hover:shadow-md hover:border-emerald-300 transition">
         <div>
           <div class="relative aspect-square w-full overflow-hidden rounded-xl bg-slate-100">
-            <img src="${img}" alt="${p.name}" loading="lazy" class="h-full w-full object-contain object-center transition group-hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1580481077198-c847ad436159?w=600&auto=format&fit=crop&q=80'">
+            <img src="${img}" alt="${p.name}" loading="lazy" class="h-full w-full object-contain object-center transition group-hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80'">
             <span class="absolute top-2 left-2 rounded-md bg-slate-900/80 px-2 py-0.5 text-[10px] font-bold text-white tracking-wide uppercase">${p.sku}</span>
             <span class="absolute top-2 right-2 rounded-md border ${stockClass} px-2 py-0.5 text-[10px] font-bold">${p.stock || 0} disponibles</span>
           </div>
