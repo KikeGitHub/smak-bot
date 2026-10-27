@@ -10,6 +10,12 @@ const thread = $("#messages");
 const engine = new BotEngine();
 let activeRecorder = null;
 
+if (typeof window !== "undefined") {
+  window.StorageFacade = StorageFacade;
+  window.BotEngine = BotEngine;
+  window.botEngineInstance = engine;
+}
+
 function formatMarkdown(text) {
   let safe = String(text ?? "")
     .replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

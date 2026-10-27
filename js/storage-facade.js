@@ -149,7 +149,7 @@ export class StorageFacade {
                 modified = true;
               }
             });
-            // Merge updated synonyms (especially dimensiones & spelling variations)
+            // Merge updated synonyms across all categories (deduplicated)
             if (defT.synonyms) {
               if (!curTenant.synonyms) {
                 curTenant.synonyms = clone(defT.synonyms);
@@ -159,7 +159,7 @@ export class StorageFacade {
                   if (!curTenant.synonyms[k]) {
                     curTenant.synonyms[k] = clone(defT.synonyms[k]);
                     modified = true;
-                  } else if (k === "dimensiones") {
+                  } else {
                     (defT.synonyms[k] || []).forEach(word => {
                       if (!curTenant.synonyms[k].includes(word)) {
                         curTenant.synonyms[k].push(word);

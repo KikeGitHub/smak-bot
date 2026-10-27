@@ -739,7 +739,15 @@ export const TENANTS = [
                   "lista de articulos",
                   "catalogo completo",
                   "que tienen en venta",
-                  "mostrar muebles"
+                  "mostrar muebles",
+                  "lista de precios",
+                  "que articulos tienen",
+                  "que venden",
+                  "ver muebles",
+                  "catalogo de productos",
+                  "cuales son sus productos",
+                  "catalogo de sillas",
+                  "muestrame el catalogo"
             ],
             "response": "Actualmente tenemos estos productos en catálogo:",
             "action": "show_catalog"
@@ -758,7 +766,18 @@ export const TENANTS = [
                   "cuanto se tardan en llegar",
                   "envian a domicilio",
                   "cuanto tiempo se tardan en venir a dejar",
-                  "cuanto tardan en traerlo a la casa"
+                  "cuanto tardan en traerlo a la casa",
+                  "a como me lo vienen a dejar",
+                  "cuando me lo traen",
+                  "cuantos dias se tardan",
+                  "entrega a domicilio",
+                  "hacen envios a todo honduras",
+                  "cobertura nacional",
+                  "llegan hasta mi casa",
+                  "llega hoy",
+                  "llega manana",
+                  "cuando me llega",
+                  "cuanto tardan en entregar"
             ],
             "response": "🚚 **Tiempos de Entrega:** Tenemos envío a todos los lugares del país y realizamos la entrega entre 1 y 2 días posteriores a tu confirmación de pedido a través de Cargo Expreso con pago en efectivo contra entrega."
       },
@@ -775,7 +794,15 @@ export const TENANTS = [
                   "precio del envio",
                   "cobran el flete",
                   "el envio es gratis",
-                  "cuanto vale el flete"
+                  "cuanto vale el flete",
+                  "el flete es gratis",
+                  "cuanto cobran de flete",
+                  "cobran envio",
+                  "cuanto cobran por mandarlo",
+                  "hay que pagar envio",
+                  "el envio tiene algun costo",
+                  "cuanto se paga de flete",
+                  "es gratis el envio"
             ],
             "response": "🚚 **Costo de Envío:** ¡El envío es **completamente gratuito** a cualquier parte del país! Solo cancelas el valor del producto al recibirlo en efectivo."
       },
@@ -793,7 +820,12 @@ export const TENANTS = [
                   "otra paqueteria",
                   "haces envios por forza u otra paqueteria",
                   "pueden mandar por forza",
-                  "usan forza"
+                  "usan forza",
+                  "mandan por otra paqueteria",
+                  "envian por caex o forza",
+                  "usan fedex",
+                  "trabajan con otra paqueteria",
+                  "usan dhl"
             ],
             "response": "📦 **Transportadora:** No, únicamente realizamos entregas a través de **Cargo Expreso**."
       },
@@ -814,7 +846,12 @@ export const TENANTS = [
                   "entregas en roatan utila o isla de la bahia",
                   "muelle de cabotaje",
                   "ferry galaxy",
-                  "utila dream"
+                  "utila dream",
+                  "cuanto a roatan",
+                  "envian a islas de la bahia",
+                  "ferry galaxy wave",
+                  "muelle de la ceiba",
+                  "envios a islas"
             ],
             "response": "🏝️ **Entregas en Roatán, Útila o Islas de la Bahía:**\nPara Roatán o Útila, solo hacemos envíos con **transferencia previa**.\nUna vez nos hace llegar el comprobante de transferencia bancaria, nosotros enviamos el producto hacia el **muelle de cabotaje de La Ceiba** con la indicación de subir el paquete al ferry que usted diga (Utila Dream, Galaxy Wave, etc.).\n⚠️ **Nota:** No cubrimos el costo del ferry (corre por cuenta del cliente)."
       },
@@ -831,7 +868,14 @@ export const TENANTS = [
                   "pago con tarjeta",
                   "puedo pagar con tarjeta",
                   "tarjeta de debito",
-                  "pago con tarjeta de debito"
+                  "pago con tarjeta de debito",
+                  "se puede con tarjeta",
+                  "tienen terminal o pos",
+                  "aceptan credomatic",
+                  "tienen link de pago",
+                  "aceptan visa",
+                  "aceptan mastercard",
+                  "tienen pos para pagar con tarjeta"
             ],
             "response": "💳 **Forma de Pago con Tarjeta:** No aceptamos pagos con tarjeta, solo pago en efectivo contra entrega y se le paga al operador de Cargo Expreso o por transferencia electrónica previa, pero la transferencia debe confirmarse antes de realizar el envío."
       },
@@ -849,7 +893,17 @@ export const TENANTS = [
                   "transferencia bancaria",
                   "cuentas para transferir",
                   "datos de transferencia",
-                  "cuenta de banco"
+                  "cuenta de banco",
+                  "como puedo transferir",
+                  "a que cuenta transfiero",
+                  "banco atlantida",
+                  "bac credomatic",
+                  "banco ficohsa",
+                  "banpais",
+                  "puedo transferir antes",
+                  "pago por transferencia bancaria",
+                  "tienen numero de cuenta",
+                  "donde les puedo transferir"
             ],
             "response": "🏦 **Pago con Transferencia:** Sí aceptamos pagos con transferencia pero se tendría que realizar previo al envío del paquete.\n\nCuentas empresariales oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n• BAC Credomatic (Cheques): 742-108-951\n• Banco Ficohsa (Cheques): 2000-098-432\n• Banco Atlántida (Ahorros): 110-045-892\n• Banpaís (Cheques): 01-501-002345\n\nUna vez realizado el depósito o transferencia, nos compartes el comprobante por este chat para proceder con el despacho inmediato."
       },
@@ -864,7 +918,15 @@ export const TENANTS = [
                   "formas de pago",
                   "metodos de pago",
                   "aceptan pago contra entrega",
-                  "puedo pagar en efectivo"
+                  "puedo pagar en efectivo",
+                  "como se paga",
+                  "como es la forma de pago",
+                  "puedo pagar en efectivo al recibir",
+                  "se paga al recibir",
+                  "pago contra entrega en efectivo",
+                  "como seria el pago",
+                  "le pago al que entrega",
+                  "pago al recibir mi pedido"
             ],
             "response": "Aceptamos dos formas de pago:\n1. **Efectivo contra entrega:** Le pagas directamente al motorista de Cargo Expreso al recibir en tu puerta.\n2. **Transferencia bancaria electrónica previa:** Confirmada antes de despachar el paquete."
       },
@@ -880,7 +942,13 @@ export const TENANTS = [
                   "los muebles son nuevos",
                   "los productos son nuevos",
                   "es nuevo o de segunda",
-                  "venden cosas usadas"
+                  "venden cosas usadas",
+                  "los articulos son nuevos",
+                  "vienen en caja sellada",
+                  "son de segunda mano",
+                  "son usados o nuevos",
+                  "estado del producto",
+                  "son 100% nuevos"
             ],
             "response": "✨ **Condición del Producto:** Sí, todos nuestros productos son nuevos 100% de fábrica en su caja original sellada."
       },
@@ -896,7 +964,13 @@ export const TENANTS = [
                   "garantia",
                   "que garantia tienen",
                   "si viene quebrado",
-                  "si sale defectuoso"
+                  "si sale defectuoso",
+                  "que pasa si viene con defecto",
+                  "si viene malo",
+                  "tienen cambio o devolucion",
+                  "respaldo de garantia",
+                  "garantia de fabrica",
+                  "si sale con falla"
             ],
             "response": "🛡️ **Garantía:** Cuentan con garantía únicamente contra defectos de fabricación."
       },
@@ -914,7 +988,13 @@ export const TENANTS = [
                   "precio si compro varios",
                   "precio por mayor",
                   "rebaja",
-                  "cuanto es lo menos"
+                  "cuanto es lo menos",
+                  "en cuanto me lo deja",
+                  "rebaja si compro varios",
+                  "precio especial de mayoreo",
+                  "hacen descuento por volumen",
+                  "precio para distribuidores",
+                  "a como me lo deja si llevo dos"
             ],
             "response": "🏷️ **Mejor Precio:** El precio especial sería equivalente a la cantidad de piezas solicitadas por el cliente. Si necesitas ordenar varias piezas o mayoreo, indícanos cuántas unidades deseas y con gusto te cotizamos."
       },
@@ -932,7 +1012,12 @@ export const TENANTS = [
                   "ubicacion de la tienda",
                   "donde queda el local",
                   "donde estan",
-                  "puerto cortes"
+                  "puerto cortes",
+                  "tienen sala de ventas",
+                  "donde queda su tienda",
+                  "direccion en puerto cortes",
+                  "tienen tienda en tegucigalpa",
+                  "tienen tienda en san pedro sula"
             ],
             "response": "📍 **Ubicación Física:** Nos encontramos ubicados en **Plaza Krisale, Puerto Cortés, Honduras**.\n\n¡Realizamos envíos gratuitos a domicilio a cualquier parte del país vía Cargo Expreso!"
       },
@@ -949,37 +1034,94 @@ export const TENANTS = [
                   "entregan en sabado",
                   "entregan los sabados",
                   "puedo recoger en agencia",
-                  "retiro en agencia cargo expreso"
+                  "retiro en agencia cargo expreso",
+                  "entregan sabado por la tarde",
+                  "puedo retirar en agencia",
+                  "recoger en oficina de cargo expreso",
+                  "horario de entrega de cargo expreso",
+                  "a que hora pasa el repartidor",
+                  "trabajan los sabados",
+                  "agencia cargo expreso"
             ],
             "response": "🚚 **Horarios y Agencias:** El repartidor de Cargo Expreso se pondrá en contacto contigo por llamada telefónica para coordinar el horario de entrega en tu domicilio (Lunes a Viernes de 8am a 5pm, Sábados medio día hasta las 12pm). Si necesitas horario específico, puedes solicitar retiro en cualquier oficina o agencia de Cargo Expreso de tu ciudad."
       }
 ],
     synonyms: {
-      precio: ["presio", "rebaja", "cuanto cuesta", "cuanto vale", "costo", "valor", "cotizacion", "precio final", "tarifa", "descuento"],
-      stock: ["disponible", "disponibilidad", "existencia", "inventario", "unidades", "quedan", "hay", "tienen", "piezas", "existencias"],
+      precio: [
+        "presio", "rebaja", "cuanto cuesta", "cuanto vale", "costo", "valor", "cotizacion", "precio final", "tarifa", "descuento",
+        "a como sale", "en cuanto sale", "en cuanto me sale", "que cuesta", "cuanto es", "que precio tiene", "a como me lo deja", "a como lo dan",
+        "a como esta", "ultimo precio", "precio neto", "promocion", "oferta", "ofertas", "lo menos", "cuanto es lo menos", "descuentos", "rebajas",
+        "precio especial", "precio por mayor", "precio por mayoreo", "si compro varios", "precio de oferta"
+      ],
+      stock: [
+        "disponible", "disponibilidad", "existencia", "inventario", "unidades", "quedan", "hay", "tienen", "piezas", "existencias",
+        "todavia tienen", "aun tienen", "les queda", "en stock", "stock real", "tienen en existencia", "tienen disponible", "cuantas piezas quedan",
+        "cuantas unidades hay", "tienen en bodega", "hay disponible"
+      ],
       dimensiones: [
         "dimenciones", "dimencion", "dimension", "dimensiones",
         "medidas", "medida", "mide", "miden", "medir", "cuanto mide", "cuanto miden",
         "tamano", "tamaño", "talla", "tallas",
         "alto", "altura", "ancho", "anchura", "largo", "longitud", "profundidad", "fondo",
-        "centimetros", "metros", "cm", "mts"
+        "centimetros", "metros", "cm", "mts", "especificaciones", "ficha tecnica"
       ],
-      peso: ["cuanto aguanta", "cuanto soporta", "resistencia", "capacidad", "soporta", "kilos", "libras", "peso maximo", "carga"],
-      fotos: ["fotos reales", "imagenes", "fotografias", "galeria", "mostrar fotos", "ver", "foto", "ver catalogo con fotos"],
-      envio: ["entrega", "despacho", "flete", "cargo expreso", "encomienda", "paqueteria", "domicilio", "reparto"],
-      pago: ["efectivo", "transferencia", "tarjeta", "contra entrega", "deposito", "forma de pago", "metodo de pago", "cuotas"],
-      asesor: ["humano", "persona", "operador", "atencion al cliente", "vendedor", "agente", "ejecutivo", "alguien real"],
-      garantia: ["garantía", "seguro", "defecto", "falla", "cobertura", "reclamo", "garantizado"],
-      horario: ["horarios", "a que hora abren", "cuando atienden", "atencion", "horario de atencion", "abierto"],
-      factura: ["facturacion", "rtn", "cai", "fiscal", "comprobante", "recibo"],
+      peso: [
+        "cuanto aguanta", "cuanto soporta", "resistencia", "capacidad", "soporta", "kilos", "libras", "peso maximo", "carga",
+        "peso soporta", "que peso aguanta", "soporte de peso", "resiste", "firmeza", "capacidad de peso"
+      ],
+      fotos: [
+        "fotos reales", "imagenes", "fotografias", "galeria", "mostrar fotos", "ver", "foto", "ver catalogo con fotos",
+        "imagenes reales", "foto real", "fotos del producto", "tienen fotos", "mas fotos", "mandame fotos", "mostrar imagenes"
+      ],
+      envio: [
+        "entrega", "despacho", "flete", "cargo expreso", "encomienda", "paqueteria", "domicilio", "reparto",
+        "envios", "entregas", "cuanto tardan", "cuando llega", "tiempo de entrega", "cobertura", "a mi casa", "a mi puerta",
+        "cuanto tiempo tarda", "envian a", "entregan en", "envio gratis", "flete gratis", "venir a dejar", "venirme a dejar",
+        "cuanto cobran de envio", "precio de envio", "costo de envio", "envian a todo el pais"
+      ],
+      pago: [
+        "efectivo", "transferencia", "tarjeta", "contra entrega", "deposito", "forma de pago", "metodo de pago", "cuotas",
+        "pagar", "pagos", "pagar al recibir", "contraentrega", "al recibir", "le pago al motorista", "como se paga", "como puedo pagar",
+        "transfer", "pago contra entrega", "puedo transferir", "transferencia bancaria", "cuentas de banco", "bac", "ficohsa", "atlantida", "banpais",
+        "link de pago", "tarjeta de credito", "tarjeta de debito", "efectivo al recibir"
+      ],
+      direccion: [
+        "direccion", "direcciones", "ubicacion", "ubicaciones", "donde entregar", "donde enviar", "lugar de entrega", "destino",
+        "calle", "colonia", "barrio", "avenida", "bloque", "casa", "residencial", "sector", "gps", "coordenadas", "mapa",
+        "agencia", "sucursal cargo expreso", "oficina cargo expreso", "recoger en agencia", "retiro en agencia", "ocurre", "punto caex",
+        "retirar en oficina", "pasar a recoger", "pasar a traer"
+      ],
+      asesor: [
+        "humano", "persona", "operador", "atencion al cliente", "vendedor", "agente", "ejecutivo", "alguien real",
+        "hablar con una persona", "asesor de ventas", "quiero hablar con un humano", "representante", "contacto directo"
+      ],
+      garantia: [
+        "garantía", "seguro", "defecto", "falla", "cobertura", "reclamo", "garantizado",
+        "si viene roto", "si sale malo", "si viene defectuoso", "cambio", "devolucion", "respaldo", "si sale con falla", "garantia de fabrica"
+      ],
+      horario: [
+        "horarios", "a que hora abren", "cuando atienden", "atencion", "horario de atencion", "abierto",
+        "a que hora entregan", "a que hora vienen", "horario de entrega", "sabado", "sabados", "medio dia", "por la tarde", "por la manana"
+      ],
+      factura: [
+        "facturacion", "rtn", "cai", "fiscal", "comprobante", "recibo",
+        "a nombre de empresa", "con sar", "razon social", "factura con rtn", "ocupo factura", "dan factura", "factura legal"
+      ],
       colores: [
         "color", "colores", "tono", "tonos", "acabado", "acabados", "presentacion", "presentaciones",
         "en que color viene", "en que colores viene", "que colores hay", "que colores tienen",
-        "otros colores", "mas colores", "otro color", "blanco", "negro", "cafe", "gris", "rosa", "marron", "inox", "madera"
+        "otros colores", "mas colores", "otro color", "blanco", "blanca", "negro", "negra", "cafe", "marron", "gris", "rosa", "rosado", "rojo", "roja", "azul", "dorado", "plateado", "inox", "madera"
       ],
       materiales: [
         "material", "materiales", "de que material es", "de que esta hecho", "armado", "armada",
-        "desarmado", "desarmada", "herramientas", "llaves", "tornillos", "manual", "facil de armar", "viene armado", "viene armada"
+        "desarmado", "desarmada", "herramientas", "llaves", "tornillos", "manual", "facil de armar", "viene armado", "viene armada",
+        "ensamble", "como se arma", "calidad", "acero", "hierro", "aluminio", "madera", "melamina", "malla", "cuero", "pino"
+      ],
+      compra: [
+        "comprar", "pedido", "ordenar", "orden", "quiero comprar", "hacer pedido", "hacer el pedido",
+        "quiero pedir", "quiero ordenar", "me interesa comprar", "lo quiero", "la quiero", "lo compro", "la compro",
+        "quiero uno", "quiero una", "me lo llevo", "me la llevo", "apartar", "mandar pedido", "deseo comprar",
+        "confirmar", "confirmar pedido", "confirmo", "confirmo pedido", "dale viaje", "adelante con el pedido"
       ]
     },
     campaigns: [

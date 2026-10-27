@@ -740,7 +740,15 @@
             "lista de articulos",
             "catalogo completo",
             "que tienen en venta",
-            "mostrar muebles"
+            "mostrar muebles",
+            "lista de precios",
+            "que articulos tienen",
+            "que venden",
+            "ver muebles",
+            "catalogo de productos",
+            "cuales son sus productos",
+            "catalogo de sillas",
+            "muestrame el catalogo"
           ],
           "response": "Actualmente tenemos estos productos en cat\xE1logo:",
           "action": "show_catalog"
@@ -759,7 +767,18 @@
             "cuanto se tardan en llegar",
             "envian a domicilio",
             "cuanto tiempo se tardan en venir a dejar",
-            "cuanto tardan en traerlo a la casa"
+            "cuanto tardan en traerlo a la casa",
+            "a como me lo vienen a dejar",
+            "cuando me lo traen",
+            "cuantos dias se tardan",
+            "entrega a domicilio",
+            "hacen envios a todo honduras",
+            "cobertura nacional",
+            "llegan hasta mi casa",
+            "llega hoy",
+            "llega manana",
+            "cuando me llega",
+            "cuanto tardan en entregar"
           ],
           "response": "\u{1F69A} **Tiempos de Entrega:** Tenemos env\xEDo a todos los lugares del pa\xEDs y realizamos la entrega entre 1 y 2 d\xEDas posteriores a tu confirmaci\xF3n de pedido a trav\xE9s de Cargo Expreso con pago en efectivo contra entrega."
         },
@@ -776,7 +795,15 @@
             "precio del envio",
             "cobran el flete",
             "el envio es gratis",
-            "cuanto vale el flete"
+            "cuanto vale el flete",
+            "el flete es gratis",
+            "cuanto cobran de flete",
+            "cobran envio",
+            "cuanto cobran por mandarlo",
+            "hay que pagar envio",
+            "el envio tiene algun costo",
+            "cuanto se paga de flete",
+            "es gratis el envio"
           ],
           "response": "\u{1F69A} **Costo de Env\xEDo:** \xA1El env\xEDo es **completamente gratuito** a cualquier parte del pa\xEDs! Solo cancelas el valor del producto al recibirlo en efectivo."
         },
@@ -794,7 +821,12 @@
             "otra paqueteria",
             "haces envios por forza u otra paqueteria",
             "pueden mandar por forza",
-            "usan forza"
+            "usan forza",
+            "mandan por otra paqueteria",
+            "envian por caex o forza",
+            "usan fedex",
+            "trabajan con otra paqueteria",
+            "usan dhl"
           ],
           "response": "\u{1F4E6} **Transportadora:** No, \xFAnicamente realizamos entregas a trav\xE9s de **Cargo Expreso**."
         },
@@ -815,7 +847,12 @@
             "entregas en roatan utila o isla de la bahia",
             "muelle de cabotaje",
             "ferry galaxy",
-            "utila dream"
+            "utila dream",
+            "cuanto a roatan",
+            "envian a islas de la bahia",
+            "ferry galaxy wave",
+            "muelle de la ceiba",
+            "envios a islas"
           ],
           "response": "\u{1F3DD}\uFE0F **Entregas en Roat\xE1n, \xDAtila o Islas de la Bah\xEDa:**\nPara Roat\xE1n o \xDAtila, solo hacemos env\xEDos con **transferencia previa**.\nUna vez nos hace llegar el comprobante de transferencia bancaria, nosotros enviamos el producto hacia el **muelle de cabotaje de La Ceiba** con la indicaci\xF3n de subir el paquete al ferry que usted diga (Utila Dream, Galaxy Wave, etc.).\n\u26A0\uFE0F **Nota:** No cubrimos el costo del ferry (corre por cuenta del cliente)."
         },
@@ -832,7 +869,14 @@
             "pago con tarjeta",
             "puedo pagar con tarjeta",
             "tarjeta de debito",
-            "pago con tarjeta de debito"
+            "pago con tarjeta de debito",
+            "se puede con tarjeta",
+            "tienen terminal o pos",
+            "aceptan credomatic",
+            "tienen link de pago",
+            "aceptan visa",
+            "aceptan mastercard",
+            "tienen pos para pagar con tarjeta"
           ],
           "response": "\u{1F4B3} **Forma de Pago con Tarjeta:** No aceptamos pagos con tarjeta, solo pago en efectivo contra entrega y se le paga al operador de Cargo Expreso o por transferencia electr\xF3nica previa, pero la transferencia debe confirmarse antes de realizar el env\xEDo."
         },
@@ -850,7 +894,17 @@
             "transferencia bancaria",
             "cuentas para transferir",
             "datos de transferencia",
-            "cuenta de banco"
+            "cuenta de banco",
+            "como puedo transferir",
+            "a que cuenta transfiero",
+            "banco atlantida",
+            "bac credomatic",
+            "banco ficohsa",
+            "banpais",
+            "puedo transferir antes",
+            "pago por transferencia bancaria",
+            "tienen numero de cuenta",
+            "donde les puedo transferir"
           ],
           "response": "\u{1F3E6} **Pago con Transferencia:** S\xED aceptamos pagos con transferencia pero se tendr\xEDa que realizar previo al env\xEDo del paquete.\n\nCuentas empresariales oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\u2022 BAC Credomatic (Cheques): 742-108-951\n\u2022 Banco Ficohsa (Cheques): 2000-098-432\n\u2022 Banco Atl\xE1ntida (Ahorros): 110-045-892\n\u2022 Banpa\xEDs (Cheques): 01-501-002345\n\nUna vez realizado el dep\xF3sito o transferencia, nos compartes el comprobante por este chat para proceder con el despacho inmediato."
         },
@@ -865,7 +919,15 @@
             "formas de pago",
             "metodos de pago",
             "aceptan pago contra entrega",
-            "puedo pagar en efectivo"
+            "puedo pagar en efectivo",
+            "como se paga",
+            "como es la forma de pago",
+            "puedo pagar en efectivo al recibir",
+            "se paga al recibir",
+            "pago contra entrega en efectivo",
+            "como seria el pago",
+            "le pago al que entrega",
+            "pago al recibir mi pedido"
           ],
           "response": "Aceptamos dos formas de pago:\n1. **Efectivo contra entrega:** Le pagas directamente al motorista de Cargo Expreso al recibir en tu puerta.\n2. **Transferencia bancaria electr\xF3nica previa:** Confirmada antes de despachar el paquete."
         },
@@ -881,7 +943,13 @@
             "los muebles son nuevos",
             "los productos son nuevos",
             "es nuevo o de segunda",
-            "venden cosas usadas"
+            "venden cosas usadas",
+            "los articulos son nuevos",
+            "vienen en caja sellada",
+            "son de segunda mano",
+            "son usados o nuevos",
+            "estado del producto",
+            "son 100% nuevos"
           ],
           "response": "\u2728 **Condici\xF3n del Producto:** S\xED, todos nuestros productos son nuevos 100% de f\xE1brica en su caja original sellada."
         },
@@ -897,7 +965,13 @@
             "garantia",
             "que garantia tienen",
             "si viene quebrado",
-            "si sale defectuoso"
+            "si sale defectuoso",
+            "que pasa si viene con defecto",
+            "si viene malo",
+            "tienen cambio o devolucion",
+            "respaldo de garantia",
+            "garantia de fabrica",
+            "si sale con falla"
           ],
           "response": "\u{1F6E1}\uFE0F **Garant\xEDa:** Cuentan con garant\xEDa \xFAnicamente contra defectos de fabricaci\xF3n."
         },
@@ -915,7 +989,13 @@
             "precio si compro varios",
             "precio por mayor",
             "rebaja",
-            "cuanto es lo menos"
+            "cuanto es lo menos",
+            "en cuanto me lo deja",
+            "rebaja si compro varios",
+            "precio especial de mayoreo",
+            "hacen descuento por volumen",
+            "precio para distribuidores",
+            "a como me lo deja si llevo dos"
           ],
           "response": "\u{1F3F7}\uFE0F **Mejor Precio:** El precio especial ser\xEDa equivalente a la cantidad de piezas solicitadas por el cliente. Si necesitas ordenar varias piezas o mayoreo, ind\xEDcanos cu\xE1ntas unidades deseas y con gusto te cotizamos."
         },
@@ -933,7 +1013,12 @@
             "ubicacion de la tienda",
             "donde queda el local",
             "donde estan",
-            "puerto cortes"
+            "puerto cortes",
+            "tienen sala de ventas",
+            "donde queda su tienda",
+            "direccion en puerto cortes",
+            "tienen tienda en tegucigalpa",
+            "tienen tienda en san pedro sula"
           ],
           "response": "\u{1F4CD} **Ubicaci\xF3n F\xEDsica:** Nos encontramos ubicados en **Plaza Krisale, Puerto Cort\xE9s, Honduras**.\n\n\xA1Realizamos env\xEDos gratuitos a domicilio a cualquier parte del pa\xEDs v\xEDa Cargo Expreso!"
         },
@@ -950,14 +1035,77 @@
             "entregan en sabado",
             "entregan los sabados",
             "puedo recoger en agencia",
-            "retiro en agencia cargo expreso"
+            "retiro en agencia cargo expreso",
+            "entregan sabado por la tarde",
+            "puedo retirar en agencia",
+            "recoger en oficina de cargo expreso",
+            "horario de entrega de cargo expreso",
+            "a que hora pasa el repartidor",
+            "trabajan los sabados",
+            "agencia cargo expreso"
           ],
           "response": "\u{1F69A} **Horarios y Agencias:** El repartidor de Cargo Expreso se pondr\xE1 en contacto contigo por llamada telef\xF3nica para coordinar el horario de entrega en tu domicilio (Lunes a Viernes de 8am a 5pm, S\xE1bados medio d\xEDa hasta las 12pm). Si necesitas horario espec\xEDfico, puedes solicitar retiro en cualquier oficina o agencia de Cargo Expreso de tu ciudad."
         }
       ],
       synonyms: {
-        precio: ["presio", "rebaja", "cuanto cuesta", "cuanto vale", "costo", "valor", "cotizacion", "precio final", "tarifa", "descuento"],
-        stock: ["disponible", "disponibilidad", "existencia", "inventario", "unidades", "quedan", "hay", "tienen", "piezas", "existencias"],
+        precio: [
+          "presio",
+          "rebaja",
+          "cuanto cuesta",
+          "cuanto vale",
+          "costo",
+          "valor",
+          "cotizacion",
+          "precio final",
+          "tarifa",
+          "descuento",
+          "a como sale",
+          "en cuanto sale",
+          "en cuanto me sale",
+          "que cuesta",
+          "cuanto es",
+          "que precio tiene",
+          "a como me lo deja",
+          "a como lo dan",
+          "a como esta",
+          "ultimo precio",
+          "precio neto",
+          "promocion",
+          "oferta",
+          "ofertas",
+          "lo menos",
+          "cuanto es lo menos",
+          "descuentos",
+          "rebajas",
+          "precio especial",
+          "precio por mayor",
+          "precio por mayoreo",
+          "si compro varios",
+          "precio de oferta"
+        ],
+        stock: [
+          "disponible",
+          "disponibilidad",
+          "existencia",
+          "inventario",
+          "unidades",
+          "quedan",
+          "hay",
+          "tienen",
+          "piezas",
+          "existencias",
+          "todavia tienen",
+          "aun tienen",
+          "les queda",
+          "en stock",
+          "stock real",
+          "tienen en existencia",
+          "tienen disponible",
+          "cuantas piezas quedan",
+          "cuantas unidades hay",
+          "tienen en bodega",
+          "hay disponible"
+        ],
         dimensiones: [
           "dimenciones",
           "dimencion",
@@ -985,16 +1133,198 @@
           "centimetros",
           "metros",
           "cm",
-          "mts"
+          "mts",
+          "especificaciones",
+          "ficha tecnica"
         ],
-        peso: ["cuanto aguanta", "cuanto soporta", "resistencia", "capacidad", "soporta", "kilos", "libras", "peso maximo", "carga"],
-        fotos: ["fotos reales", "imagenes", "fotografias", "galeria", "mostrar fotos", "ver", "foto", "ver catalogo con fotos"],
-        envio: ["entrega", "despacho", "flete", "cargo expreso", "encomienda", "paqueteria", "domicilio", "reparto"],
-        pago: ["efectivo", "transferencia", "tarjeta", "contra entrega", "deposito", "forma de pago", "metodo de pago", "cuotas"],
-        asesor: ["humano", "persona", "operador", "atencion al cliente", "vendedor", "agente", "ejecutivo", "alguien real"],
-        garantia: ["garant\xEDa", "seguro", "defecto", "falla", "cobertura", "reclamo", "garantizado"],
-        horario: ["horarios", "a que hora abren", "cuando atienden", "atencion", "horario de atencion", "abierto"],
-        factura: ["facturacion", "rtn", "cai", "fiscal", "comprobante", "recibo"],
+        peso: [
+          "cuanto aguanta",
+          "cuanto soporta",
+          "resistencia",
+          "capacidad",
+          "soporta",
+          "kilos",
+          "libras",
+          "peso maximo",
+          "carga",
+          "peso soporta",
+          "que peso aguanta",
+          "soporte de peso",
+          "resiste",
+          "firmeza",
+          "capacidad de peso"
+        ],
+        fotos: [
+          "fotos reales",
+          "imagenes",
+          "fotografias",
+          "galeria",
+          "mostrar fotos",
+          "ver",
+          "foto",
+          "ver catalogo con fotos",
+          "imagenes reales",
+          "foto real",
+          "fotos del producto",
+          "tienen fotos",
+          "mas fotos",
+          "mandame fotos",
+          "mostrar imagenes"
+        ],
+        envio: [
+          "entrega",
+          "despacho",
+          "flete",
+          "cargo expreso",
+          "encomienda",
+          "paqueteria",
+          "domicilio",
+          "reparto",
+          "envios",
+          "entregas",
+          "cuanto tardan",
+          "cuando llega",
+          "tiempo de entrega",
+          "cobertura",
+          "a mi casa",
+          "a mi puerta",
+          "cuanto tiempo tarda",
+          "envian a",
+          "entregan en",
+          "envio gratis",
+          "flete gratis",
+          "venir a dejar",
+          "venirme a dejar",
+          "cuanto cobran de envio",
+          "precio de envio",
+          "costo de envio",
+          "envian a todo el pais"
+        ],
+        pago: [
+          "efectivo",
+          "transferencia",
+          "tarjeta",
+          "contra entrega",
+          "deposito",
+          "forma de pago",
+          "metodo de pago",
+          "cuotas",
+          "pagar",
+          "pagos",
+          "pagar al recibir",
+          "contraentrega",
+          "al recibir",
+          "le pago al motorista",
+          "como se paga",
+          "como puedo pagar",
+          "transfer",
+          "pago contra entrega",
+          "puedo transferir",
+          "transferencia bancaria",
+          "cuentas de banco",
+          "bac",
+          "ficohsa",
+          "atlantida",
+          "banpais",
+          "link de pago",
+          "tarjeta de credito",
+          "tarjeta de debito",
+          "efectivo al recibir"
+        ],
+        direccion: [
+          "direccion",
+          "direcciones",
+          "ubicacion",
+          "ubicaciones",
+          "donde entregar",
+          "donde enviar",
+          "lugar de entrega",
+          "destino",
+          "calle",
+          "colonia",
+          "barrio",
+          "avenida",
+          "bloque",
+          "casa",
+          "residencial",
+          "sector",
+          "gps",
+          "coordenadas",
+          "mapa",
+          "agencia",
+          "sucursal cargo expreso",
+          "oficina cargo expreso",
+          "recoger en agencia",
+          "retiro en agencia",
+          "ocurre",
+          "punto caex",
+          "retirar en oficina",
+          "pasar a recoger",
+          "pasar a traer"
+        ],
+        asesor: [
+          "humano",
+          "persona",
+          "operador",
+          "atencion al cliente",
+          "vendedor",
+          "agente",
+          "ejecutivo",
+          "alguien real",
+          "hablar con una persona",
+          "asesor de ventas",
+          "quiero hablar con un humano",
+          "representante",
+          "contacto directo"
+        ],
+        garantia: [
+          "garant\xEDa",
+          "seguro",
+          "defecto",
+          "falla",
+          "cobertura",
+          "reclamo",
+          "garantizado",
+          "si viene roto",
+          "si sale malo",
+          "si viene defectuoso",
+          "cambio",
+          "devolucion",
+          "respaldo",
+          "si sale con falla",
+          "garantia de fabrica"
+        ],
+        horario: [
+          "horarios",
+          "a que hora abren",
+          "cuando atienden",
+          "atencion",
+          "horario de atencion",
+          "abierto",
+          "a que hora entregan",
+          "a que hora vienen",
+          "horario de entrega",
+          "sabado",
+          "sabados",
+          "medio dia",
+          "por la tarde",
+          "por la manana"
+        ],
+        factura: [
+          "facturacion",
+          "rtn",
+          "cai",
+          "fiscal",
+          "comprobante",
+          "recibo",
+          "a nombre de empresa",
+          "con sar",
+          "razon social",
+          "factura con rtn",
+          "ocupo factura",
+          "dan factura",
+          "factura legal"
+        ],
         colores: [
           "color",
           "colores",
@@ -1012,11 +1342,19 @@
           "mas colores",
           "otro color",
           "blanco",
+          "blanca",
           "negro",
+          "negra",
           "cafe",
+          "marron",
           "gris",
           "rosa",
-          "marron",
+          "rosado",
+          "rojo",
+          "roja",
+          "azul",
+          "dorado",
+          "plateado",
           "inox",
           "madera"
         ],
@@ -1035,7 +1373,47 @@
           "manual",
           "facil de armar",
           "viene armado",
-          "viene armada"
+          "viene armada",
+          "ensamble",
+          "como se arma",
+          "calidad",
+          "acero",
+          "hierro",
+          "aluminio",
+          "madera",
+          "melamina",
+          "malla",
+          "cuero",
+          "pino"
+        ],
+        compra: [
+          "comprar",
+          "pedido",
+          "ordenar",
+          "orden",
+          "quiero comprar",
+          "hacer pedido",
+          "hacer el pedido",
+          "quiero pedir",
+          "quiero ordenar",
+          "me interesa comprar",
+          "lo quiero",
+          "la quiero",
+          "lo compro",
+          "la compro",
+          "quiero uno",
+          "quiero una",
+          "me lo llevo",
+          "me la llevo",
+          "apartar",
+          "mandar pedido",
+          "deseo comprar",
+          "confirmar",
+          "confirmar pedido",
+          "confirmo",
+          "confirmo pedido",
+          "dale viaje",
+          "adelante con el pedido"
         ]
       },
       campaigns: [
@@ -1534,7 +1912,7 @@
                     if (!curTenant.synonyms[k]) {
                       curTenant.synonyms[k] = clone(defT.synonyms[k]);
                       modified = true;
-                    } else if (k === "dimensiones") {
+                    } else {
                       (defT.synonyms[k] || []).forEach((word) => {
                         if (!curTenant.synonyms[k].includes(word)) {
                           curTenant.synonyms[k].push(word);
@@ -2311,6 +2689,12 @@ ${order.requiresInvoice ? `\u{1F9FE} Tu factura con RTN (${order.rtn}) va adjunt
   var clean = (s) => String(s || "").toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[¿?¡!.,:;()"'\\/]/g, " ").trim();
   var tokenize = (s) => clean(s).split(/\s+/).filter(Boolean);
   var STOP_WORDS = /* @__PURE__ */ new Set(["de", "la", "el", "los", "las", "un", "una", "unos", "unas", "es", "son", "lo", "en", "por", "que", "se", "me", "te", "le", "y", "o", "al", "del", "a", "con", "para", "como", "si", "su", "sus", "mi", "mis", "tu", "tus"]);
+  var stemSpanish = (w) => {
+    const s = String(w || "").trim();
+    if (s.endsWith("es") && s.length > 4) return s.slice(0, -2);
+    if (s.endsWith("s") && s.length > 3) return s.slice(0, -1);
+    return s;
+  };
   function matchPhrase(cleanInput, inTokens, phrase) {
     const cPhrase = clean(phrase);
     if (!cPhrase) return false;
@@ -2322,10 +2706,7 @@ ${order.requiresInvoice ? `\u{1F9FE} Tu factura con RTN (${order.rtn}) va adjunt
     const matchedCount = targetTokens.filter((pt) => {
       return inTokens.some((it) => {
         if (it === pt) return true;
-        if (it.length >= 4 && pt.length >= 4) {
-          const rootLen = Math.min(it.length, pt.length) - 1;
-          return it.slice(0, rootLen) === pt.slice(0, rootLen);
-        }
+        if (stemSpanish(it) === stemSpanish(pt)) return true;
         return false;
       });
     }).length;
@@ -2435,11 +2816,64 @@ Presiona el bot\xF3n abajo para confirmar tu compra con pago contra entrega.`,
     _isConfirmIntent(cleanText, rawText) {
       const isQuestion = rawText.includes("?") || rawText.includes("\xBF") || /^(?:puedo|como|c[oó]mo|cu[aá]ndo|cuando|cu[aá]nto|cuanto|d[oó]nde|donde|qu[eé]|que|por qu[eé]|por que|aceptan|tienen|hay)\b/i.test(cleanText);
       if (isQuestion) return false;
-      const explicitConfirm = ["confirmar", "confirmar pedido", "confirmar compra", "confirmo", "confirmo pedido", "proceder", "proceder con la compra", "cerrar pedido", "comprar ahora", "si confirmar", "si confirmo"].some((w) => cleanText.includes(w));
+      const explicitConfirm = [
+        "confirmar",
+        "confirmar pedido",
+        "confirmar compra",
+        "confirmo",
+        "confirmo pedido",
+        "confirmo mi compra",
+        "proceder",
+        "proceder con la compra",
+        "proceder con el pedido",
+        "cerrar pedido",
+        "cerrar compra",
+        "comprar ahora",
+        "si confirmar",
+        "si confirmo",
+        "si deseo comprar",
+        "adelante con el pedido",
+        "hagan el envio",
+        "hacer el envio",
+        "mandelo",
+        "mandemelo",
+        "envielo",
+        "envienlo",
+        "dale viaje",
+        "todo correcto",
+        "todo bien",
+        "esta perfecto",
+        "lo quiero",
+        "la quiero",
+        "si lo quiero",
+        "si la quiero"
+      ].some((w) => cleanText.includes(w));
       if (explicitConfirm) return true;
-      const exactConfirmWords = ["si", "ok", "listo", "correcto", "dale", "adelante", "comprar", "proceder", "de acuerdo", "perfecto", "va", "esta bien", "todo bien", "todo correcto", "mandelo", "envielo"];
+      const exactConfirmWords = [
+        "si",
+        "ok",
+        "listo",
+        "correcto",
+        "dale",
+        "adelante",
+        "comprar",
+        "proceder",
+        "de acuerdo",
+        "perfecto",
+        "va",
+        "esta bien",
+        "todo bien",
+        "todo correcto",
+        "mandelo",
+        "envielo",
+        "claro",
+        "por favor",
+        "si claro",
+        "si gracias",
+        "si por favor"
+      ];
       const isExact = exactConfirmWords.includes(cleanText);
-      const startsWithOkOrSi = /^(?:si|ok|listo|dale|adelante)\b\s*(?:por favor|amigo|amiga|gracias|esta bien|proceda|mandelo|envielo)?$/i.test(cleanText);
+      const startsWithOkOrSi = /^(?:si|ok|listo|dale|adelante|claro)\b\s*(?:por favor|amigo|amiga|gracias|esta bien|proceda|mandelo|envielo|confirmado)?$/i.test(cleanText);
       return isExact || startsWithOkOrSi;
     }
     _handleOrderModifications(c, rawText, cleanText, tokens, products = [], location = null) {
@@ -2739,12 +3173,10 @@ Por favor comp\xE1rtenos tu n\xFAmero de **RTN** (14 d\xEDgitos):`
         if (term.includes(" ")) {
           return cleanText ? cleanText.includes(term) : false;
         }
+        const stemTerm = stemSpanish(term);
         return wordList.some((word) => {
           if (term === word) return true;
-          if (word.length >= 4 && term.length >= 4) {
-            const rootLen = Math.min(word.length, term.length) - 1;
-            return word.slice(0, rootLen) === term.slice(0, rootLen);
-          }
+          if (stemTerm.length >= 3 && stemTerm === stemSpanish(word)) return true;
           return false;
         });
       });
@@ -2977,7 +3409,10 @@ ${topItems}
     }
     // Price intent detection
     _isPriceIntent(cleanText, tokens, synonyms = {}) {
-      if (["costo de envio", "precio del envio", "cuanto vale el envio", "cobran envio"].some((p) => cleanText.includes(p))) {
+      if (["costo de envio", "precio del envio", "cuanto vale el envio", "cobran envio", "cobran el envio", "costo de flete", "precio de flete"].some((p) => cleanText.includes(p))) {
+        return false;
+      }
+      if (["cuanto es lo menos", "lo menos", "mejor precio", "precio por mayor", "precio por mayoreo", "descuento", "descuentos", "rebaja", "rebajas", "si compro varios", "precio para distribuidores"].some((p) => cleanText.includes(p))) {
         return false;
       }
       const phrases = [
@@ -2992,10 +3427,22 @@ ${topItems}
         "en cuanto me lo dejan",
         "a como me lo deja",
         "que precio tiene",
-        "precio de"
+        "precio de",
+        "cuanto es",
+        "que cuesta",
+        "a como lo dan",
+        "a cuanto lo dan",
+        "precio final",
+        "ultimo precio",
+        "cuanto sale",
+        "que vale",
+        "valor de",
+        "costo de",
+        "en cuanto me sale",
+        "a como sale la"
       ];
       if (phrases.some((p) => cleanText.includes(p))) return true;
-      const directWords = ["precio", "precios", "costo", "valor"];
+      const directWords = ["precio", "precios", "costo", "valor", "tarifa"];
       if (tokens.some((t) => directWords.includes(t))) return true;
       return this.matchesSynonym(tokens, synonyms, "precio", cleanText);
     }
@@ -3241,24 +3688,24 @@ Una vez nos hace llegar el comprobante de transferencia bancaria, nosotros envia
       if (["forza", "otra paqueteria", "otras paqueterias", "otra empresa", "otra agencia", "fedex", "dhl", "rapido cargo"].some((t) => cleanText.includes(t))) {
         return `\u{1F4E6} **Transportadora:** No, \xFAnicamente realizamos entregas a trav\xE9s de **Cargo Expreso**.`;
       }
-      if (["tarjeta", "tarjetas", "visa", "mastercard", "pos", "datafast", "link de pago"].some((t) => cleanText.includes(t))) {
+      if (["tarjeta", "tarjetas", "visa", "mastercard", "pos", "datafast", "link de pago", "credomatic", "terminal"].some((t) => cleanText.includes(t))) {
         return `\u{1F4B3} **Forma de Pago con Tarjeta:** No aceptamos pagos con tarjeta, solo pago en efectivo contra entrega y se le paga al operador de Cargo Expreso o por transferencia electr\xF3nica previa, pero la transferencia debe confirmarse antes de realizar el env\xEDo.`;
       }
-      if ((cleanText.includes("donde") || cleanText.includes("ubicacion") || cleanText.includes("sucursal") || cleanText.includes("tienda fisica") || cleanText.includes("local")) && !cleanText.includes("direccion de entrega") && (cleanText.includes("estan") || cleanText.includes("encuentran") || cleanText.includes("queda") || cleanText.includes("tienda") || cleanText.includes("puerto cortes") || cleanText.includes("local"))) {
+      if ((cleanText.includes("donde") || cleanText.includes("ubicacion") || cleanText.includes("sucursal") || cleanText.includes("tienda fisica") || cleanText.includes("local") || cleanText.includes("sala de ventas")) && !cleanText.includes("direccion de entrega") && (cleanText.includes("estan") || cleanText.includes("encuentran") || cleanText.includes("queda") || cleanText.includes("tienda") || cleanText.includes("puerto cortes") || cleanText.includes("local") || cleanText.includes("sala"))) {
         return `\u{1F4CD} **Ubicaci\xF3n F\xEDsica:** Nos encontramos ubicados en **Plaza Krisale, Puerto Cort\xE9s, Honduras**.
 
 \xA1Realizamos env\xEDos gratuitos a domicilio a cualquier parte del pa\xEDs v\xEDa Cargo Expreso!`;
       }
-      if (["costo de envio", "cuanto cobran", "cuanto vale el envio", "precio del envio", "cobran envio", "cobran el envio", "el envio es gratis", "flete"].some((t) => cleanText.includes(t))) {
+      if (["costo de envio", "cuanto cobran", "cuanto vale el envio", "precio del envio", "cobran envio", "cobran el envio", "el envio es gratis", "flete", "flete gratis", "cuanto cobran de flete", "cobran por traerlo", "hay que pagar envio", "el envio tiene costo"].some((t) => cleanText.includes(t))) {
         return `\u{1F69A} **Costo de Env\xEDo:** \xA1El env\xEDo es **completamente gratuito** a cualquier parte del pa\xEDs! Solo cancelas el valor del producto al recibirlo en efectivo contra entrega.`;
       }
-      if (["garantia", "garantias", "defecto", "desperfecto"].some((t) => cleanText.includes(t))) {
+      if (["garantia", "garantias", "defecto", "desperfecto", "si viene roto", "si sale malo", "si viene quebrado", "falla de fabrica", "si sale con falla"].some((t) => cleanText.includes(t))) {
         return `\u{1F6E1}\uFE0F **Garant\xEDa:** Cuentan con garant\xEDa \xFAnicamente contra **defectos de fabricaci\xF3n**.`;
       }
-      if (["son nuevas", "son nuevos", "muebles nuevos", "productos nuevos", "es nuevo", "usado", "de segunda"].some((t) => cleanText.includes(t))) {
+      if (["son nuevas", "son nuevos", "muebles nuevos", "productos nuevos", "es nuevo", "usado", "de segunda", "de paquete", "sellado", "sellados"].some((t) => cleanText.includes(t))) {
         return `\u2728 **Condici\xF3n del Producto:** S\xED, todos nuestros productos son **100% nuevos de f\xE1brica** en su caja original sellada.`;
       }
-      if (["mejor precio", "descuento", "rebaja", "cuanto es lo menos", "mayoreo", "por mayor"].some((t) => cleanText.includes(t))) {
+      if (["mejor precio", "descuento", "descuentos", "rebaja", "rebajas", "cuanto es lo menos", "lo menos", "mayoreo", "por mayor", "en cuanto me lo deja", "si compro varios", "precio especial"].some((t) => cleanText.includes(t))) {
         return `\u{1F3F7}\uFE0F **Mejor Precio:** El precio especial ser\xEDa equivalente a la cantidad de piezas solicitadas por el cliente. Si necesitas ordenar varias piezas o mayoreo, ind\xEDcanos cu\xE1ntas unidades deseas y con gusto te cotizamos.`;
       }
       return null;
@@ -3415,8 +3862,19 @@ Para preparar tu orden, \xBFa qu\xE9 nombre registramos el pedido?`
 \xBFCu\xE1ntas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el n\xFAmero):`
             };
           }
+          let q = 1;
           const match = rawText.match(/\d+/);
-          const q = match ? Math.max(1, parseInt(match[0], 10)) : 1;
+          if (match) {
+            q = Math.max(1, parseInt(match[0], 10));
+          } else {
+            const numWords = { "un": 1, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "diez": 10, "docena": 12 };
+            for (const [w, val] of Object.entries(numWords)) {
+              if (tokens.includes(w)) {
+                q = val;
+                break;
+              }
+            }
+          }
           c.quantity = q;
           c.quantityLabel = rawText.trim() || `${q} ${q === 1 ? "unidad" : "unidades"}`;
           c.total = Number(c.product.salePrice) * q;
@@ -3434,6 +3892,122 @@ Para preparar tu orden, \xBFa qu\xE9 nombre registramos el pedido?`
           };
         }
         if (c.step === "address") {
+          const detectedLoc2 = location || (typeof LocationService !== "undefined" && LocationService.parseLocationFromText ? LocationService.parseLocationFromText(rawText) : null);
+          if (detectedLoc2) {
+            const locName = detectedLoc2.address || detectedLoc2.name || `Ubicaci\xF3n GPS (${detectedLoc2.lat.toFixed(4)}, ${detectedLoc2.lng.toFixed(4)})`;
+            c.address = locName;
+            c.recipientName = c.recipientName || c.name;
+            c.location = {
+              lat: detectedLoc2.lat,
+              lng: detectedLoc2.lng,
+              name: detectedLoc2.name || locName,
+              address: locName,
+              mapUrl: detectedLoc2.mapUrl || (typeof LocationService !== "undefined" && LocationService.getGoogleMapsUrl ? LocationService.getGoogleMapsUrl(detectedLoc2.lat, detectedLoc2.lng) : `https://maps.google.com/?q=${detectedLoc2.lat},${detectedLoc2.lng}`)
+            };
+            c.step = "phone";
+            return {
+              text: `\xA1Ubicaci\xF3n GPS registrada con \xE9xito! \u{1F4CD}
+
+\u{1F4CC} **Direcci\xF3n de entrega:** ${locName}
+\u{1F5FA}\uFE0F [Ver en Google Maps](${c.location.mapUrl})
+\u{1F464} **Destinatario:** ${c.recipientName}
+
+\u{1F4DE} \xBFA qu\xE9 **n\xFAmero telef\xF3nico que reciba llamadas** te contactamos para coordinar la entrega?
+
+\u26A0\uFE0F **Importante:** Cargo Expreso coordina la entrega **\xFAnicamente v\xEDa llamada telef\xF3nica** antes de llegar a tu domicilio (aseg\xFArate de que la l\xEDnea pueda recibir llamadas directas).`,
+              location: c.location
+            };
+          }
+          if (this._isAgencyAddress(rawText)) {
+            c.isAgencyPickup = true;
+            c.address = rawText.trim();
+            c.recipientName = c.recipientName || c.name;
+            c.step = "phone";
+            return {
+              text: `\xA1Excelente elecci\xF3n! \u{1F3E2} Registrado para **retiro en agencia de Cargo Expreso**:
+
+\u{1F4CC} **Agencia de retiro:** ${c.address}
+\u{1F464} **Destinatario para reclamar en ventanilla:** ${c.recipientName}
+
+\u26A0\uFE0F **Horarios de agencia:** Atienden de Lunes a Viernes (8:00 AM - 5:00 PM) y los **S\xE1bados \xFAnicamente medio d\xEDa** (hasta las 12:00 PM).
+
+\u{1F4DE} \xBFA qu\xE9 **n\xFAmero telef\xF3nico que reciba llamadas** te contactamos para coordinar la entrega y notificarte la gu\xEDa de rastreo?
+
+\u26A0\uFE0F **Importante:** Cargo Expreso coordina y avisa la llegada del paquete **\xFAnicamente v\xEDa llamada telef\xF3nica** (aseg\xFArate de que la l\xEDnea pueda recibir llamadas directas).`
+            };
+          }
+          const cleaned = clean(rawText);
+          const words = rawText.trim().split(/\s+/);
+          const hondurasGeoKeywords = [
+            "col",
+            "colonia",
+            "barrio",
+            "b\xB0",
+            "sector",
+            "calle",
+            "ave",
+            "avenida",
+            "casa",
+            "bloque",
+            "res",
+            "residencial",
+            "tegucigalpa",
+            "san pedro",
+            "sps",
+            "ceiba",
+            "choluteca",
+            "comayagua",
+            "frente",
+            "cerca",
+            "etapa",
+            "aldea",
+            "puerto cortes",
+            "villanueva",
+            "progreso",
+            "la lima",
+            "danli",
+            "juticalpa",
+            "siguatepeque",
+            "santa rosa",
+            "copan",
+            "catacamas",
+            "tocoa",
+            "olanchito",
+            "tela",
+            "bulevar",
+            "blvd",
+            "plaza",
+            "pulperia",
+            "esquina",
+            "circunvalacion",
+            "toncontin",
+            "pedregal",
+            "kennedy",
+            "hato",
+            "miramontes",
+            "palmira",
+            "lomas",
+            "prado",
+            "san felipe"
+          ];
+          const hasKeyword = hondurasGeoKeywords.some((k) => cleaned.includes(k));
+          if (hasKeyword && words.length >= 3) {
+            c.address = rawText.trim();
+            const cpMatch2 = rawText.match(/\b\d{5}\b/);
+            if (cpMatch2) c.postalCode = cpMatch2[0];
+            c.recipientName = c.recipientName || c.name;
+            c.step = "phone";
+            return {
+              text: `\xA1Direcci\xF3n registrada con \xE9xito! \u{1F4E6}
+
+\u{1F4CC} **Direcci\xF3n de entrega:** ${c.address}
+\u{1F464} **Destinatario:** ${c.recipientName}
+
+\u{1F4DE} \xBFA qu\xE9 **n\xFAmero telef\xF3nico que reciba llamadas** te contactamos para coordinar la entrega?
+
+\u26A0\uFE0F **Importante:** Cargo Expreso coordina la entrega **\xFAnicamente v\xEDa llamada telef\xF3nica** antes de llegar a tu domicilio (aseg\xFArate de que la l\xEDnea pueda recibir llamadas directas).`
+            };
+          }
           const policy = this._getPolicyResponse(cleanText, tokens);
           if (policy) {
             return {
@@ -3447,6 +4021,14 @@ Continuemos con la entrega: comp\xE1rtenos tu direcci\xF3n completa (Destinatari
               text: `\xA1S\xED, aceptamos transferencia bancaria y efectivo contra entrega! \u{1F3E6}
 
 Continuemos con la entrega: comp\xE1rtenos tu direcci\xF3n completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o env\xEDa tu ubicaci\xF3n GPS \u{1F4CD}:`
+            };
+          }
+          if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+            const expl = this._getScheduleAndAgencyExplanation();
+            return {
+              text: `${expl}
+
+\u{1F4CD} Para continuar con tu orden, ind\xEDcanos si prefieres que lo enviemos a tu **direcci\xF3n de domicilio** (con destinatario, colonia y ciudad) o la **oficina/agencia de Cargo Expreso** donde pasar\xE1s a retirar:`
             };
           }
           if (this._isColorIntent(cleanText, tokens, synonyms)) {
@@ -3481,62 +4063,7 @@ Continuemos con la entrega: comp\xE1rtenos tu direcci\xF3n completa (Destinatari
 Continuemos con la entrega: comp\xE1rtenos tu direcci\xF3n completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o env\xEDa tu ubicaci\xF3n GPS \u{1F4CD}:`
             };
           }
-          if (this._isAgencyAddress(rawText)) {
-            c.isAgencyPickup = true;
-            c.address = rawText.trim();
-            c.recipientName = c.recipientName || c.name;
-            c.step = "phone";
-            return {
-              text: `\xA1Excelente elecci\xF3n! \u{1F3E2} Registrado para **retiro en agencia de Cargo Expreso**:
-
-\u{1F4CC} **Agencia de retiro:** ${c.address}
-\u{1F464} **Destinatario para reclamar en ventanilla:** ${c.recipientName}
-
-\u26A0\uFE0F **Horarios de agencia:** Atienden de Lunes a Viernes (8:00 AM - 5:00 PM) y los **S\xE1bados \xFAnicamente medio d\xEDa** (hasta las 12:00 PM).
-
-\u{1F4DE} \xBFA qu\xE9 **n\xFAmero telef\xF3nico que reciba llamadas** te contactamos para coordinar la entrega y notificarte la gu\xEDa de rastreo?
-
-\u26A0\uFE0F **Importante:** Cargo Expreso coordina y avisa la llegada del paquete **\xFAnicamente v\xEDa llamada telef\xF3nica** (aseg\xFArate de que la l\xEDnea pueda recibir llamadas directas).`
-            };
-          }
-          if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
-            const expl = this._getScheduleAndAgencyExplanation();
-            return {
-              text: `${expl}
-
-\u{1F4CD} Para continuar con tu orden, ind\xEDcanos si prefieres que lo enviemos a tu **direcci\xF3n de domicilio** (con destinatario, colonia y ciudad) o la **oficina/agencia de Cargo Expreso** donde pasar\xE1s a retirar:`
-            };
-          }
-          const detectedLoc2 = location || LocationService.parseLocationFromText(rawText);
-          if (detectedLoc2) {
-            const locName = detectedLoc2.address || detectedLoc2.name || `Ubicaci\xF3n GPS (${detectedLoc2.lat.toFixed(4)}, ${detectedLoc2.lng.toFixed(4)})`;
-            c.address = locName;
-            c.recipientName = c.recipientName || c.name;
-            c.location = {
-              lat: detectedLoc2.lat,
-              lng: detectedLoc2.lng,
-              name: detectedLoc2.name || locName,
-              address: locName,
-              mapUrl: detectedLoc2.mapUrl || LocationService.getGoogleMapsUrl(detectedLoc2.lat, detectedLoc2.lng)
-            };
-            c.step = "phone";
-            return {
-              text: `\xA1Ubicaci\xF3n GPS registrada con \xE9xito! \u{1F4CD}
-
-\u{1F4CC} **Direcci\xF3n de entrega:** ${locName}
-\u{1F5FA}\uFE0F [Ver en Google Maps](${c.location.mapUrl})
-\u{1F464} **Destinatario:** ${c.recipientName}
-
-\u{1F4DE} \xBFA qu\xE9 **n\xFAmero telef\xF3nico que reciba llamadas** te contactamos para coordinar la entrega?
-
-\u26A0\uFE0F **Importante:** Cargo Expreso coordina la entrega **\xFAnicamente v\xEDa llamada telef\xF3nica** antes de llegar a tu domicilio (aseg\xFArate de que la l\xEDnea pueda recibir llamadas directas).`,
-              location: c.location
-            };
-          }
-          const cleaned = clean(rawText);
-          const words = rawText.trim().split(/\s+/);
-          const hasKeyword = ["col", "colonia", "barrio", "b\xB0", "sector", "calle", "ave", "avenida", "casa", "bloque", "res", "residencial", "tegucigalpa", "san pedro", "sps", "ceiba", "choluteca", "comayagua", "frente", "cerca", "etapa", "aldea"].some((k) => cleaned.includes(k));
-          const isTooShort = rawText.trim().length < 12 || words.length < 3 || !hasKeyword && words.length < 4;
+          const isTooShort = rawText.trim().length < 12 || words.length < 3;
           if (isTooShort) {
             return {
               text: `Para que **Cargo Expreso** pueda entregar tu paquete sin retrasos, por favor ind\xEDcanos una direcci\xF3n m\xE1s detallada (o presiona el bot\xF3n \u{1F4CD} abajo para enviar tu ubicaci\xF3n GPS):
@@ -3863,6 +4390,15 @@ Puedes pagar v\xEDa transferencia bancaria y compartirnos tu comprobante por est
         this.selectedProduct = skuExtraction.product;
       }
       const currentProduct = skuExtraction && skuExtraction.product || this.selectedProduct || (this.checkout ? this.checkout.product : null) || null;
+      const policyAns = this._getPolicyResponse(cleanText, tokens);
+      if (policyAns) {
+        return {
+          text: `${policyAns}
+
+\xBFDeseas que preparemos tu pedido${currentProduct ? ` para **${currentProduct.name}**` : ""}?`,
+          product: currentProduct || null
+        };
+      }
       if (this._isColorIntent(cleanText, tokens, synonyms)) {
         return this._handleColorQuery(rawText, cleanText, tokens, currentProduct, products);
       }
@@ -3930,15 +4466,6 @@ ${sampleItems}
 \u2705 **Disponibilidad:** ${currentProduct.stock > 0 ? `${currentProduct.stock} unidades en stock` : "Agotado"}. \xBFDeseas hacer tu pedido?`,
           product: currentProduct,
           images: currentProduct.images || []
-        };
-      }
-      const policyAns = this._getPolicyResponse(cleanText, tokens);
-      if (policyAns) {
-        return {
-          text: `${policyAns}
-
-\xBFDeseas que preparemos tu pedido${currentProduct ? ` para **${currentProduct.name}**` : ""}?`,
-          product: currentProduct || null
         };
       }
       if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
@@ -4010,7 +4537,8 @@ ${catalogItems}`,
           return { text: rule.response };
         }
       }
-      if (tokens.some((t) => ["comprar", "pedido", "ordenar", "quiero", "orden"].includes(t)) || cleanText.includes("hacer pedido")) {
+      const isPurchaseIntent = tokens.some((t) => ["comprar", "pedido", "ordenar", "orden"].includes(t)) || ["hacer pedido", "hacer el pedido", "quiero pedir", "quiero ordenar", "quiero comprar", "lo quiero", "la quiero", "lo compro", "la compro", "me lo llevo", "me la llevo", "quiero uno", "quiero una", "deseo comprar", "deseo ordenar", "me interesa comprar", "apartar"].some((p) => cleanText.includes(p)) || this.matchesSynonym(tokens, synonyms, "compra", cleanText);
+      if (isPurchaseIntent) {
         return this.startCheckout(currentProduct);
       }
       if (this._isGratitude(cleanText, tokens)) {

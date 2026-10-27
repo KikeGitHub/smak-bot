@@ -14,6 +14,13 @@ const tokenize = s => clean(s).split(/\s+/).filter(Boolean);
 
 const STOP_WORDS = new Set(['de', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'es', 'son', 'lo', 'en', 'por', 'que', 'se', 'me', 'te', 'le', 'y', 'o', 'al', 'del', 'a', 'con', 'para', 'como', 'si', 'su', 'sus', 'mi', 'mis', 'tu', 'tus']);
 
+const stemSpanish = w => {
+  const s = String(w || "").trim();
+  if (s.endsWith("es") && s.length > 4) return s.slice(0, -2);
+  if (s.endsWith("s") && s.length > 3) return s.slice(0, -1);
+  return s;
+};
+
 // Flexible phrase matcher with stop-word filtering & substantive keyword matching
 function matchPhrase(cleanInput, inTokens, phrase) {
   const cPhrase = clean(phrase);
@@ -29,11 +36,8 @@ function matchPhrase(cleanInput, inTokens, phrase) {
   const matchedCount = targetTokens.filter(pt => {
     return inTokens.some(it => {
       if (it === pt) return true;
-      // Allow minor variations like rebaja / rebajas, envio / envios
-      if (it.length >= 4 && pt.length >= 4) {
-        const rootLen = Math.min(it.length, pt.length) - 1;
-        return it.slice(0, rootLen) === pt.slice(0, rootLen);
-      }
+      // Allow plural/singular variations (e.g. rebaja / rebajas, envio / envios)
+      if (stemSpanish(it) === stemSpanish(pt)) return true;
       return false;
     });
   }).length;
@@ -147,12 +151,22 @@ export class BotEngine {
       /^(?:puedo|como|c[oó]mo|cu[aá]ndo|cuando|cu[aá]nto|cuanto|d[oó]nde|donde|qu[eé]|que|por qu[eé]|por que|aceptan|tienen|hay)\b/i.test(cleanText);
     if (isQuestion) return false;
 
-    const explicitConfirm = ["confirmar", "confirmar pedido", "confirmar compra", "confirmo", "confirmo pedido", "proceder", "proceder con la compra", "cerrar pedido", "comprar ahora", "si confirmar", "si confirmo"].some(w => cleanText.includes(w));
+    const explicitConfirm = [
+      "confirmar", "confirmar pedido", "confirmar compra", "confirmo", "confirmo pedido", "confirmo mi compra",
+      "proceder", "proceder con la compra", "proceder con el pedido", "cerrar pedido", "cerrar compra", "comprar ahora",
+      "si confirmar", "si confirmo", "si deseo comprar", "adelante con el pedido", "hagan el envio", "hacer el envio",
+      "mandelo", "mandemelo", "envielo", "envienlo", "dale viaje", "todo correcto", "todo bien", "esta perfecto",
+      "lo quiero", "la quiero", "si lo quiero", "si la quiero"
+    ].some(w => cleanText.includes(w));
     if (explicitConfirm) return true;
 
-    const exactConfirmWords = ["si", "ok", "listo", "correcto", "dale", "adelante", "comprar", "proceder", "de acuerdo", "perfecto", "va", "esta bien", "todo bien", "todo correcto", "mandelo", "envielo"];
+    const exactConfirmWords = [
+      "si", "ok", "listo", "correcto", "dale", "adelante", "comprar", "proceder", "de acuerdo",
+      "perfecto", "va", "esta bien", "todo bien", "todo correcto", "mandelo", "envielo", "claro",
+      "por favor", "si claro", "si gracias", "si por favor"
+    ];
     const isExact = exactConfirmWords.includes(cleanText);
-    const startsWithOkOrSi = /^(?:si|ok|listo|dale|adelante)\b\s*(?:por favor|amigo|amiga|gracias|esta bien|proceda|mandelo|envielo)?$/i.test(cleanText);
+    const startsWithOkOrSi = /^(?:si|ok|listo|dale|adelante|claro)\b\s*(?:por favor|amigo|amiga|gracias|esta bien|proceda|mandelo|envielo|confirmado)?$/i.test(cleanText);
 
     return (isExact || startsWithOkOrSi);
   }
@@ -503,12 +517,10 @@ export class BotEngine {
       if (term.includes(" ")) {
         return cleanText ? cleanText.includes(term) : false;
       }
+      const stemTerm = stemSpanish(term);
       return wordList.some(word => {
         if (term === word) return true;
-        if (word.length >= 4 && term.length >= 4) {
-          const rootLen = Math.min(word.length, term.length) - 1;
-          return word.slice(0, rootLen) === term.slice(0, rootLen);
-        }
+        if (stemTerm.length >= 3 && stemTerm === stemSpanish(word)) return true;
         return false;
       });
     });
@@ -679,18 +691,23 @@ export class BotEngine {
 
   // Price intent detection
   _isPriceIntent(cleanText, tokens, synonyms = {}) {
-    if (["costo de envio", "precio del envio", "cuanto vale el envio", "cobran envio"].some(p => cleanText.includes(p))) {
+    if (["costo de envio", "precio del envio", "cuanto vale el envio", "cobran envio", "cobran el envio", "costo de flete", "precio de flete"].some(p => cleanText.includes(p))) {
       return false; // Handled by shipping policy
+    }
+    if (["cuanto es lo menos", "lo menos", "mejor precio", "precio por mayor", "precio por mayoreo", "descuento", "descuentos", "rebaja", "rebajas", "si compro varios", "precio para distribuidores"].some(p => cleanText.includes(p))) {
+      return false; // Handled by discount/volume policy
     }
 
     const phrases = [
       "cuanto cuesta", "cuanto vale", "a cuanto sale", "a cuanto esta",
       "cual es el precio", "cual es el valor", "a como sale", "en cuanto sale",
-      "en cuanto me lo dejan", "a como me lo deja", "que precio tiene", "precio de"
+      "en cuanto me lo dejan", "a como me lo deja", "que precio tiene", "precio de",
+      "cuanto es", "que cuesta", "a como lo dan", "a cuanto lo dan", "precio final", "ultimo precio",
+      "cuanto sale", "que vale", "valor de", "costo de", "en cuanto me sale", "a como sale la"
     ];
     if (phrases.some(p => cleanText.includes(p))) return true;
 
-    const directWords = ["precio", "precios", "costo", "valor"];
+    const directWords = ["precio", "precios", "costo", "valor", "tarifa"];
     if (tokens.some(t => directWords.includes(t))) return true;
 
     return this.matchesSynonym(tokens, synonyms, "precio", cleanText);
@@ -834,32 +851,32 @@ export class BotEngine {
     }
 
     // 3. Tarjeta de crédito / débito
-    if (["tarjeta", "tarjetas", "visa", "mastercard", "pos", "datafast", "link de pago"].some(t => cleanText.includes(t))) {
+    if (["tarjeta", "tarjetas", "visa", "mastercard", "pos", "datafast", "link de pago", "credomatic", "terminal"].some(t => cleanText.includes(t))) {
       return `💳 **Forma de Pago con Tarjeta:** No aceptamos pagos con tarjeta, solo pago en efectivo contra entrega y se le paga al operador de Cargo Expreso o por transferencia electrónica previa, pero la transferencia debe confirmarse antes de realizar el envío.`;
     }
 
     // 4. Ubicación física / Tienda
-    if ((cleanText.includes("donde") || cleanText.includes("ubicacion") || cleanText.includes("sucursal") || cleanText.includes("tienda fisica") || cleanText.includes("local")) && !cleanText.includes("direccion de entrega") && (cleanText.includes("estan") || cleanText.includes("encuentran") || cleanText.includes("queda") || cleanText.includes("tienda") || cleanText.includes("puerto cortes") || cleanText.includes("local"))) {
+    if ((cleanText.includes("donde") || cleanText.includes("ubicacion") || cleanText.includes("sucursal") || cleanText.includes("tienda fisica") || cleanText.includes("local") || cleanText.includes("sala de ventas")) && !cleanText.includes("direccion de entrega") && (cleanText.includes("estan") || cleanText.includes("encuentran") || cleanText.includes("queda") || cleanText.includes("tienda") || cleanText.includes("puerto cortes") || cleanText.includes("local") || cleanText.includes("sala"))) {
       return `📍 **Ubicación Física:** Nos encontramos ubicados en **Plaza Krisale, Puerto Cortés, Honduras**.\n\n¡Realizamos envíos gratuitos a domicilio a cualquier parte del país vía Cargo Expreso!`;
     }
 
     // 5. Costo de envío
-    if (["costo de envio", "cuanto cobran", "cuanto vale el envio", "precio del envio", "cobran envio", "cobran el envio", "el envio es gratis", "flete"].some(t => cleanText.includes(t))) {
+    if (["costo de envio", "cuanto cobran", "cuanto vale el envio", "precio del envio", "cobran envio", "cobran el envio", "el envio es gratis", "flete", "flete gratis", "cuanto cobran de flete", "cobran por traerlo", "hay que pagar envio", "el envio tiene costo"].some(t => cleanText.includes(t))) {
       return `🚚 **Costo de Envío:** ¡El envío es **completamente gratuito** a cualquier parte del país! Solo cancelas el valor del producto al recibirlo en efectivo contra entrega.`;
     }
 
     // 6. Garantía
-    if (["garantia", "garantias", "defecto", "desperfecto"].some(t => cleanText.includes(t))) {
+    if (["garantia", "garantias", "defecto", "desperfecto", "si viene roto", "si sale malo", "si viene quebrado", "falla de fabrica", "si sale con falla"].some(t => cleanText.includes(t))) {
       return `🛡️ **Garantía:** Cuentan con garantía únicamente contra **defectos de fabricación**.`;
     }
 
     // 7. ¿Son nuevas?
-    if (["son nuevas", "son nuevos", "muebles nuevos", "productos nuevos", "es nuevo", "usado", "de segunda"].some(t => cleanText.includes(t))) {
+    if (["son nuevas", "son nuevos", "muebles nuevos", "productos nuevos", "es nuevo", "usado", "de segunda", "de paquete", "sellado", "sellados"].some(t => cleanText.includes(t))) {
       return `✨ **Condición del Producto:** Sí, todos nuestros productos son **100% nuevos de fábrica** en su caja original sellada.`;
     }
 
     // 8. Mejor precio / descuento
-    if (["mejor precio", "descuento", "rebaja", "cuanto es lo menos", "mayoreo", "por mayor"].some(t => cleanText.includes(t))) {
+    if (["mejor precio", "descuento", "descuentos", "rebaja", "rebajas", "cuanto es lo menos", "lo menos", "mayoreo", "por mayor", "en cuanto me lo deja", "si compro varios", "precio especial"].some(t => cleanText.includes(t))) {
       return `🏷️ **Mejor Precio:** El precio especial sería equivalente a la cantidad de piezas solicitadas por el cliente. Si necesitas ordenar varias piezas o mayoreo, indícanos cuántas unidades deseas y con gusto te cotizamos.`;
     }
 
@@ -994,8 +1011,19 @@ export class BotEngine {
             text: `📏 **Medidas de ${p.name} (${p.sku}):** **${p.dimensions || 'Estándar'}** (Soporte: ${p.weightLimit || 'Uso comercial y residencial'}).\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
           };
         }
+        let q = 1;
         const match = rawText.match(/\d+/);
-        const q = match ? Math.max(1, parseInt(match[0], 10)) : 1;
+        if (match) {
+          q = Math.max(1, parseInt(match[0], 10));
+        } else {
+          const numWords = { "un": 1, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "diez": 10, "docena": 12 };
+          for (const [w, val] of Object.entries(numWords)) {
+            if (tokens.includes(w)) {
+              q = val;
+              break;
+            }
+          }
+        }
         c.quantity = q;
         c.quantityLabel = rawText.trim() || `${q} ${q === 1 ? 'unidad' : 'unidades'}`;
         c.total = Number(c.product.salePrice) * q;
@@ -1005,6 +1033,61 @@ export class BotEngine {
         };
       }
       if (c.step === "address") {
+        // 1. Ubicación GPS enviada (botón o mensaje con coordenadas/mapa)
+        const detectedLoc = location || (typeof LocationService !== "undefined" && LocationService.parseLocationFromText ? LocationService.parseLocationFromText(rawText) : null);
+        if (detectedLoc) {
+          const locName = detectedLoc.address || detectedLoc.name || `Ubicación GPS (${detectedLoc.lat.toFixed(4)}, ${detectedLoc.lng.toFixed(4)})`;
+          c.address = locName;
+          c.recipientName = c.recipientName || c.name;
+          c.location = {
+            lat: detectedLoc.lat,
+            lng: detectedLoc.lng,
+            name: detectedLoc.name || locName,
+            address: locName,
+            mapUrl: detectedLoc.mapUrl || (typeof LocationService !== "undefined" && LocationService.getGoogleMapsUrl ? LocationService.getGoogleMapsUrl(detectedLoc.lat, detectedLoc.lng) : `https://maps.google.com/?q=${detectedLoc.lat},${detectedLoc.lng}`)
+          };
+          c.step = "phone";
+          return {
+            text: `¡Ubicación GPS registrada con éxito! 📍\n\n📌 **Dirección de entrega:** ${locName}\n🗺️ [Ver en Google Maps](${c.location.mapUrl})\n👤 **Destinatario:** ${c.recipientName}\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega?\n\n⚠️ **Importante:** Cargo Expreso coordina la entrega **únicamente vía llamada telefónica** antes de llegar a tu domicilio (asegúrate de que la línea pueda recibir llamadas directas).`,
+            location: c.location
+          };
+        }
+
+        // 2. Detección directa de entrega en agencia u oficina Cargo Expreso (Ocurre)
+        if (this._isAgencyAddress(rawText)) {
+          c.isAgencyPickup = true;
+          c.address = rawText.trim();
+          c.recipientName = c.recipientName || c.name;
+          c.step = "phone";
+          return {
+            text: `¡Excelente elección! 🏢 Registrado para **retiro en agencia de Cargo Expreso**:\n\n📌 **Agencia de retiro:** ${c.address}\n👤 **Destinatario para reclamar en ventanilla:** ${c.recipientName}\n\n⚠️ **Horarios de agencia:** Atienden de Lunes a Viernes (8:00 AM - 5:00 PM) y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega y notificarte la guía de rastreo?\n\n⚠️ **Importante:** Cargo Expreso coordina y avisa la llegada del paquete **únicamente vía llamada telefónica** (asegúrate de que la línea pueda recibir llamadas directas).`
+          };
+        }
+
+        // 3. Dirección en texto válida (con indicadores de dirección o referencia geográfica hondureña)
+        const cleaned = clean(rawText);
+        const words = rawText.trim().split(/\s+/);
+        const hondurasGeoKeywords = [
+          "col", "colonia", "barrio", "b°", "sector", "calle", "ave", "avenida", "casa", "bloque", "res", "residencial",
+          "tegucigalpa", "san pedro", "sps", "ceiba", "choluteca", "comayagua", "frente", "cerca", "etapa", "aldea",
+          "puerto cortes", "villanueva", "progreso", "la lima", "danli", "juticalpa", "siguatepeque", "santa rosa", "copan",
+          "catacamas", "tocoa", "olanchito", "tela", "bulevar", "blvd", "plaza", "pulperia", "esquina", "circunvalacion",
+          "toncontin", "pedregal", "kennedy", "hato", "miramontes", "palmira", "lomas", "prado", "san felipe"
+        ];
+        const hasKeyword = hondurasGeoKeywords.some(k => cleaned.includes(k));
+
+        if (hasKeyword && words.length >= 3) {
+          c.address = rawText.trim();
+          const cpMatch = rawText.match(/\b\d{5}\b/);
+          if (cpMatch) c.postalCode = cpMatch[0];
+          c.recipientName = c.recipientName || c.name;
+          c.step = "phone";
+          return {
+            text: `¡Dirección registrada con éxito! 📦\n\n📌 **Dirección de entrega:** ${c.address}\n👤 **Destinatario:** ${c.recipientName}\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega?\n\n⚠️ **Importante:** Cargo Expreso coordina la entrega **únicamente vía llamada telefónica** antes de llegar a tu domicilio (asegúrate de que la línea pueda recibir llamadas directas).`
+          };
+        }
+
+        // 4. Preguntas o dudas que el usuario pueda tener en este paso (solo si no es una dirección)
         const policy = this._getPolicyResponse(cleanText, tokens);
         if (policy) {
           return {
@@ -1014,6 +1097,12 @@ export class BotEngine {
         if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
           return {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
+          };
+        }
+        if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
+          const expl = this._getScheduleAndAgencyExplanation();
+          return {
+            text: `${expl}\n\n📍 Para continuar con tu orden, indícanos si prefieres que lo enviemos a tu **dirección de domicilio** (con destinatario, colonia y ciudad) o la **oficina/agencia de Cargo Expreso** donde pasarás a retirar:`
           };
         }
         if (this._isColorIntent(cleanText, tokens, synonyms)) {
@@ -1041,56 +1130,15 @@ export class BotEngine {
           };
         }
 
-        // Detección directa de entrega en agencia u oficina Cargo Expreso (Ocurre)
-        if (this._isAgencyAddress(rawText)) {
-          c.isAgencyPickup = true;
-          c.address = rawText.trim();
-          c.recipientName = c.recipientName || c.name;
-          c.step = "phone";
-          return {
-            text: `¡Excelente elección! 🏢 Registrado para **retiro en agencia de Cargo Expreso**:\n\n📌 **Agencia de retiro:** ${c.address}\n👤 **Destinatario para reclamar en ventanilla:** ${c.recipientName}\n\n⚠️ **Horarios de agencia:** Atienden de Lunes a Viernes (8:00 AM - 5:00 PM) y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega y notificarte la guía de rastreo?\n\n⚠️ **Importante:** Cargo Expreso coordina y avisa la llegada del paquete **únicamente vía llamada telefónica** (asegúrate de que la línea pueda recibir llamadas directas).`
-          };
-        }
-
-        if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
-          const expl = this._getScheduleAndAgencyExplanation();
-          return {
-            text: `${expl}\n\n📍 Para continuar con tu orden, indícanos si prefieres que lo enviemos a tu **dirección de domicilio** (con destinatario, colonia y ciudad) o la **oficina/agencia de Cargo Expreso** donde pasarás a retirar:`
-          };
-        }
-
-        const detectedLoc = location || LocationService.parseLocationFromText(rawText);
-        if (detectedLoc) {
-          const locName = detectedLoc.address || detectedLoc.name || `Ubicación GPS (${detectedLoc.lat.toFixed(4)}, ${detectedLoc.lng.toFixed(4)})`;
-          c.address = locName;
-          c.recipientName = c.recipientName || c.name;
-          c.location = {
-            lat: detectedLoc.lat,
-            lng: detectedLoc.lng,
-            name: detectedLoc.name || locName,
-            address: locName,
-            mapUrl: detectedLoc.mapUrl || LocationService.getGoogleMapsUrl(detectedLoc.lat, detectedLoc.lng)
-          };
-          c.step = "phone";
-          return {
-            text: `¡Ubicación GPS registrada con éxito! 📍\n\n📌 **Dirección de entrega:** ${locName}\n🗺️ [Ver en Google Maps](${c.location.mapUrl})\n👤 **Destinatario:** ${c.recipientName}\n\n📞 ¿A qué **número telefónico que reciba llamadas** te contactamos para coordinar la entrega?\n\n⚠️ **Importante:** Cargo Expreso coordina la entrega **únicamente vía llamada telefónica** antes de llegar a tu domicilio (asegúrate de que la línea pueda recibir llamadas directas).`,
-            location: c.location
-          };
-        }
-
-        // Validación y condicionamiento de dirección en texto
-        const cleaned = clean(rawText);
-        const words = rawText.trim().split(/\s+/);
-        const hasKeyword = ["col", "colonia", "barrio", "b°", "sector", "calle", "ave", "avenida", "casa", "bloque", "res", "residencial", "tegucigalpa", "san pedro", "sps", "ceiba", "choluteca", "comayagua", "frente", "cerca", "etapa", "aldea"].some(k => cleaned.includes(k));
-        const isTooShort = rawText.trim().length < 12 || words.length < 3 || (!hasKeyword && words.length < 4);
-
+        // 5. Dirección general en texto sin palabras clave específicas pero con longitud suficiente
+        const isTooShort = rawText.trim().length < 12 || words.length < 3;
         if (isTooShort) {
           return {
             text: `Para que **Cargo Expreso** pueda entregar tu paquete sin retrasos, por favor indícanos una dirección más detallada (o presiona el botón 📍 abajo para enviar tu ubicación GPS):\n\n• **A domicilio:** Nombre del destinatario, Calle y casa / referencia, Colonia o barrio, y Ciudad / Municipio.\n• **En agencia:** Oficina o sucursal de Cargo Expreso de tu ciudad donde prefieres retirar en ventanilla.\n\n💡 *Ejemplo domicilio:* ${c.name}, Calle Principal, Casa #15 frente a pulpería, Col. Miramontes, Tegucigalpa.\n💡 *Ejemplo agencia:* Agencia Cargo Expreso San Pedro Sula Centro.`
           };
         }
 
-        // Dirección válida en texto
+        // Dirección válida en texto general
         c.address = rawText.trim();
         const cpMatch = rawText.match(/\b\d{5}\b/);
         if (cpMatch) c.postalCode = cpMatch[0];
@@ -1370,17 +1418,26 @@ export class BotEngine {
 
     // 7. MULTI-TURN ATTRIBUTE INTENTS RESOLUTION (Colors, Dimensions, Price, Materials, Weight, Photos, Policies)
 
-    // 7a. COLORS QUERY ("qué colores hay", "en qué colores viene", "la tienen en negro?", etc.)
+    // 7a. BUSINESS POLICIES & FAQS FROM EXCEL (Roatán/Útila, Forza, Tarjeta, Ubicación, Envío Gratis, Garantía, Nuevos, Mejor precio)
+    const policyAns = this._getPolicyResponse(cleanText, tokens);
+    if (policyAns) {
+      return {
+        text: `${policyAns}\n\n¿Deseas que preparemos tu pedido${currentProduct ? ` para **${currentProduct.name}**` : ''}?`,
+        product: currentProduct || null
+      };
+    }
+
+    // 7b. COLORS QUERY ("qué colores hay", "en qué colores viene", "la tienen en negro?", etc.)
     if (this._isColorIntent(cleanText, tokens, synonyms)) {
       return this._handleColorQuery(rawText, cleanText, tokens, currentProduct, products);
     }
 
-    // 7b. PRICE QUERY ("cuánto cuesta", "a cuánto sale", "precio", "cuánto vale", etc.)
+    // 7c. PRICE QUERY ("cuánto cuesta", "a cuánto sale", "precio", "cuánto vale", etc.)
     if (this._isPriceIntent(cleanText, tokens, synonyms)) {
       return this._handlePriceQuery(rawText, cleanText, tokens, currentProduct);
     }
 
-    // 7c. DIMENSIONS & MEASUREMENTS QUERY ("medidas", "dimenciones", "dimensiones", "cuánto mide", "mide", etc.)
+    // 7d. DIMENSIONS & MEASUREMENTS QUERY ("medidas", "dimenciones", "dimensiones", "cuánto mide", "mide", etc.)
     const isDimensionQuery = this._isDimensionIntent(cleanText, tokens, synonyms);
     if (isDimensionQuery) {
       const targetProd = currentProduct;
@@ -1409,17 +1466,17 @@ export class BotEngine {
       }
     }
 
-    // 7d. MATERIAL & ASSEMBLY QUERY ("de qué material es", "viene armado", "trae herramientas", etc.)
+    // 7e. MATERIAL & ASSEMBLY QUERY ("de qué material es", "viene armado", "trae herramientas", etc.)
     if (this._isMaterialIntent(cleanText, tokens, synonyms)) {
       return this._handleMaterialQuery(rawText, cleanText, tokens, currentProduct);
     }
 
-    // 7e. WEIGHT & DURABILITY QUERY ("cuánto peso aguanta", "peso máximo", "soporta", etc.)
+    // 7f. WEIGHT & DURABILITY QUERY ("cuánto peso aguanta", "peso máximo", "soporta", etc.)
     if (this._isWeightIntent(cleanText, tokens, synonyms)) {
       return this._handleWeightQuery(rawText, cleanText, tokens, currentProduct);
     }
 
-    // 7f. PHOTOS QUERY
+    // 7g. PHOTOS QUERY
     const isPhotoQuery = this.matchesSynonym(tokens, synonyms, "fotos") || tokens.some(t => ["foto", "fotos", "imagen", "imagenes", "verlo"].includes(t));
     if (isPhotoQuery && currentProduct) {
       let drainageNote = "";
@@ -1431,15 +1488,6 @@ export class BotEngine {
         text: `¡Claro! Aquí tienes fotografías reales de **${currentProduct.name}** (${currentProduct.sku}):\n\n🏷️ **Precio:** L.${Number(currentProduct.salePrice || currentProduct.price).toLocaleString("es-HN")}\n📦 **Medidas / Detalle:** ${currentProduct.dimensions || "Estándar"}\n🎨 **Color:** ${currentProduct.colors || "Negro"}${drainageNote}\n\n✅ **Disponibilidad:** ${currentProduct.stock > 0 ? `${currentProduct.stock} unidades en stock` : "Agotado"}. ¿Deseas hacer tu pedido?`,
         product: currentProduct,
         images: currentProduct.images || []
-      };
-    }
-
-    // 7g. BUSINESS POLICIES & FAQS FROM EXCEL (Roatán/Útila, Forza, Tarjeta, Ubicación, Envío Gratis, Garantía, Nuevos, Mejor precio)
-    const policyAns = this._getPolicyResponse(cleanText, tokens);
-    if (policyAns) {
-      return {
-        text: `${policyAns}\n\n¿Deseas que preparemos tu pedido${currentProduct ? ` para **${currentProduct.name}**` : ''}?`,
-        product: currentProduct || null
       };
     }
 
@@ -1510,7 +1558,10 @@ export class BotEngine {
     }
 
     // 11. Purchase / Checkout initiation
-    if (tokens.some(t => ["comprar", "pedido", "ordenar", "quiero", "orden"].includes(t)) || cleanText.includes("hacer pedido")) {
+    const isPurchaseIntent = tokens.some(t => ["comprar", "pedido", "ordenar", "orden"].includes(t)) ||
+      ["hacer pedido", "hacer el pedido", "quiero pedir", "quiero ordenar", "quiero comprar", "lo quiero", "la quiero", "lo compro", "la compro", "me lo llevo", "me la llevo", "quiero uno", "quiero una", "deseo comprar", "deseo ordenar", "me interesa comprar", "apartar"].some(p => cleanText.includes(p)) ||
+      this.matchesSynonym(tokens, synonyms, "compra", cleanText);
+    if (isPurchaseIntent) {
       return this.startCheckout(currentProduct);
     }
 
