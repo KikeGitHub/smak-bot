@@ -2,6 +2,14 @@ import { TENANTS, STORAGE_KEY } from "./seed-data.js";
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
+function safeUuid() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "id-" + Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
+}
+
+
 export class StorageFacade {
   static read() {
     try {
@@ -46,7 +54,7 @@ export class StorageFacade {
         const createdIso = new Date(Date.now() - sample.daysAgo * 86400000).toISOString();
 
         return {
-          id: crypto.randomUUID(),
+          id: safeUuid(),
           tenantId: sample.tenantId,
           orderNumber: orderNum,
           name: sample.name,
@@ -249,7 +257,7 @@ export class StorageFacade {
     if (!tenant.products) tenant.products = [];
 
     const p = clone(product);
-    if (!p.id) p.id = "prod-" + crypto.randomUUID().slice(0, 8);
+    if (!p.id) p.id = "prod-" + safeUuid().slice(0, 8);
     p.sku = String(p.sku || "").trim().toUpperCase();
 
     const index = tenant.products.findIndex(item => item.id === p.id || (p.sku && item.sku?.toUpperCase() === p.sku));
@@ -284,7 +292,7 @@ export class StorageFacade {
     if (!tenant.rules) tenant.rules = [];
 
     const r = clone(rule);
-    if (!r.id) r.id = "rule-" + crypto.randomUUID().slice(0, 8);
+    if (!r.id) r.id = "rule-" + safeUuid().slice(0, 8);
     if (r.enabled === undefined) r.enabled = true;
 
     const index = tenant.rules.findIndex(item => item.id === r.id);
@@ -360,7 +368,7 @@ export class StorageFacade {
     if (!tenant.campaigns) tenant.campaigns = [];
 
     const c = clone(campaign);
-    if (!c.id) c.id = "camp-" + crypto.randomUUID().slice(0, 8);
+    if (!c.id) c.id = "camp-" + safeUuid().slice(0, 8);
     c.sku = String(c.sku || "").trim().toUpperCase();
 
     const index = tenant.campaigns.findIndex(item => item.id === c.id);
@@ -439,7 +447,7 @@ export class StorageFacade {
 
     const newOrder = {
       ...clone(order),
-      id: order.id || crypto.randomUUID(),
+      id: order.id || safeUuid(),
       tenantId,
       orderNumber,
       quantity,

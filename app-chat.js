@@ -1,8 +1,9 @@
-import { StorageFacade } from "./js/storage-facade.js?v=4";
-import { BotEngine } from "./js/bot-engine.js?v=4";
-import { TranscriptionService } from "./js/transcription-service.js?v=4";
-import { SpeechService } from "./js/speech-service.js?v=4";
-import { LocationService } from "./js/location-service.js?v=4";
+import { StorageFacade } from "./js/storage-facade.js?v=5";
+import { BotEngine } from "./js/bot-engine.js?v=5";
+import { TranscriptionService } from "./js/transcription-service.js?v=5";
+import { SpeechService } from "./js/speech-service.js?v=5";
+import { LocationService } from "./js/location-service.js?v=5";
+
 
 const $ = (s) => document.querySelector(s);
 const thread = $("#messages");
@@ -17,7 +18,7 @@ function formatMarkdown(text) {
   // Italic *text*
   safe = safe.replace(/\*(.*?)\*/g, '<em>$1</em>');
   // Markdown links [text](url)
-  safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline font-bold text-emerald-700 hover:text-emerald-900">$1</a>');
+  safe = safe.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline font-bold text-emerald-700 hover:text-emerald-900">$1</a>');
   return safe;
 }
 
@@ -428,6 +429,7 @@ function updateTenant() {
   $("#chat-avatar").textContent = t.initials || "S";
   $("#online-label").textContent = `${t.name} · en línea`;
   $("#tenant-label").textContent = t.name;
+  renderCatalogGrid();
 }
 
 // Envío de mensaje escrito
@@ -929,8 +931,105 @@ window.addEventListener("storage", () => {
   updateTenant();
 });
 
-// Initial Welcome Message
+let activeCatalogCategory = "all";
+
+function renderCatalogGrid() {
+  const grid = $("#catalog-grid");
+  if (!grid) return;
+  const tenant = StorageFacade.getTenant();
+  const products = tenant.products || [];
+
+  const countBadge = $("#catalog-count-badge");
+  if (countBadge) {
+    countBadge.textContent = `${products.length} Productos Activos`;
+  }
+
+  const filtered = activeCatalogCategory === "all"
+    ? products
+    : products.filter(p => p.category === activeCatalogCategory);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `
+      <div class="col-span-full py-12 text-center text-slate-400">
+        <p class="text-3xl">📦</p>
+        <p class="mt-2 text-sm font-semibold">No hay productos en esta categoría</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => {
+    const img = (p.images && p.images[0]) || "https://images.unsplash.com/photo-1580481077198-c847ad436159?w=600&auto=format&fit=crop&q=80";
+    const price = p.salePrice || p.regularPrice || 0;
+    const oldPrice = p.salePrice && p.regularPrice > p.salePrice ? p.regularPrice : null;
+    const stockClass = (p.stock || 0) > 10 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200";
+
+    return `
+      <div class="group flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-sm hover:shadow-md hover:border-emerald-300 transition">
+        <div>
+          <div class="relative aspect-square w-full overflow-hidden rounded-xl bg-slate-100">
+            <img src="${img}" alt="${p.name}" loading="lazy" class="h-full w-full object-contain object-center transition group-hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1580481077198-c847ad436159?w=600&auto=format&fit=crop&q=80'">
+            <span class="absolute top-2 left-2 rounded-md bg-slate-900/80 px-2 py-0.5 text-[10px] font-bold text-white tracking-wide uppercase">${p.sku}</span>
+            <span class="absolute top-2 right-2 rounded-md border ${stockClass} px-2 py-0.5 text-[10px] font-bold">${p.stock || 0} disponibles</span>
+          </div>
+
+          <div class="mt-3">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">${p.category || 'Muebles'}</span>
+            <h3 class="mt-0.5 text-xs font-bold text-slate-900 line-clamp-2 leading-tight">${p.name}</h3>
+            ${p.colors ? `<p class="mt-1 text-[11px] text-slate-500 truncate">🎨 <strong>Colores:</strong> ${p.colors}</p>` : ''}
+            ${p.dimensions ? `<p class="mt-0.5 text-[11px] text-slate-500 truncate">📐 <strong>Medidas:</strong> ${p.dimensions}</p>` : ''}
+          </div>
+        </div>
+
+        <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-[10px] text-slate-400 uppercase font-semibold">Precio</div>
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-sm font-extrabold text-slate-900">L. ${Number(price).toLocaleString("es-HN")}</span>
+              ${oldPrice ? `<span class="text-[11px] text-slate-400 line-through">L. ${Number(oldPrice).toLocaleString("es-HN")}</span>` : ''}
+            </div>
+          </div>
+          <button type="button" data-consult-sku="${p.sku}" data-consult-name="${p.name}" class="btn-consult-catalog inline-flex items-center gap-1 rounded-xl bg-[#087e67] px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#066a58] transition">
+            <span>💬 Consultar</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Attach consult button clicks
+  grid.querySelectorAll(".btn-consult-catalog").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sku = btn.getAttribute("data-consult-sku");
+      const name = btn.getAttribute("data-consult-name");
+      const chatWindow = document.querySelector("#messages");
+      if (chatWindow) {
+        chatWindow.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      send(`Hola, ¿tienen disponibilidad y detalles de ${name} (SKU: ${sku})?`);
+    });
+  });
+}
+
+function setupCatalogFilters() {
+  const filterBtns = document.querySelectorAll(".catalog-filter-btn");
+  filterBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeCatalogCategory = btn.getAttribute("data-cat") || "all";
+      filterBtns.forEach(b => {
+        b.className = "catalog-filter-btn rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition";
+      });
+      btn.className = "catalog-filter-btn rounded-xl px-3.5 py-1.5 text-xs font-bold transition bg-[#087e67] text-white shadow-sm";
+      renderCatalogGrid();
+    });
+  });
+}
+
+// Initial Welcome Message & Setup
+setupCatalogFilters();
 updateTenant();
+
 const initialTenant = StorageFacade.getTenant();
 const sampleSku = initialTenant.products?.[0]?.sku || "EST-01";
-bubble(`¡Hola! 👋 Soy el asistente comercial de **${initialTenant.name}**.\n\n✨ **Nuevas funciones activas**:\n• **Respuestas en Audio**: Si me envías un audio 🎙️, te responderé con una nota de voz con transcripción.\n• **Ubicación GPS**: Al pedirte dirección, puedes presionar **📍 Compartir Ubicación** o enviar un link de Google Maps.\n\n¿En qué puedo ayudarte hoy?`);
+bubble(`¡Hola! 👋 Soy el asistente comercial de **${initialTenant.name}**.\n\n✨ **Funciones comerciales activas**:\n• **Vitrina en Vivo**: Puedes ver abajo en pantalla los **${initialTenant.products?.length || 28} productos disponibles** con fotos, precios y stock real, o hacer clic en **"💬 Consultar"** para preguntarme directamente.\n• **Showroom Web**: Puedes visitar el catálogo interactivo en [Catálogo Showroom Web](SMAK-landing-page/index.html).\n• **Respuestas en Audio**: Si me envías un audio 🎙️, te responderé con una nota de voz con transcripción.\n• **Ubicación GPS**: Al pedirte dirección, puedes presionar **📍 Compartir Ubicación** o enviar un link de Google Maps.\n\n¿En qué producto puedo asesorarte hoy?`);
+

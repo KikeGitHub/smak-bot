@@ -1,5 +1,6 @@
-import { StorageFacade } from "./js/storage-facade.js";
-import { BotEngine } from "./js/bot-engine.js";
+import { StorageFacade } from "./js/storage-facade.js?v=5";
+import { BotEngine } from "./js/bot-engine.js?v=5";
+
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);

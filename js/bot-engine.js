@@ -1,6 +1,7 @@
-import { StorageFacade } from "./storage-facade.js?v=4";
-import { LocationService } from "./location-service.js?v=4";
-import { SpeechService } from "./speech-service.js?v=4";
+import { StorageFacade } from "./storage-facade.js?v=5";
+import { LocationService } from "./location-service.js?v=5";
+import { SpeechService } from "./speech-service.js?v=5";
+
 
 const clean = s => String(s || "")
   .toLocaleLowerCase("es")

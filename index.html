@@ -54,8 +54,15 @@
     </a>
     <nav class="flex items-center gap-2">
       <span id="tenant-label" class="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 sm:inline-flex">SMAK Muebles</span>
+      <a href="SMAK-landing-page/index.html" class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-sm">
+        <span>🏬 Catálogo Showroom Web</span>
+        <span>↗</span>
+      </a>
+      <a href="#vitrina-productos" class="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+        <span>📦 Ver 28 Productos ↓</span>
+      </a>
       <a href="admin.html" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm">
-        <span>⚙ Panel de Administración</span>
+        <span>⚙ Panel Admin</span>
         <span>↗</span>
       </a>
     </nav>
@@ -425,6 +432,46 @@
   </aside>
 </main>
 
-<script type="module" src="app-chat.js?v=4"></script>
+  <!-- PRODUCT SHOWCASE / VITRINA DE PRODUCTOS SMAK -->
+  <section id="vitrina-productos" class="mx-auto max-w-7xl px-4 pb-14 lg:px-6">
+    <div class="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 uppercase tracking-wider">Catálogo Comercial SMAK</span>
+            <span id="catalog-count-badge" class="rounded-full bg-slate-100 text-slate-700 text-xs font-semibold px-2 py-0.5">28 Productos Activos</span>
+          </div>
+          <h2 class="mt-1.5 text-xl font-bold sm:text-2xl text-slate-900">Vitrina de Productos en Inventario</h2>
+          <p class="text-xs text-slate-500">Haz clic en <strong>"💬 Consultar"</strong> para preguntar inmediatamente por cualquier producto en el chat arriba o visita el showroom oficial.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <a href="SMAK-landing-page/index.html" class="inline-flex items-center gap-2 rounded-xl bg-[#087e67] px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#066a58] transition">
+            <span>🏬 Ver en Showroom Web Oficial</span>
+            <span>↗</span>
+          </a>
+          <a href="#messages" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition">
+            <span>↑ Subir al Chat</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- FILTER TABS -->
+      <div class="mt-5 flex flex-wrap gap-2" id="catalog-filters">
+        <button type="button" data-cat="all" class="catalog-filter-btn rounded-xl px-3.5 py-1.5 text-xs font-bold transition bg-[#087e67] text-white shadow-sm">Todos</button>
+        <button type="button" data-cat="Sillas y Bancos" class="catalog-filter-btn rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Sillas y Bancos</button>
+        <button type="button" data-cat="Muebles y Organización" class="catalog-filter-btn rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Muebles y Organización</button>
+        <button type="button" data-cat="Cocina y Baño" class="catalog-filter-btn rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Cocina y Baño</button>
+        <button type="button" data-cat="Escaleras" class="catalog-filter-btn rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Escaleras</button>
+        <button type="button" data-cat="Salud y Cuidado" class="catalog-filter-btn rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Salud y Cuidado</button>
+      </div>
+
+      <!-- PRODUCTS GRID -->
+      <div id="catalog-grid" class="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Injected dynamically by app-chat.js -->
+      </div>
+    </div>
+  </section>
+
+<script type="module" src="app-chat.js?v=5"></script>
 </body>
 </html>
