@@ -472,6 +472,19 @@
     </div>
   </section>
 
-<script type="module" src="app-chat.js?v=5"></script>
+<script>
+  (function() {
+    const s = document.createElement("script");
+    if (window.location.protocol === "file:") {
+      // Carga el bundle para que funcione sin CORS al abrir directamente con doble clic (file://)
+      s.src = "dist/bundle-chat.js?v=5";
+    } else {
+      // Carga el modulo ES6 nativo cuando se sirve por HTTP/HTTPS (servidor local o GitHub Pages)
+      s.type = "module";
+      s.src = "app-chat.js?v=5";
+    }
+    document.body.appendChild(s);
+  })();
+</script>
 </body>
 </html>

@@ -1,0 +1,12 @@
+{
+  "name": "smakbot-demo",
+  "version": "1.0.0",
+  "description": "SMAKBOT - Chatbot comercial omnicanal y panel administrativo",
+  "scripts": {
+    "build": "npx esbuild app-chat.js --bundle --outfile=dist/bundle-chat.js --format=iife && npx esbuild app-admin.js --bundle --outfile=dist/bundle-admin.js --format=iife",
+    "start": "python -m http.server 8000"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
