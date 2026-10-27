@@ -451,8 +451,8 @@ export class BotEngine {
       }
     }
 
-    // 2. Deep-link bracketed SKU: "[SKU: EST-01]", "[EST-01]"
-    const bracketMatch = rawText.match(/\[(?:sku:?\s*)?([a-zA-Z0-9_\-]{2,15})\]/i);
+    // 2. Deep-link bracketed SKU: "[SKU: EST-01]", "[SKM-955-CA-NE]"
+    const bracketMatch = rawText.match(/\[(?:sku:?\s*)?([a-zA-Z0-9_\-xX]{2,35})\]/i);
     if (bracketMatch && bracketMatch[1]) {
       const candidate = bracketMatch[1].trim().toUpperCase();
       const found = products.find(p => p.sku?.toUpperCase() === candidate);
@@ -462,7 +462,7 @@ export class BotEngine {
     }
 
     // 3. Explicit pattern: "SKU XXX", "CODIGO XXX", "ARTICULO XXX"
-    const explicitMatch = rawText.match(/(?:sku|c[oó]digo|codigo|art[ií]culo|articulo|ref|modelo)\s*[:#\-]?\s*([a-zA-Z0-9_\-]{2,15})/i);
+    const explicitMatch = rawText.match(/(?:sku|c[oó]digo|codigo|art[ií]culo|articulo|ref|modelo)\s*[:#\-]?\s*([a-zA-Z0-9_\-xX]{2,35})/i);
     if (explicitMatch && explicitMatch[1]) {
       const candidate = explicitMatch[1].trim().toUpperCase();
       const found = products.find(p => p.sku?.toUpperCase() === candidate);
@@ -470,8 +470,9 @@ export class BotEngine {
     }
 
     // 4. Direct match with registered product SKUs in catalog
+    const cRawUpper = rawText.toUpperCase();
     for (const p of products) {
-      if (p.sku && new RegExp(`\\b${p.sku}\\b`, "i").test(rawText)) {
+      if (p.sku && (cRawUpper.includes(p.sku.toUpperCase()) || new RegExp(`\\b${p.sku.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, "i").test(rawText))) {
         return { sku: p.sku.toUpperCase(), product: p, explicit: false };
       }
     }
@@ -490,16 +491,22 @@ export class BotEngine {
   }
 
   // Check synonym matching
-  matchesSynonym(wordList, synonyms, concept) {
+  matchesSynonym(wordList, synonyms, concept, cleanText = "") {
     const synList = synonyms[concept] || [];
     const targetTerms = [concept, ...synList].map(clean);
-    return wordList.some(word => targetTerms.some(term => {
-      if (term === word) return true;
-      if (word.length >= 4 && term.length >= 4) {
-        return word.includes(term) || term.includes(word);
+    return targetTerms.some(term => {
+      if (term.includes(" ")) {
+        return cleanText ? cleanText.includes(term) : false;
       }
-      return false;
-    }));
+      return wordList.some(word => {
+        if (term === word) return true;
+        if (word.length >= 4 && term.length >= 4) {
+          const rootLen = Math.min(word.length, term.length) - 1;
+          return word.slice(0, rootLen) === term.slice(0, rootLen);
+        }
+        return false;
+      });
+    });
   }
 
   // Dimension and measurement intent detection
@@ -519,7 +526,7 @@ export class BotEngine {
     ];
     if (phrases.some(p => cleanText.includes(p))) return true;
 
-    return this.matchesSynonym(tokens, synonyms, "dimensiones");
+    return this.matchesSynonym(tokens, synonyms, "dimensiones", cleanText);
   }
 
   // Detection of Agency Pickup Addresses (Cargo Expreso / Delivery agencies in Honduras)
@@ -578,6 +585,50 @@ export class BotEngine {
     return agencyPhrases.some(p => cleanText.includes(p));
   }
 
+  _getPolicyResponse(cleanText, tokens) {
+    // 1. Roatán / Útila / Islas de la Bahía
+    if (["roatan", "utila", "guanaja", "islas de la bahia", "isla de la bahia", "islas bahia", "ferry", "galaxy wave", "utila dream", "muelle de cabotaje", "cabotaje"].some(t => cleanText.includes(t))) {
+      return `🏝️ **Entregas en Roatán, Útila o Islas de la Bahía:**\nPara Roatán o Útila, solo hacemos envíos con **transferencia previa**.\nUna vez nos hace llegar el comprobante de transferencia bancaria, nosotros enviamos el producto hacia el **muelle de cabotaje de La Ceiba** con la indicación de subir el paquete al ferry que usted diga (Utila Dream, Galaxy Wave, etc.).\n⚠️ **Nota:** No cubrimos el costo del ferry (el flete marítimo corre por cuenta del cliente).`;
+    }
+
+    // 2. Forza u otra paquetería
+    if (["forza", "otra paqueteria", "otras paqueterias", "otra empresa", "otra agencia", "fedex", "dhl", "rapido cargo"].some(t => cleanText.includes(t))) {
+      return `📦 **Transportadora:** No, únicamente realizamos entregas a través de **Cargo Expreso**.`;
+    }
+
+    // 3. Tarjeta de crédito / débito
+    if (["tarjeta", "tarjetas", "visa", "mastercard", "pos", "datafast", "link de pago"].some(t => cleanText.includes(t))) {
+      return `💳 **Forma de Pago con Tarjeta:** No aceptamos pagos con tarjeta, solo pago en efectivo contra entrega y se le paga al operador de Cargo Expreso o por transferencia electrónica previa, pero la transferencia debe confirmarse antes de realizar el envío.`;
+    }
+
+    // 4. Ubicación física / Tienda
+    if ((cleanText.includes("donde") || cleanText.includes("ubicacion") || cleanText.includes("sucursal") || cleanText.includes("tienda fisica") || cleanText.includes("local")) && !cleanText.includes("direccion de entrega") && (cleanText.includes("estan") || cleanText.includes("encuentran") || cleanText.includes("queda") || cleanText.includes("tienda") || cleanText.includes("puerto cortes") || cleanText.includes("local"))) {
+      return `📍 **Ubicación Física:** Nos encontramos ubicados en **Plaza Krisale, Puerto Cortés, Honduras**.\n\n¡Realizamos envíos gratuitos a domicilio a cualquier parte del país vía Cargo Expreso!`;
+    }
+
+    // 5. Costo de envío
+    if (["costo de envio", "cuanto cobran", "cuanto vale el envio", "precio del envio", "cobran envio", "cobran el envio", "el envio es gratis", "flete"].some(t => cleanText.includes(t))) {
+      return `🚚 **Costo de Envío:** ¡El envío es **completamente gratuito** a cualquier parte del país! Solo cancelas el valor del producto al recibirlo en efectivo contra entrega.`;
+    }
+
+    // 6. Garantía
+    if (["garantia", "garantias", "defecto", "desperfecto"].some(t => cleanText.includes(t))) {
+      return `🛡️ **Garantía:** Cuentan con garantía únicamente contra **defectos de fabricación**.`;
+    }
+
+    // 7. ¿Son nuevas?
+    if (["son nuevas", "son nuevos", "muebles nuevos", "productos nuevos", "es nuevo", "usado", "de segunda"].some(t => cleanText.includes(t))) {
+      return `✨ **Condición del Producto:** Sí, todos nuestros productos son **100% nuevos de fábrica** en su caja original sellada.`;
+    }
+
+    // 8. Mejor precio / descuento
+    if (["mejor precio", "descuento", "rebaja", "cuanto es lo menos", "mayoreo", "por mayor"].some(t => cleanText.includes(t))) {
+      return `🏷️ **Mejor Precio:** El precio especial sería equivalente a la cantidad de piezas solicitadas por el cliente. Si necesitas ordenar varias piezas o mayoreo, indícanos cuántas unidades deseas y con gusto te cotizamos.`;
+    }
+
+    return null;
+  }
+
   _getScheduleAndAgencyExplanation() {
     return `🚚 **Información sobre Horarios y Agencias de Cargo Expreso:**\n\n• **Ruta a domicilio:** Las entregas se realizan de Lunes a Viernes de 8:00 AM a 5:00 PM, y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n• **Dependencia de la agencia:** Como las entregas se coordinan con la empresa de transporte (**Cargo Expreso / agencias de delivery en Honduras**), las rutas dependen directamente de su logística diaria. Por esta razón, **no depende de nosotros garantizar un horario específico o día fijo en tiempo y forma** (el motorista siempre te llamará antes de llegar a tu domicilio).\n\n💡 **Recomendación (Retiro en Agencia):** Si necesitas un horario muy específico o no estás seguro de estar en casa, **te sugerimos solicitar el paquete para retiro en una agencia u oficina de Cargo Expreso** en tu ciudad. Tu paquete te esperará en ventanilla para recogerlo a tu conveniencia (ten presente que los sábados también atienden medio día).`;
   }
@@ -621,6 +672,12 @@ export class BotEngine {
     if (this.checkout) {
       const c = this.checkout;
       if (c.step === "name") {
+        const policy = this._getPolicyResponse(cleanText, tokens);
+        if (policy) {
+          return {
+            text: `${policy}\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
+          };
+        }
         if (cleanText.includes("transferencia") || cleanText.includes("transfer") || cleanText.includes("como pago")) {
           return {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nCuentas oficiales (SMAK Honduras S. de R.L.):\n• BAC: 742-108-951 · Ficohsa: 2000-098-432 · Atlántida: 110-045-892\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
@@ -646,6 +703,12 @@ export class BotEngine {
         };
       }
       if (c.step === "quantity") {
+        const policy = this._getPolicyResponse(cleanText, tokens);
+        if (policy) {
+          return {
+            text: `${policy}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+          };
+        }
         if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
           const expl = this._getScheduleAndAgencyExplanation();
           return {
@@ -669,6 +732,12 @@ export class BotEngine {
         };
       }
       if (c.step === "address") {
+        const policy = this._getPolicyResponse(cleanText, tokens);
+        if (policy) {
+          return {
+            text: `${policy}\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
+          };
+        }
         if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
           return {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
@@ -741,6 +810,12 @@ export class BotEngine {
         };
       }
       if (c.step === "phone") {
+        const policy = this._getPolicyResponse(cleanText, tokens);
+        if (policy) {
+          return {
+            text: `${policy}\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega de tu paquete 📞:`
+          };
+        }
         if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
           return {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega de tu paquete 📞:`
@@ -1031,7 +1106,17 @@ export class BotEngine {
       };
     }
 
-    // 7b. SCHEDULES, SPECIFIC HOURS & AGENCY PICKUP INQUIRY (Cargo Expreso constraints)
+    // 7b. BUSINESS POLICIES & FAQS FROM EXCEL (Roatán/Útila, Forza, Tarjeta, Ubicación, Envío Gratis, Garantía, Nuevos, Mejor precio)
+    const policyAns = this._getPolicyResponse(cleanText, tokens);
+    if (policyAns) {
+      const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || products[0];
+      return {
+        text: `${policyAns}\n\n¿Deseas que preparemos tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
+        product: activeProd || null
+      };
+    }
+
+    // 7c. SCHEDULES, SPECIFIC HOURS & AGENCY PICKUP INQUIRY (Cargo Expreso constraints)
     if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
       const expl = this._getScheduleAndAgencyExplanation();
       const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || products[0];

@@ -14,17 +14,17 @@ export class StorageFacade {
 
   static initialize() {
     const data = this.read();
-    // Validate if data has v3 structure with products array and rules
-    const isValidV3 = data && data.tenants && Object.values(data.tenants).every(t => Array.isArray(t.products) && t.products.length >= 6 && Array.isArray(t.rules));
-    if (!isValidV3) {
+    // Validate if data has v4 structure with real products array and rules
+    const isValidV4 = data && data.tenants && Object.values(data.tenants).every(t => Array.isArray(t.products) && t.products.length >= 10 && t.products.some(p => p.sku === "SKM-955-CA-NE"));
+    if (!isValidV4) {
       const tenants = Object.fromEntries(TENANTS.map(t => [t.id, clone(t)]));
       const initialOrders = [
-        { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "EST-01", daysAgo: 0, location: { lat: 14.1025, lng: -87.1950, mapUrl: "https://www.google.com/maps?q=14.1025,-87.1950", address: "Col. Palmira, Tegucigalpa" } },
-        { tenantId: "smak", name: "Carlos Mendoza", address: "Residencial Las Uvas, Comayagüela", phone: "+504 9452-6810", sku: "ESC-02", daysAgo: 1, location: { lat: 14.0480, lng: -87.2180, mapUrl: "https://www.google.com/maps?q=14.0480,-87.2180", address: "Residencial Las Uvas, Comayagüela" } },
-        { tenantId: "smak", name: "Andrea Pineda", address: "Barrio El Centro, San Pedro Sula", phone: "+504 9981-3472", sku: "MESA-04", daysAgo: 2, location: { lat: 15.5030, lng: -88.0260, mapUrl: "https://www.google.com/maps?q=15.5030,-88.0260", address: "Barrio El Centro, San Pedro Sula" } },
-        { tenantId: "smak", name: "Roberto Cálix", address: "Col. El Toronjal, La Ceiba", phone: "+504 9711-4402", sku: "LAMP-05", daysAgo: 3 },
-        { tenantId: "smak", name: "Elena Ramos", address: "Lomas del Guijarro, Tegucigalpa", phone: "+504 8820-9150", sku: "REP-06", daysAgo: 4, location: { lat: 14.0980, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0980,-87.1850", address: "Lomas del Guijarro, Tegucigalpa" } },
-        { tenantId: "smak", name: "David Banegas", address: "Col. Los Álamos, San Pedro Sula", phone: "+504 9500-3321", sku: "CLO-07", daysAgo: 5 },
+        { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "SKM-955-CA-NE", daysAgo: 0, location: { lat: 14.1025, lng: -87.1950, mapUrl: "https://www.google.com/maps?q=14.1025,-87.1950", address: "Col. Palmira, Tegucigalpa" } },
+        { tenantId: "smak", name: "Carlos Mendoza", address: "Residencial Las Uvas, Comayagüela", phone: "+504 9452-6810", sku: "SKM-959-CA-NE", daysAgo: 1, location: { lat: 14.0480, lng: -87.2180, mapUrl: "https://www.google.com/maps?q=14.0480,-87.2180", address: "Residencial Las Uvas, Comayagüela" } },
+        { tenantId: "smak", name: "Andrea Pineda", address: "Barrio El Centro, San Pedro Sula", phone: "+504 9981-3472", sku: "ZGS-946-120x30x180", daysAgo: 2, location: { lat: 15.5030, lng: -88.0260, mapUrl: "https://www.google.com/maps?q=15.5030,-88.0260", address: "Barrio El Centro, San Pedro Sula" } },
+        { tenantId: "smak", name: "Roberto Cálix", address: "Col. El Toronjal, La Ceiba", phone: "+504 9711-4402", sku: "SKM-953-NE-MP", daysAgo: 3 },
+        { tenantId: "smak", name: "Elena Ramos", address: "Lomas del Guijarro, Tegucigalpa", phone: "+504 8820-9150", sku: "ZGM-032-NENE", daysAgo: 4, location: { lat: 14.0980, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0980,-87.1850", address: "Lomas del Guijarro, Tegucigalpa" } },
+        { tenantId: "smak", name: "David Banegas", address: "Col. Los Álamos, San Pedro Sula", phone: "+504 9500-3321", sku: "ZGS-943-120x60x75", daysAgo: 5 },
         { tenantId: "calzado", name: "José David Rivera", address: "Col. Trejo, San Pedro Sula", phone: "+504 9630-1175", sku: "TEN-01", daysAgo: 0, location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
         { tenantId: "calzado", name: "Sofía Castellanos", address: "Barrio Río de Piedras, San Pedro Sula", phone: "+504 9714-8206", sku: "BOT-02", daysAgo: 1 },
         { tenantId: "calzado", name: "Marlon Aguilar", address: "Col. Kennedy, Tegucigalpa", phone: "+504 9460-7719", sku: "MOC-04", daysAgo: 2, location: { lat: 14.0580, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0580,-87.1850", address: "Col. Kennedy, Tegucigalpa" } },
@@ -38,8 +38,8 @@ export class StorageFacade {
         const prod = tenant?.products?.find(p => p.sku === sample.sku) || tenant?.products?.[0];
         const prefix = sample.tenantId === "calzado" ? "CALZ-ORD" : "SMAK-ORD";
         const orderNum = `${prefix}-${String(1001 + idx).padStart(4, "0")}`;
-        const quantity = sample.sku === "EST-01" ? 2 : 1;
-        const quantityLabel = sample.sku === "EST-01" ? "2 estantes" : (sample.sku === "ESC-02" ? "1 escritorio" : "1 unidad");
+        const quantity = sample.sku === "SKM-955-CA-NE" ? 1 : (sample.sku === "SKM-953-NE-MP" ? 4 : 1);
+        const quantityLabel = sample.sku === "SKM-953-NE-MP" ? "4 taburetes" : (sample.sku === "SKM-955-CA-NE" ? "1 silla gamer" : "1 unidad");
         const requiresInvoice = idx === 0 || idx === 3;
         const trackingNumber = idx === 1 ? "CAEX-HN-948210" : (idx > 2 ? "CAEX-HN-881290" : null);
         const status = idx === 1 ? "en_camino" : (idx > 2 ? "entregado" : "pendiente");
@@ -519,8 +519,8 @@ export class StorageFacade {
   static seedDemoOrders() {
     const state = this.getState();
     const extraSamples = [
-      { tenantId: "smak", name: "Karla Barahona", address: "Col. Trejo, San Pedro Sula", phone: "+504 9812-4011", sku: "EST-01", quantity: 2, quantityLabel: "2 estantes", requiresInvoice: true, rtn: "08011989004512", businessName: "Barahona Design Studio", location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
-      { tenantId: "smak", name: "Javier Moncada", address: "Res. El Molinón, Tegucigalpa", phone: "+504 9740-8822", sku: "ESC-02", quantity: 1, quantityLabel: "1 escritorio", requiresInvoice: false, trackingNumber: "CAEX-HN-948210", location: { lat: 14.0900, lng: -87.1800, mapUrl: "https://www.google.com/maps?q=14.0900,-87.1800", address: "Res. El Molinón, Tegucigalpa" } },
+      { tenantId: "smak", name: "Karla Barahona", address: "Col. Trejo, San Pedro Sula", phone: "+504 9812-4011", sku: "SKM-955-CA-NE", quantity: 2, quantityLabel: "2 sillas gamer", requiresInvoice: true, rtn: "08011989004512", businessName: "Barahona Design Studio", location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
+      { tenantId: "smak", name: "Javier Moncada", address: "Res. El Molinón, Tegucigalpa", phone: "+504 9740-8822", sku: "ZGS-943-120x60x75", quantity: 1, quantityLabel: "1 escritorio", requiresInvoice: false, trackingNumber: "CAEX-HN-948210", location: { lat: 14.0900, lng: -87.1800, mapUrl: "https://www.google.com/maps?q=14.0900,-87.1800", address: "Res. El Molinón, Tegucigalpa" } },
       { tenantId: "calzado", name: "Lorena Varela", address: "Barrio Medina, San Pedro Sula", phone: "+504 9600-5541", sku: "TEN-01", quantity: 1, quantityLabel: "1 par", requiresInvoice: false, location: { lat: 15.5010, lng: -88.0250, mapUrl: "https://www.google.com/maps?q=15.5010,-88.0250", address: "Barrio Medina, San Pedro Sula" } }
     ];
     let count = 0;

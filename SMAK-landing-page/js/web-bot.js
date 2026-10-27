@@ -134,6 +134,50 @@
       return agencyPhrases.some(p => cleanText.includes(p));
     }
 
+    _getPolicyResponse(cleanText, tokens) {
+      // 1. Roatán / Útila / Islas de la Bahía
+      if (["roatan", "utila", "guanaja", "islas de la bahia", "isla de la bahia", "islas bahia", "ferry", "galaxy wave", "utila dream", "muelle de cabotaje", "cabotaje"].some(t => cleanText.includes(t))) {
+        return `🏝️ **Entregas en Roatán, Útila o Islas de la Bahía:**\nPara Roatán o Útila, solo hacemos envíos con **transferencia previa**.\nUna vez nos hace llegar el comprobante de transferencia bancaria, nosotros enviamos el producto hacia el **muelle de cabotaje de La Ceiba** con la indicación de subir el paquete al ferry que usted diga (Utila Dream, Galaxy Wave, etc.).\n⚠️ **Nota:** No cubrimos el costo del ferry (corre por cuenta del cliente).`;
+      }
+
+      // 2. Forza u otra paquetería
+      if (["forza", "otra paqueteria", "otras paqueterias", "otra empresa", "otra agencia", "fedex", "dhl", "rapido cargo"].some(t => cleanText.includes(t))) {
+        return `📦 **Transportadora:** No, únicamente realizamos entregas a través de **Cargo Expreso**.`;
+      }
+
+      // 3. Tarjeta de crédito / débito
+      if (["tarjeta", "tarjetas", "visa", "mastercard", "pos", "datafast", "link de pago"].some(t => cleanText.includes(t))) {
+        return `💳 **Forma de Pago con Tarjeta:** No aceptamos pagos con tarjeta, solo pago en efectivo contra entrega y se le paga al operador de Cargo Expreso o por transferencia electrónica previa, pero la transferencia debe confirmarse antes de realizar el envío.`;
+      }
+
+      // 4. Ubicación física / Tienda
+      if ((cleanText.includes("donde") || cleanText.includes("ubicacion") || cleanText.includes("sucursal") || cleanText.includes("tienda fisica") || cleanText.includes("local")) && !cleanText.includes("direccion de entrega") && (cleanText.includes("estan") || cleanText.includes("encuentran") || cleanText.includes("queda") || cleanText.includes("tienda") || cleanText.includes("puerto cortes") || cleanText.includes("local"))) {
+        return `📍 **Ubicación Física:** Nos encontramos ubicados en **Plaza Krisale, Puerto Cortés, Honduras**.\n\n¡Realizamos envíos gratuitos a domicilio a cualquier parte del país vía Cargo Expreso!`;
+      }
+
+      // 5. Costo de envío
+      if (["costo de envio", "cuanto cobran", "cuanto vale el envio", "precio del envio", "cobran envio", "cobran el envio", "el envio es gratis", "flete"].some(t => cleanText.includes(t))) {
+        return `🚚 **Costo de Envío:** ¡El envío es **completamente gratuito** a cualquier parte del país! Solo cancelas el valor del producto al recibirlo en efectivo contra entrega.`;
+      }
+
+      // 6. Garantía
+      if (["garantia", "garantias", "defecto", "desperfecto"].some(t => cleanText.includes(t))) {
+        return `🛡️ **Garantía:** Cuentan con garantía únicamente contra **defectos de fabricación**.`;
+      }
+
+      // 7. ¿Son nuevas?
+      if (["son nuevas", "son nuevos", "muebles nuevos", "productos nuevos", "es nuevo", "usado", "de segunda"].some(t => cleanText.includes(t))) {
+        return `✨ **Condición del Producto:** Sí, todos nuestros productos son **100% nuevos de fábrica** en su caja original sellada.`;
+      }
+
+      // 8. Mejor precio / descuento
+      if (["mejor precio", "descuento", "rebaja", "cuanto es lo menos", "mayoreo", "por mayor"].some(t => cleanText.includes(t))) {
+        return `🏷️ **Mejor Precio:** El precio especial sería equivalente a la cantidad de piezas solicitadas por el cliente. Si necesitas ordenar varias piezas o mayoreo, indícanos cuántas unidades deseas y con gusto te cotizamos.`;
+      }
+
+      return null;
+    }
+
     _getScheduleAndAgencyExplanation() {
       return `🚚 **Información sobre Horarios y Agencias de Cargo Expreso:**\n\n• **Ruta a domicilio:** Las entregas se realizan de Lunes a Viernes de 8:00 AM a 5:00 PM, y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n• **Dependencia de la agencia:** Como las entregas se coordinan con la empresa de transporte (**Cargo Expreso / agencias de delivery en Honduras**), las rutas dependen directamente de su logística diaria. Por esta razón, **no depende de nosotros garantizar un horario específico o día fijo en tiempo y forma** (el motorista siempre te llamará antes de llegar a tu domicilio).\n\n💡 **Recomendación (Retiro en Agencia):** Si necesitas un horario muy específico o no estás seguro de estar en casa, **te sugerimos solicitar el paquete para retiro en una agencia u oficina de Cargo Expreso** en tu ciudad. Tu paquete te esperará en ventanilla para recogerlo a tu conveniencia (ten presente que los sábados también atienden medio día).`;
     }
@@ -147,7 +191,7 @@
       // Generate order number connecting to existing state or sequential
       let orderNumber = "SMAK-ORD-1001";
       try {
-        const saved = localStorage.getItem("smakbot-demo-v3");
+        const saved = localStorage.getItem("smakbot-demo-v4");
         if (saved) {
           const state = JSON.parse(saved);
           const count = Array.isArray(state.orders) ? state.orders.length : 0;
@@ -257,7 +301,7 @@
 
       // Sincronizar en localStorage bajo smakbot-demo-v3 para que aparezca en el panel admin.html
       try {
-        const storageKey = "smakbot-demo-v3";
+        const storageKey = "smakbot-demo-v4";
         const saved = localStorage.getItem(storageKey);
         if (saved) {
           const state = JSON.parse(saved);
@@ -516,6 +560,10 @@
       const q = clean(query);
       if (!q) return null;
 
+      // 0. Coincidencia por SKU exacto o contenido
+      const skuFound = allProducts.find(p => p.sku && (q.includes(clean(p.sku)) || clean(p.sku).includes(q)));
+      if (skuFound) return skuFound;
+
       // 1. Coincidencia exacta o contenida por nombre
       let found = allProducts.find(p => clean(p.name).includes(q) || q.includes(clean(p.name)));
       if (found) return found;
@@ -545,6 +593,12 @@
       if (this.checkout) {
         const c = this.checkout;
         if (c.step === "name") {
+          const policy = this._getPolicyResponse(cleanText, tokens);
+          if (policy) {
+            return {
+              text: `${policy}\n\nPara preparar tu orden, ¿a qué nombre registramos tu pedido?`
+            };
+          }
           if (cleanText.includes("transferencia") || cleanText.includes("transfer") || cleanText.includes("como pago")) {
             return {
               text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nCuentas oficiales (SMAK Honduras S. de R.L.):\n• BAC: 742-108-951 · Ficohsa: 2000-098-432 · Atlántida: 110-045-892\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
@@ -570,6 +624,12 @@
           };
         }
         if (c.step === "quantity") {
+          const policy = this._getPolicyResponse(cleanText, tokens);
+          if (policy) {
+            return {
+              text: `${policy}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+            };
+          }
           if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
             const expl = this._getScheduleAndAgencyExplanation();
             return {
@@ -593,6 +653,12 @@
           };
         }
         if (c.step === "address") {
+          const policy = this._getPolicyResponse(cleanText, tokens);
+          if (policy) {
+            return {
+              text: `${policy}\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
+            };
+          }
           if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
             return {
               text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
@@ -645,6 +711,12 @@
           };
         }
         if (c.step === "phone") {
+          const policy = this._getPolicyResponse(cleanText, tokens);
+          if (policy) {
+            return {
+              text: `${policy}\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
+            };
+          }
           if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
             return {
               text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nPara continuar, compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
@@ -748,7 +820,7 @@
       const matchedCode = rawText.match(trackingRegex);
       if (matchedCode || ((tokens.some(t => ["rastreo", "guia", "tracking", "paquete"].includes(t)) || cleanText.includes("mi pedido")) && (cleanText.includes("donde") || cleanText.includes("estado") || cleanText.includes("numero")))) {
         try {
-          const saved = localStorage.getItem("smakbot-demo-v3");
+          const saved = localStorage.getItem("smakbot-demo-v4");
           if (saved) {
             const state = JSON.parse(saved);
             const orders = Array.isArray(state.orders) ? state.orders : [];
@@ -778,6 +850,16 @@
     }
 
     _getGeneralAnswer(rawText, cleanText, tokens) {
+      // 1c. Políticas de Negocio y FAQs de SMAK (Roatán, Forza, Tarjeta, Ubicación, Envío Gratis, Garantía, Nuevos, Mejor precio)
+      const policy = this._getPolicyResponse(cleanText, tokens);
+      if (policy) {
+        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || (window.SMAK_PRODUCTS && window.SMAK_PRODUCTS[0]);
+        return {
+          text: `${policy}\n\n¿Deseas realizar tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
+          product: activeProd || null
+        };
+      }
+
       // 2. Intención de Compra / Iniciar Checkout
       if (tokens.some(t => ["comprar", "ordenar", "pedido", "pedir"].includes(t)) || cleanText.includes("hacer pedido")) {
         const prod = this.findProduct(rawText) || this.selectedProduct;

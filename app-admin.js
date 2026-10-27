@@ -524,7 +524,7 @@ function updateSmartLinkGenerator() {
     select.value = currentVal;
   }
 
-  const selectedSku = select.value || products[0]?.sku || "EST-01";
+  const selectedSku = select.value || products[0]?.sku || "SKM-955-CA-NE";
   const phone = "50487331949";
   const text = `Hola, me interesa el producto [SKU: ${selectedSku}]`;
   output.value = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;

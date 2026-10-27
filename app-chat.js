@@ -828,7 +828,7 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
     // SCENARIO 3: DEEP LINK WA.ME WITH SKU IN BRACKETS
     if (text === "__deep_link") {
       thread.replaceChildren();
-      const sampleDeep = "Hola, vi su publicación en Instagram y quiero ordenar [SKU: ESC-02]";
+      const sampleDeep = "Hola, vi su publicación en Instagram y quiero ordenar [SKU: ZGS-943-120x60x75]";
       send(sampleDeep);
       return;
     }

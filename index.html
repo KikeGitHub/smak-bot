@@ -147,7 +147,7 @@
         <button id="attach-audio-btn" type="button" title="Adjuntar archivo de audio (.mp3, .m4a, .mp4, .wav)" class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600 text-base hover:bg-slate-200 transition shadow-sm">📎</button>
         <button id="location-button" type="button" title="Compartir ubicación de entrega (GPS / Maps)" class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600 text-base hover:bg-slate-200 transition shadow-sm">📍</button>
         <button id="audio-button" type="button" title="Grabar nota de voz con micrófono (haz clic para iniciar / detener)" class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-lg hover:bg-slate-200 transition shadow-sm relative">🎙</button>
-        <input id="message" autocomplete="off" placeholder="Escribe un mensaje o prueba: '¿Tienen stock para el SKU EST-01?'" class="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm outline-none ring-emerald-600 transition focus:ring-2 focus:bg-white text-slate-900">
+        <input id="message" autocomplete="off" placeholder="Escribe un mensaje o prueba: '¿Tienen stock para el SKU SKM-955-CA-NE?'" class="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm outline-none ring-emerald-600 transition focus:ring-2 focus:bg-white text-slate-900">
         <button class="rounded-2xl bg-[#087e67] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#066a58] transition shadow-sm">Enviar</button>
       </form>
       <div id="recording-indicator" class="hidden mt-2 items-center justify-between rounded-xl bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs text-rose-800 animate-pulse">
@@ -230,7 +230,7 @@
           <span class="text-base">🔗</span>
           <span>
             <b class="text-blue-950">Cliente envía Link de Facebook</b>
-            <small>URL: facebook.com/share/p/196jarUnqz (SKU EST-01)</small>
+            <small>URL: facebook.com/share/p/196jarUnqz (SKU ZGS-946-120x30x180)</small>
           </span>
         </button>
 
@@ -239,79 +239,115 @@
           <span class="text-base">📲</span>
           <span>
             <b class="text-purple-950">Enlace wa.me con SKU pre-cargado</b>
-            <small>Mensaje automático con [SKU: ESC-02]</small>
+            <small>Mensaje automático con [SKU: ZGS-943-120x60x75]</small>
           </span>
         </button>
 
         <div class="my-1 border-t border-slate-200"></div>
 
-        <!-- 1: Stock para SKU existente con stock -->
-        <button data-scenario="¿Tienen stock para el SKU EST-01?" class="scenario">
+        <!-- 1: Stock para SKU real existente -->
+        <button data-scenario="¿Tienen stock para el SKU SKM-955-CA-NE?" class="scenario border-emerald-200 bg-emerald-50/40 hover:bg-emerald-100">
           <span class="text-base">📦</span>
           <span>
-            <b>Stock disponible por SKU</b>
-            <small>Pregunta: "¿Tienen stock para el SKU EST-01?"</small>
+            <b class="text-emerald-950">Stock disponible por SKU real (232 unid.)</b>
+            <small>Pregunta: "¿Tienen stock para el SKU SKM-955-CA-NE?"</small>
           </span>
         </button>
 
         <!-- 2: Stock para SKU agotado -->
-        <button data-scenario="¿Tienen stock para el SKU SILL-03?" class="scenario">
+        <button data-scenario="¿Tienen stock para el SKU SKM-955-CA-NE-BL?" class="scenario border-rose-200 bg-rose-50/40 hover:bg-rose-100">
           <span class="text-base">⚠️</span>
           <span>
-            <b>Stock agotado (0 unidades)</b>
-            <small>Pregunta: "¿Tienen stock para el SKU SILL-03?"</small>
+            <b class="text-rose-950">Stock agotado (0 unidades)</b>
+            <small>Pregunta: "¿Tienen stock para el SKU SKM-955-CA-NE-BL?"</small>
           </span>
         </button>
 
-        <!-- 3: Stock para SKU inexistente -->
-        <button data-scenario="¿Tienen stock para el SKU XXX?" class="scenario">
-          <span class="text-base">❓</span>
-          <span>
-            <b>SKU no encontrado / inexistente</b>
-            <small>Pregunta: "¿Tienen stock para el SKU XXX?"</small>
-          </span>
-        </button>
-
-        <!-- 4: Ver catálogo general -->
-        <button data-scenario="¿Qué productos tienen en catálogo?" class="scenario">
-          <span class="text-base">📋</span>
-          <span>
-            <b>Ver catálogo completo</b>
-            <small>Lista todos los productos activos y SKUs</small>
-          </span>
-        </button>
-
-        <!-- 5: Prueba de sinónimos -->
-        <button data-scenario="¿Cuánto vale y cuánto aguanta de peso?" class="scenario">
-          <span class="text-base">📚</span>
-          <span>
-            <b>Reconocimiento de sinónimos</b>
-            <small>Usa "cuánto vale" y "cuánto aguanta"</small>
-          </span>
-        </button>
-
-        <!-- 5b: Consulta de Medidas y Dimensiones -->
-        <button data-scenario="¿Cuáles son las dimenciones y medidas del escritorio?" class="scenario border-blue-200 bg-blue-50/60 hover:bg-blue-100">
+        <!-- 3: Medidas y Dimensiones de SKU real -->
+        <button data-scenario="¿Cuáles son las dimenciones y medidas de la estantería ZGS-946-120x30x180?" class="scenario border-blue-200 bg-blue-50/60 hover:bg-blue-100">
           <span class="text-base">📏</span>
           <span>
             <b class="text-blue-950 flex items-center gap-1.5">
               <span>Medidas y dimensiones</span>
-              <span class="rounded bg-blue-700 text-white text-[9px] px-1.5 py-0.2 font-bold uppercase">Mejorado</span>
+              <span class="rounded bg-blue-700 text-white text-[9px] px-1.5 py-0.2 font-bold uppercase">Real</span>
             </b>
-            <small>Detecta "dimenciones", medidas y producto</small>
+            <small>Estantería ZGS-946-120x30x180 (120×30×180 cm)</small>
           </span>
         </button>
 
-        <!-- 6: Restricción (Qué NO decir) -->
-        <button data-scenario="¿Me rebajas más el precio?" class="scenario">
-          <span class="text-base">🛡️</span>
+        <!-- 4: Roatán, Útila y Ferry La Ceiba -->
+        <button data-scenario="¿Hacen envíos a Roatán o Útila?" class="scenario border-cyan-200 bg-cyan-50/50 hover:bg-cyan-100">
+          <span class="text-base">🏝️</span>
           <span>
-            <b>Regla restrictiva (Guardrail)</b>
-            <small>Intento de pedir rebaja no autorizada</small>
+            <b class="text-cyan-950 flex items-center gap-1.5">
+              <span>Roatán, Útila e Islas de la Bahía</span>
+              <span class="rounded bg-cyan-700 text-white text-[9px] px-1.5 py-0.2 font-bold uppercase">Política</span>
+            </b>
+            <small>Muelle La Ceiba + Ferry Utila Dream/Galaxy Wave</small>
           </span>
         </button>
 
-        <!-- 7: Cierre de compra -->
+        <!-- 5: Forza u otra paquetería -->
+        <button data-scenario="¿Hacen envíos por FORZA u otra Paquetería?" class="scenario border-amber-200 bg-amber-50/50 hover:bg-amber-100">
+          <span class="text-base">🚚</span>
+          <span>
+            <b class="text-amber-950 flex items-center gap-1.5">
+              <span>¿Envíos por Forza u otra empresa?</span>
+              <span class="rounded bg-amber-700 text-white text-[9px] px-1.5 py-0.2 font-bold uppercase">Política</span>
+            </b>
+            <small>Exclusividad con Cargo Expreso</small>
+          </span>
+        </button>
+
+        <!-- 6: Ubicación física -->
+        <button data-scenario="¿Dónde se encuentran ubicados? ¿Tienen tienda física?" class="scenario border-indigo-200 bg-indigo-50/40 hover:bg-indigo-100">
+          <span class="text-base">📍</span>
+          <span>
+            <b class="text-indigo-950 flex items-center gap-1.5">
+              <span>¿Dónde están ubicados?</span>
+              <span class="rounded bg-indigo-700 text-white text-[9px] px-1.5 py-0.2 font-bold uppercase">Tienda</span>
+            </b>
+            <small>Plaza Krisale, Puerto Cortés, Honduras</small>
+          </span>
+        </button>
+
+        <!-- 7: Pago con tarjeta -->
+        <button data-scenario="¿Puedo pagar con tarjeta de crédito?" class="scenario border-slate-200 bg-slate-50/50 hover:bg-slate-100">
+          <span class="text-base">💳</span>
+          <span>
+            <b class="text-slate-900">¿Aceptan pago con tarjeta?</b>
+            <small>Solo efectivo contra entrega o transferencia previa</small>
+          </span>
+        </button>
+
+        <!-- 8: ¿Son nuevas y garantía? -->
+        <button data-scenario="¿Los productos son nuevos y tienen garantía?" class="scenario border-slate-200 bg-slate-50/50 hover:bg-slate-100">
+          <span class="text-base">✨</span>
+          <span>
+            <b class="text-slate-900">¿Son nuevos y tienen garantía?</b>
+            <small>100% nuevos de fábrica + defectos de fabricación</small>
+          </span>
+        </button>
+
+        <!-- 9: Costo de envío gratis -->
+        <button data-scenario="¿Cuánto cuesta el envío a mi domicilio?" class="scenario border-emerald-200 bg-emerald-50/40 hover:bg-emerald-100">
+          <span class="text-base">🆓</span>
+          <span>
+            <b class="text-emerald-950">Costo de envío</b>
+            <small>¡Envío completamente gratuito a todo el país!</small>
+          </span>
+        </button>
+
+        <!-- 10: Ver catálogo general -->
+        <button data-scenario="¿Qué productos tienen en catálogo?" class="scenario">
+          <span class="text-base">📋</span>
+          <span>
+            <b>Ver catálogo completo (26 SKUs activos)</b>
+            <small>Lista los productos reales y códigos de Hoja2</small>
+          </span>
+        </button>
+
+        <!-- 11: Cierre de compra -->
         <button data-scenario="__checkout" class="scenario">
           <span class="text-base">✓</span>
           <span>
