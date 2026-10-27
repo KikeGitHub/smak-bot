@@ -24,3 +24,7 @@ node_modules/
 # Environment variables & local files
 .env
 .env.local
+
+# Scratch / temporary test files
+scratch/
+

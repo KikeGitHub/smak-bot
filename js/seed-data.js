@@ -1,4 +1,4 @@
-export const STORAGE_KEY = "smakbot-demo-v4";
+export const STORAGE_KEY = "smakbot-demo-v5";
 
 export const TENANTS = [
   {
@@ -971,8 +971,16 @@ export const TENANTS = [
       asesor: ["humano", "persona", "operador", "atencion al cliente", "vendedor", "agente", "ejecutivo", "alguien real"],
       garantia: ["garantía", "seguro", "defecto", "falla", "cobertura", "reclamo", "garantizado"],
       horario: ["horarios", "a que hora abren", "cuando atienden", "atencion", "horario de atencion", "abierto"],
-      ubicacion: ["donde estan", "direccion", "sucursal", "local", "tienda", "ubicacion", "plaza", "mapa"],
-      factura: ["facturacion", "rtn", "cai", "fiscal", "comprobante", "recibo"]
+      factura: ["facturacion", "rtn", "cai", "fiscal", "comprobante", "recibo"],
+      colores: [
+        "color", "colores", "tono", "tonos", "acabado", "acabados", "presentacion", "presentaciones",
+        "en que color viene", "en que colores viene", "que colores hay", "que colores tienen",
+        "otros colores", "mas colores", "otro color", "blanco", "negro", "cafe", "gris", "rosa", "marron", "inox", "madera"
+      ],
+      materiales: [
+        "material", "materiales", "de que material es", "de que esta hecho", "armado", "armada",
+        "desarmado", "desarmada", "herramientas", "llaves", "tornillos", "manual", "facil de armar", "viene armado", "viene armada"
+      ]
     },
     campaigns: [
       {

@@ -14,9 +14,9 @@ export class StorageFacade {
 
   static initialize() {
     const data = this.read();
-    // Validate if data has v4 structure with real products array and rules
-    const isValidV4 = data && data.tenants && Object.values(data.tenants).every(t => Array.isArray(t.products) && t.products.length >= 10 && t.products.some(p => p.sku === "SKM-955-CA-NE"));
-    if (!isValidV4) {
+    // Validate if data has v5 structure with real products array, rules, and colors synonyms
+    const isValidV5 = data && data.tenants && Object.values(data.tenants).every(t => Array.isArray(t.products) && t.products.length >= 10 && t.products.some(p => p.sku === "SKM-955-CA-NE") && t.synonyms && t.synonyms.colores);
+    if (!isValidV5) {
       const tenants = Object.fromEntries(TENANTS.map(t => [t.id, clone(t)]));
       const initialOrders = [
         { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "SKM-955-CA-NE", daysAgo: 0, location: { lat: 14.1025, lng: -87.1950, mapUrl: "https://www.google.com/maps?q=14.1025,-87.1950", address: "Col. Palmira, Tegucigalpa" } },

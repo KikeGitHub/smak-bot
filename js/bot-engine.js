@@ -479,10 +479,14 @@ export class BotEngine {
 
     // 5. Match with product name keywords
     const cleanMsg = clean(rawText);
+    const GENERIC_ATTR_WORDS = new Set(['negro', 'negra', 'blanco', 'blanca', 'cafe', 'marron', 'gris', 'rosa', 'rojo', 'roja', 'madera', 'metal', 'hierro', 'acero', 'precio', 'medidas', 'colores', 'tamano', 'fotos']);
     for (const p of products) {
       const pClean = clean(p.name);
-      const keywords = (p.keywords || []).map(clean);
-      if (cleanMsg.includes(pClean) || keywords.some(k => k.length > 2 && cleanMsg.includes(k))) {
+      if (pClean && (cleanMsg.includes(pClean) || matchPhrase(cleanMsg, tokenize(cleanMsg), pClean))) {
+        return { sku: p.sku?.toUpperCase() || "", product: p, explicit: false };
+      }
+      const keywords = (p.keywords || []).map(clean).filter(k => !GENERIC_ATTR_WORDS.has(k) && k.length > 2);
+      if (keywords.some(k => cleanMsg.includes(k))) {
         return { sku: p.sku?.toUpperCase() || "", product: p, explicit: false };
       }
     }
@@ -507,6 +511,238 @@ export class BotEngine {
         return false;
       });
     });
+  }
+
+  // Colors intent detection
+  _isColorIntent(cleanText, tokens, synonyms = {}) {
+    const directWords = ["color", "colores", "tono", "tonos", "acabado", "acabados", "presentacion", "presentaciones"];
+    if (tokens.some(t => directWords.includes(t))) return true;
+
+    const phrases = [
+      "que colores hay", "que colores tienen", "en que colores viene", "en que color viene",
+      "que color viene", "de que color es", "que color es", "colores disponibles",
+      "otros colores", "mas colores", "otro color", "que tonos hay", "cuales colores hay",
+      "hay otros colores", "tienen mas colores", "que colores manejan", "tienen en color",
+      "viene en color", "que color tiene", "tienen colores"
+    ];
+    if (phrases.some(p => cleanText.includes(p))) return true;
+
+    // Specific color inquiry check (e.g. "tienen en blanco?", "hay en negro?", "la tienen rosa?")
+    const colorNames = ["blanco", "blanca", "negro", "negra", "marron", "cafe", "gris", "rosa", "rosado", "rojo", "roja", "azul", "verde", "amarillo", "dorado", "plateado", "inox", "madera"];
+    const hasColorWord = tokens.some(t => colorNames.includes(t));
+    if (hasColorWord) {
+      const colorQueryTriggers = ["tienen", "hay", "viene", "la tienen", "lo tienen", "la hay", "lo hay", "color", "tono", "en", "acabado", "busco", "quiero"];
+      if (colorQueryTriggers.some(w => cleanText.includes(w)) || tokens.length <= 3) {
+        return true;
+      }
+    }
+
+    return this.matchesSynonym(tokens, synonyms, "colores", cleanText);
+  }
+
+  _handleColorQuery(rawText, cleanText, tokens, currentProduct, allProducts = []) {
+    const colorNames = [
+      { key: "blanco", forms: ["blanco", "blanca", "white"] },
+      { key: "negro", forms: ["negro", "negra", "black"] },
+      { key: "cafe", forms: ["cafe", "cafes", "marron", "marrones", "marrón", "brown"] },
+      { key: "gris", forms: ["gris", "grises", "grey", "gray"] },
+      { key: "rosa", forms: ["rosa", "rosado", "rosada", "pink"] },
+      { key: "rojo", forms: ["rojo", "roja", "red"] },
+      { key: "azul", forms: ["azul", "azules", "blue"] },
+      { key: "verde", forms: ["verde", "verdes", "green"] },
+      { key: "amarillo", forms: ["amarillo", "amarilla", "yellow"] },
+      { key: "dorado", forms: ["dorado", "dorada", "oro", "gold"] },
+      { key: "plateado", forms: ["plateado", "plateada", "plata", "silver"] },
+      { key: "inox", forms: ["inox", "inoxidable", "acero"] },
+      { key: "madera", forms: ["madera", "pino", "natural", "wood"] }
+    ];
+
+    const detectedColors = colorNames.filter(c => c.forms.some(f => cleanText.includes(f)));
+
+    if (currentProduct) {
+      const prodColorsClean = clean(currentProduct.colors || "");
+      const isAvailable = (currentProduct.stock > 0) || Boolean(currentProduct.inStock);
+
+      if (detectedColors.length > 0) {
+        const matchesCurrent = detectedColors.some(c => c.forms.some(f => prodColorsClean.includes(f)));
+
+        if (matchesCurrent) {
+          return {
+            text: `🎨 **¡Sí, disponible!**\n\nEl producto **${currentProduct.name}** (SKU: ${currentProduct.sku}) cuenta en nuestro catálogo con el acabado oficial en: **${currentProduct.colors}**.\n\n• 🏷️ **Precio:** L.${Number(currentProduct.salePrice || currentProduct.price).toLocaleString("es-HN")}\n• 📏 **Medidas:** ${currentProduct.dimensions || "Estándar"}\n• 🚚 **Envío:** ¡Totalmente GRATIS a todo el país vía Cargo Expreso!\n• 💵 **Pago:** En efectivo contra entrega al recibir en tu puerta.\n\n¿Deseas que preparemos tu pedido o tienes alguna otra duda?`,
+            product: currentProduct,
+            images: currentProduct.images?.slice(0, 2) || []
+          };
+        } else {
+          // Check sibling / alternative product with the requested color
+          const targetColorKey = detectedColors[0].key;
+          const altProduct = allProducts.find(p => p.sku !== currentProduct.sku && clean(p.colors || "").includes(targetColorKey));
+
+          let altText = "";
+          if (altProduct) {
+            altText = `\n\n💡 **Variante disponible en ese color:** Contamos con **${altProduct.name}** (SKU: ${altProduct.sku}) que viene en acabado **${altProduct.colors}** a precio especial de **L.${Number(altProduct.salePrice || altProduct.price).toLocaleString("es-HN")}**.`;
+          }
+
+          const askedLabel = detectedColors.map(c => c.key).join(" / ");
+          return {
+            text: `🎨 Para el modelo **${currentProduct.name}** (SKU: ${currentProduct.sku}), el acabado registrado en fábrica es únicamente: **${currentProduct.colors || "Negro"}** (no viene en ${askedLabel}).${altText}\n\nSi necesitas un modelo o color personalizado, puedo comunicarte con un ejecutivo comercial.`,
+            product: currentProduct
+          };
+        }
+      }
+
+      // General color query for current product
+      return {
+        text: `🎨 **Colores disponibles para ${currentProduct.name} (SKU: ${currentProduct.sku}):**\n\nEn nuestro catálogo de fábrica, este modelo viene en acabado oficial: **${currentProduct.colors || "Negro"}**.\n\n• 🏷️ **Precio:** L.${Number(currentProduct.salePrice || currentProduct.price).toLocaleString("es-HN")}\n• 📏 **Dimensiones:** ${currentProduct.dimensions || "Estándar"}\n• 📦 **Disponibilidad:** ${isAvailable ? `✅ ¡${currentProduct.stock || "Unidades"} en stock!` : "⚠️ Agotado"}\n\n¿Deseas conocer las medidas, fotografías reales o preparar tu pedido?`,
+        product: currentProduct,
+        images: currentProduct.images?.slice(0, 2) || []
+      };
+    }
+
+    // No product active: check if category mentioned
+    const categoryKeywords = [
+      { name: "Sillas y Sillones", words: ["silla", "sillas", "sillon", "sillones", "gamer", "oficina"] },
+      { name: "Taburetes y Bancos Tolix", words: ["taburete", "taburetes", "banco", "bancos", "tolix"] },
+      { name: "Muebles, Mesas y Escritorios", words: ["escritorio", "escritorios", "mesa", "mesas", "estante", "estanteria"] },
+      { name: "Duchas y Grifería", words: ["ducha", "duchas", "grifo", "monocomando", "pileta"] },
+      { name: "Escaleras y Carga", words: ["escalera", "escaleras", "carro", "carga"] }
+    ];
+
+    const matchedCat = categoryKeywords.find(c => c.words.some(w => cleanText.includes(w)));
+    if (matchedCat) {
+      const filtered = allProducts.filter(p => {
+        const pClean = clean(`${p.name} ${p.category || ""}`);
+        return matchedCat.words.some(w => pClean.includes(w));
+      });
+      const itemsList = filtered.slice(0, 5).map(p => `• **${p.name}** (${p.sku}): Acabado **${p.colors || "Negro"}**`).join("\n");
+      return {
+        text: `🎨 **Colores disponibles en la línea de ${matchedCat.name}:**\n\n${itemsList}\n\n¿Por qué modelo en específico te gustaría consultar?`
+      };
+    }
+
+    // General catalog color overview
+    const topItems = allProducts.slice(0, 6).map(p => `• **${p.name}** (${p.sku}): **${p.colors || "Negro"}**`).join("\n");
+    return {
+      text: `🎨 **Guía de Colores y Acabados de SMAK Honduras:**\n\nContamos con acabados de alta durabilidad en pintura electrostática, acero inoxidable y maderas tratadas:\n\n${topItems}\n\n¿Por qué producto en específico deseas consultar sus colores?`
+    };
+  }
+
+  // Material & assembly intent detection
+  _isMaterialIntent(cleanText, tokens, synonyms = {}) {
+    const directWords = [
+      "material", "materiales", "madera", "hierro", "acero", "aluminio", "marmol", "nylon",
+      "armado", "armada", "desarmado", "desarmada", "herramientas", "llaves", "tornillos", "manual"
+    ];
+    if (tokens.some(t => directWords.includes(t))) return true;
+
+    const phrases = [
+      "de que material es", "que material es", "de que esta hecho", "de que esta fabricado",
+      "es de madera", "es de metal", "es de plastico", "es de hierro", "es de acero",
+      "viene armado", "viene armada", "viene desarmado", "viene desarmada", "viene en caja",
+      "trae herramientas", "trae llaves", "trae tornillos", "incluye herramientas",
+      "es facil de armar", "como se arma", "requiere armado", "manual de armado"
+    ];
+    if (phrases.some(p => cleanText.includes(p))) return true;
+
+    return this.matchesSynonym(tokens, synonyms, "materiales", cleanText);
+  }
+
+  _handleMaterialQuery(rawText, cleanText, tokens, currentProduct) {
+    if (!currentProduct) {
+      return {
+        text: `📦 **Materiales y Ensamble en SMAK Honduras:**\n\n• Todos nuestros productos son **100% nuevos de paquete** y vienen en su caja sellada con empaque reforzado.\n• **Materiales de alta durabilidad:** Estructuras de acero al carbono, pintura electrostática horneada anticorrosiva, acero inoxidable 304, madera tratada y aleación de aluminio aeroespacial.\n• **Armado sencillo:** Vienen listos para ensamblar con su **manual gráfico paso a paso y kit de herramientas (llaves Allen y tornillos)** incluidas.\n\n¿Por el material de qué producto en específico deseas consultar?`
+      };
+    }
+
+    let matDetail = "Estructura de alta resistencia y acabados prémium.";
+    const pCat = clean(currentProduct.category || "");
+    const pName = clean(currentProduct.name || "");
+    if (pName.includes("gamer") || pName.includes("sillon") || pName.includes("silla") || pCat.includes("silla")) {
+      matDetail = "Estructura interna de acero tubular reforzado, pistón hidráulico clase 4 certificado, tapizado en PU prémium / malla de nylon de alta tenacidad y base reforzada con ruedas silenciosas 360°.";
+    } else if (pName.includes("tolix") || pName.includes("taburete") || pName.includes("banco")) {
+      matDetail = "Acero al carbono forjado con pintura electrostática anticorrosiva horneada, y asiento reforzado (en modelos con madera, pino natural tratado de alta densidad).";
+    } else if (pName.includes("estanteria") || pName.includes("estante") || pName.includes("escritorio") || pName.includes("mesa")) {
+      matDetail = "Bastidor estructural de hierro industrial con pintura electrostática mate y superficie de madera melamínica de alta densidad resistente al agua y peso (o mármol sintético en mesas auxiliares).";
+    } else if (pName.includes("ducha") || pName.includes("pileta") || pName.includes("monocomando")) {
+      matDetail = "Cuerpo en Acero Inoxidable 304 quirúrgico anticorrosivo con acabado negro mate o cepillado inox, cartucho cerámico anti-fugas y boquillas de silicona anticalcárea.";
+    } else if (pName.includes("escalera")) {
+      matDetail = "Aleación de aluminio estructural de grado aeroespacial, bisagras automáticas de bloqueo de seguridad y zapatas de goma antideslizantes.";
+    } else if (pName.includes("ruedas")) {
+      matDetail = "Chasis de acero al carbono plegable con cruceta reforzada, frenos bilaterales de estacionamiento y tapicería en lona Oxford transpirable e impermeable.";
+    }
+
+    return {
+      text: `📦 **Materiales y Ensamble de ${currentProduct.name} (${currentProduct.sku}):**\n\n• **Materiales:** ${matDetail}\n• **Condición:** 100% nuevo de fábrica en caja original sellada.\n• **Armado fácil:** Viene desarmado para protección durante el envío e incluye su **manual gráfico paso a paso** y el **kit completo de herramientas (llaves Allen y tornillería)**. Se arma en pocos minutos sin herramientas adicionales.\n\n¿Te gustaría ordenar el tuyo o consultar alguna otra característica?`,
+      product: currentProduct
+    };
+  }
+
+  // Price intent detection
+  _isPriceIntent(cleanText, tokens, synonyms = {}) {
+    if (["costo de envio", "precio del envio", "cuanto vale el envio", "cobran envio"].some(p => cleanText.includes(p))) {
+      return false; // Handled by shipping policy
+    }
+
+    const phrases = [
+      "cuanto cuesta", "cuanto vale", "a cuanto sale", "a cuanto esta",
+      "cual es el precio", "cual es el valor", "a como sale", "en cuanto sale",
+      "en cuanto me lo dejan", "a como me lo deja", "que precio tiene", "precio de"
+    ];
+    if (phrases.some(p => cleanText.includes(p))) return true;
+
+    const directWords = ["precio", "precios", "costo", "valor"];
+    if (tokens.some(t => directWords.includes(t))) return true;
+
+    return this.matchesSynonym(tokens, synonyms, "precio", cleanText);
+  }
+
+  _handlePriceQuery(rawText, cleanText, tokens, currentProduct) {
+    if (!currentProduct) {
+      return {
+        text: `🏷️ **Precios en SMAK Honduras:**\n\nNuestros precios van desde **L.1,050** en taburetes y organizadores, hasta **L.3,390** en sillones ejecutivos con apoyapiés y columnas de ducha de acero inoxidable.\n\n¡Todos incluyen **envío gratuito** a nivel nacional y pago en efectivo contra entrega!\n\n¿Por el precio de qué artículo en específico deseas consultar?`
+      };
+    }
+
+    const saleP = Number(currentProduct.salePrice || currentProduct.price || 0);
+    const regP = Number(currentProduct.regularPrice || Math.round(saleP * 1.15));
+
+    return {
+      text: `🏷️ **Precio de ${currentProduct.name} (SKU: ${currentProduct.sku}):**\n\n• **Precio de oferta especial:** **L.${saleP.toLocaleString("es-HN")}** *(Precio regular: L.${regP.toLocaleString("es-HN")})*\n• 🎨 **Color registrado:** **${currentProduct.colors || "Negro"}**\n• 🚚 **Costo de envío:** ¡Completamente **GRATIS** a cualquier parte de Honduras vía Cargo Expreso!\n• 💵 **Forma de pago:** Pagas en efectivo **contra entrega** al recibir en tu puerta (o transferencia bancaria previa).\n\n¿Deseas que preparemos tu pedido o tienes alguna duda de colores o medidas?`,
+      product: currentProduct
+    };
+  }
+
+  // Weight & durability intent
+  _isWeightIntent(cleanText, tokens, synonyms = {}) {
+    const phrases = [
+      "cuanto peso aguanta", "cuanto peso soporta", "cual es el peso maximo",
+      "peso maximo", "soporte de peso", "que peso aguanta", "que peso soporta",
+      "cuanto aguanta", "cuanto soporta"
+    ];
+    if (phrases.some(p => cleanText.includes(p))) return true;
+
+    const directWords = ["resistencia", "soporta", "aguanta", "kilos", "libras", "resiste"];
+    if (tokens.some(t => directWords.includes(t)) && !cleanText.includes("transferencia")) return true;
+
+    return this.matchesSynonym(tokens, synonyms, "peso", cleanText);
+  }
+
+  _handleWeightQuery(rawText, cleanText, tokens, currentProduct) {
+    if (!currentProduct) {
+      return {
+        text: `💪 Todos nuestros productos de mobiliario y equipamiento cuentan con estándares de alta resistencia para uso comercial y residencial intensivo. ¿Por qué artículo en particular deseas consultar su capacidad?`
+      };
+    }
+    return {
+      text: `💪 **Capacidad y Resistencia de ${currentProduct.name} (${currentProduct.sku}):**\n\n• **Soporte certificado:** **${currentProduct.weightLimit || "150 kg / Uso comercial y residencial de alta resistencia"}**\n• **Estructura:** Diseñada con estándares de máxima durabilidad y estabilidad.\n\n¿Deseas consultar medidas, colores o hacer tu pedido?`,
+      product: currentProduct
+    };
+  }
+
+  // Gratitude detection
+  _isGratitude(cleanText, tokens) {
+    const phrases = ["muchas gracias", "mil gracias", "te lo agradezco", "muy amable", "ok gracias", "vale gracias"];
+    if (phrases.some(p => cleanText.includes(p))) return true;
+    return tokens.includes("gracias") && tokens.length <= 4;
   }
 
   // Dimension and measurement intent detection
@@ -689,6 +925,24 @@ export class BotEngine {
             text: `${expl}\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
           };
         }
+        if (this._isColorIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `🎨 **Colores de ${p.name} (${p.sku}):** En catálogo oficial viene en acabado: **${p.colors || 'Negro'}**.\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
+          };
+        }
+        if (this._isPriceIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `🏷️ **Precio de ${p.name} (${p.sku}):** **L.${Number(p.salePrice).toLocaleString("es-HN")}** con envío gratuito.\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
+          };
+        }
+        if (this._isMaterialIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `📦 **Materiales y Ensamble de ${p.name}:** 100% nuevo de fábrica en caja sellada con manual gráfico y herramientas de armado incluidas.\n\nPara preparar tu orden, ¿a qué nombre registramos el pedido?`
+          };
+        }
         if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
           const p = c.product;
           return {
@@ -713,6 +967,24 @@ export class BotEngine {
           const expl = this._getScheduleAndAgencyExplanation();
           return {
             text: `${expl}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+          };
+        }
+        if (this._isColorIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `🎨 **Colores de ${p.name} (${p.sku}):** En catálogo oficial viene en acabado: **${p.colors || 'Negro'}**.\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+          };
+        }
+        if (this._isPriceIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `🏷️ **Precio de ${p.name} (${p.sku}):** **L.${Number(p.salePrice).toLocaleString("es-HN")}** con envío gratuito.\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+          };
+        }
+        if (this._isMaterialIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `📦 **Materiales y Ensamble de ${p.name}:** 100% nuevo de fábrica en caja sellada con manual gráfico y herramientas de armado incluidas.\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
           };
         }
         if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
@@ -741,6 +1013,24 @@ export class BotEngine {
         if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
           return {
             text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
+          };
+        }
+        if (this._isColorIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `🎨 **Colores de ${p.name} (${p.sku}):** En catálogo oficial viene en acabado: **${p.colors || 'Negro'}**.\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
+          };
+        }
+        if (this._isPriceIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `🏷️ **Precio de ${p.name} (${p.sku}):** **L.${Number(p.salePrice).toLocaleString("es-HN")}** con envío gratuito.\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
+          };
+        }
+        if (this._isMaterialIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `📦 **Materiales y Ensamble de ${p.name}:** 100% nuevo de fábrica en caja sellada con manual gráfico y herramientas de armado incluidas.\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP) o envía tu ubicación GPS 📍:`
           };
         }
         if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
@@ -825,6 +1115,24 @@ export class BotEngine {
           const expl = this._getScheduleAndAgencyExplanation();
           return {
             text: `${expl}\n\nPara continuar con tu pedido, compártenos tu **número telefónico que reciba llamadas** para coordinar la entrega con Cargo Expreso 📞:`
+          };
+        }
+        if (this._isColorIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `🎨 **Colores de ${p.name} (${p.sku}):** En catálogo oficial viene en acabado: **${p.colors || 'Negro'}**.\n\nContinuemos con tu pedido: compártenos tu **número telefónico que reciba llamadas** para coordinar la entrega con Cargo Expreso 📞:`
+          };
+        }
+        if (this._isPriceIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `🏷️ **Precio de ${p.name} (${p.sku}):** **L.${Number(p.salePrice).toLocaleString("es-HN")}** con envío gratuito.\n\nContinuemos con tu pedido: compártenos tu **número telefónico que reciba llamadas** para coordinar la entrega con Cargo Expreso 📞:`
+          };
+        }
+        if (this._isMaterialIntent(cleanText, tokens, synonyms)) {
+          const p = c.product;
+          return {
+            text: `📦 **Materiales y Ensamble de ${p.name}:** 100% nuevo de fábrica en caja sellada con manual gráfico y herramientas de armado incluidas.\n\nContinuemos con tu pedido: compártenos tu **número telefónico que reciba llamadas** para coordinar la entrega con Cargo Expreso 📞:`
           };
         }
         if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
@@ -1018,10 +1326,15 @@ export class BotEngine {
 
     // 5. Human handover request (using synonyms or defaults)
     const asesorKeywords = ["asesor", "humano", "persona", "operador", "agente", ...(synonyms.asesor || [])].map(clean);
-    if (asesorKeywords.some(k => cleanText.includes(k))) {
+    const wantsHumanDirectly = asesorKeywords.some(k => {
+      if (k.includes(" ")) return cleanText.includes(k);
+      return tokens.includes(k);
+    });
+    if (wantsHumanDirectly) {
       this.human = true;
+      const encodedMsg = encodeURIComponent("Hola SMAK Honduras, deseo hablar con un asesor comercial");
       return {
-        text: "Te transfiero de inmediato con un asesor humano. El asistente automático ha quedado en pausa.",
+        text: `Te transfiero de inmediato con un asesor humano. El asistente automático ha quedado en pausa.\n\n📲 **WhatsApp Directo:**\n[+504 9800-8559](https://wa.me/50498008559?text=${encodedMsg})`,
         human: true
       };
     }
@@ -1049,34 +1362,37 @@ export class BotEngine {
     if (skuExtraction?.product) {
       this.selectedProduct = skuExtraction.product;
     }
-    const currentProduct = this.selectedProduct || (this.checkout ? this.checkout.product : null) || products[0] || null;
+    const currentProduct = (skuExtraction && skuExtraction.product)
+      || this.selectedProduct
+      || (this.checkout ? this.checkout.product : null)
+      || null;
 
-    // 7. SPECIFIC PRODUCT INTENTS (Dimensions/Medidas, Photos, Shipping/Delivery, Price)
+    // 7. MULTI-TURN ATTRIBUTE INTENTS RESOLUTION (Colors, Dimensions, Price, Materials, Weight, Photos, Policies)
 
-    // 7a. DIMENSIONS & MEASUREMENTS QUERY ("medidas", "dimenciones", "dimensiones", "cuánto mide", "mide", etc.)
+    // 7a. COLORS QUERY ("qué colores hay", "en qué colores viene", "la tienen en negro?", etc.)
+    if (this._isColorIntent(cleanText, tokens, synonyms)) {
+      return this._handleColorQuery(rawText, cleanText, tokens, currentProduct, products);
+    }
+
+    // 7b. PRICE QUERY ("cuánto cuesta", "a cuánto sale", "precio", "cuánto vale", etc.)
+    if (this._isPriceIntent(cleanText, tokens, synonyms)) {
+      return this._handlePriceQuery(rawText, cleanText, tokens, currentProduct);
+    }
+
+    // 7c. DIMENSIONS & MEASUREMENTS QUERY ("medidas", "dimenciones", "dimensiones", "cuánto mide", "mide", etc.)
     const isDimensionQuery = this._isDimensionIntent(cleanText, tokens, synonyms);
     if (isDimensionQuery) {
-      const targetProd = (skuExtraction && skuExtraction.product)
-        || products.find(p => {
-             const pName = clean(p.name);
-             const pSku = clean(p.sku);
-             return (pSku && cleanText.includes(pSku)) ||
-                    (p.keywords || []).some(k => k.length > 2 && cleanText.includes(clean(k))) ||
-                    pName.split(/\s+/).filter(w => w.length > 3).some(w => cleanText.includes(w));
-           })
-        || this.selectedProduct
-        || (this.checkout ? this.checkout.product : null);
-
+      const targetProd = currentProduct;
       if (targetProd) {
         this.selectedProduct = targetProd;
-        const isAvailable = targetProd.stock > 0;
+        const isAvailable = (targetProd.stock > 0) || Boolean(targetProd.inStock);
         const isCalzado = tenant.id === "calzado";
         let detailNote = "";
         if (cleanText.includes("drenaje") || cleanText.includes("crenaje") || targetProd.sku === "REG-10") {
           detailNote = "\n• **Drenaje lineal de piso:** 16 × 2.5 cm (acero inoxidable 304, desagüe continuo y sello anti-olores).";
         }
 
-        const dimensionText = `📏 **Medidas y Especificaciones de ${targetProd.name} (SKU: ${targetProd.sku}):**\n\n• **${isCalzado ? 'Tallas disponibles' : 'Dimensiones'}:** **${targetProd.dimensions || 'Estándar según especificación técnica'}**\n• **${isCalzado ? 'Especificación' : 'Capacidad / Soporte'}:** ${targetProd.weightLimit || 'Uso comercial y residencial'}${detailNote}\n• **Precio de oferta:** **L.${Number(targetProd.salePrice).toLocaleString("es-HN")}**\n• **Disponibilidad:** ${isAvailable ? `✅ ¡${targetProd.stock} unidades en stock!` : '⚠️ Agotado temporalmente'}\n\n¿Deseas que preparemos tu pedido contra entrega o prefieres consultar algo más?`;
+        const dimensionText = `📏 **Medidas y Especificaciones de ${targetProd.name} (SKU: ${targetProd.sku}):**\n\n• **${isCalzado ? 'Tallas disponibles' : 'Dimensiones'}:** **${targetProd.dimensions || 'Estándar según especificación técnica'}**\n• **${isCalzado ? 'Especificación' : 'Capacidad / Soporte'}:** ${targetProd.weightLimit || 'Uso comercial y residencial'}${detailNote}\n• 🎨 **Color oficial:** **${targetProd.colors || 'Negro'}**\n• 🏷️ **Precio de oferta:** **L.${Number(targetProd.salePrice || targetProd.price).toLocaleString("es-HN")}**\n• 📦 **Disponibilidad:** ${isAvailable ? `✅ ¡${targetProd.stock || 'Unidades'} en stock!` : '⚠️ Agotado temporalmente'}\n\n¿Deseas que preparemos tu pedido contra entrega o prefieres consultar algo más?`;
 
         return {
           text: dimensionText,
@@ -1092,6 +1408,17 @@ export class BotEngine {
       }
     }
 
+    // 7d. MATERIAL & ASSEMBLY QUERY ("de qué material es", "viene armado", "trae herramientas", etc.)
+    if (this._isMaterialIntent(cleanText, tokens, synonyms)) {
+      return this._handleMaterialQuery(rawText, cleanText, tokens, currentProduct);
+    }
+
+    // 7e. WEIGHT & DURABILITY QUERY ("cuánto peso aguanta", "peso máximo", "soporta", etc.)
+    if (this._isWeightIntent(cleanText, tokens, synonyms)) {
+      return this._handleWeightQuery(rawText, cleanText, tokens, currentProduct);
+    }
+
+    // 7f. PHOTOS QUERY
     const isPhotoQuery = this.matchesSynonym(tokens, synonyms, "fotos") || tokens.some(t => ["foto", "fotos", "imagen", "imagenes", "verlo"].includes(t));
     if (isPhotoQuery && currentProduct) {
       let drainageNote = "";
@@ -1100,95 +1427,75 @@ export class BotEngine {
       }
 
       return {
-        text: `¡Claro! Aquí tienes fotografías reales de **${currentProduct.name}** (${currentProduct.sku}):\n\n🏷️ **Precio:** L.${Number(currentProduct.salePrice).toLocaleString("es-HN")}\n📦 **Medidas / Detalle:** ${currentProduct.dimensions || "Estándar"}${drainageNote}\n\n✅ **Disponibilidad:** ${currentProduct.stock > 0 ? `${currentProduct.stock} unidades en stock` : "Agotado"}. ¿Deseas hacer tu pedido?`,
+        text: `¡Claro! Aquí tienes fotografías reales de **${currentProduct.name}** (${currentProduct.sku}):\n\n🏷️ **Precio:** L.${Number(currentProduct.salePrice || currentProduct.price).toLocaleString("es-HN")}\n📦 **Medidas / Detalle:** ${currentProduct.dimensions || "Estándar"}\n🎨 **Color:** ${currentProduct.colors || "Negro"}${drainageNote}\n\n✅ **Disponibilidad:** ${currentProduct.stock > 0 ? `${currentProduct.stock} unidades en stock` : "Agotado"}. ¿Deseas hacer tu pedido?`,
         product: currentProduct,
         images: currentProduct.images || []
       };
     }
 
-    // 7b. BUSINESS POLICIES & FAQS FROM EXCEL (Roatán/Útila, Forza, Tarjeta, Ubicación, Envío Gratis, Garantía, Nuevos, Mejor precio)
+    // 7g. BUSINESS POLICIES & FAQS FROM EXCEL (Roatán/Útila, Forza, Tarjeta, Ubicación, Envío Gratis, Garantía, Nuevos, Mejor precio)
     const policyAns = this._getPolicyResponse(cleanText, tokens);
     if (policyAns) {
-      const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || products[0];
       return {
-        text: `${policyAns}\n\n¿Deseas que preparemos tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
-        product: activeProd || null
+        text: `${policyAns}\n\n¿Deseas que preparemos tu pedido${currentProduct ? ` para **${currentProduct.name}**` : ''}?`,
+        product: currentProduct || null
       };
     }
 
-    // 7c. SCHEDULES, SPECIFIC HOURS & AGENCY PICKUP INQUIRY (Cargo Expreso constraints)
+    // 7h. SCHEDULES, SPECIFIC HOURS & AGENCY PICKUP INQUIRY (Cargo Expreso constraints)
     if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
       const expl = this._getScheduleAndAgencyExplanation();
-      const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || products[0];
       return {
-        text: `${expl}\n\n¿Deseas que preparemos tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
-        product: activeProd || null
+        text: `${expl}\n\n¿Deseas que preparemos tu pedido${currentProduct ? ` para **${currentProduct.name}**` : ''}?`,
+        product: currentProduct || null
       };
     }
 
+    // 7i. SHIPPING & COURIER INQUIRY
     const isShippingQuery = tokens.some(t => ["envio", "envios", "entrega", "entregas", "tardan", "tarda", "tiempo", "domicilio", "casa", "dias"].includes(t)) ||
       cleanText.includes("venir a dejar") || cleanText.includes("venirme a dejar") || cleanText.includes("cuanto tiempo");
     if (isShippingQuery && currentProduct) {
       return {
-        text: `¡Hola! Con gusto te informamos sobre el **${currentProduct.name} (SKU: ${currentProduct.sku})**:\n\n🚚 **Tiempo de entrega:** Nuestro tiempo estimado de entrega a domicilio es de **1 a 2 días hábiles** a todo el país vía Cargo Expreso (en Tegucigalpa y San Pedro Sula podemos coordinar entrega el mismo día si realizas tu pedido temprano).\n\n💵 **Pago seguro:** Pagas en efectivo **contra entrega** al recibir el paquete en la puerta de tu casa.\n\n✅ Tenemos **${currentProduct.stock} unidades en stock** a precio de oferta **L.${Number(currentProduct.salePrice).toLocaleString("es-HN")}**. ¿A qué ciudad y colonia sería tu entrega?`,
+        text: `¡Hola! Con gusto te informamos sobre el **${currentProduct.name} (SKU: ${currentProduct.sku})**:\n\n🚚 **Tiempo de entrega:** Nuestro tiempo estimado de entrega a domicilio es de **1 a 2 días hábiles** a todo el país vía Cargo Expreso (en Tegucigalpa y San Pedro Sula podemos coordinar entrega el mismo día si realizas tu pedido temprano).\n\n💵 **Pago seguro:** Pagas en efectivo **contra entrega** al recibir el paquete en la puerta de tu casa.\n\n✅ Tenemos **${currentProduct.stock} unidades en stock** a precio de oferta **L.${Number(currentProduct.salePrice || currentProduct.price).toLocaleString("es-HN")}**. ¿A qué ciudad y colonia sería tu entrega?`,
         product: currentProduct,
         images: currentProduct.images?.slice(0, 1) || []
       };
     }
 
-    // 8. PARAMETRIC RULES (Stock & Availability Query)
+    // 8. PARAMETRIC RULES (Stock & Availability Query by SKU)
     const isStockQuery = tokens.some(t => ["stock", "disponible", "disponibilidad", "quedan", "hay", "existencia", "inventario", "tienen"].includes(t)) ||
       this.matchesSynonym(tokens, synonyms, "stock");
 
-    if ((skuExtraction || isStockQuery) && !isDimensionQuery) {
-      const parametricRule = rules.find(r => r.enabled && r.type === "parametric") || {
-        responseInStock: "¡Sí, tenemos disponible! Del SKU **{sku}** ({name}) nos quedan **{stock} unidades** a L.{salePrice}.",
-        responseOutOfStock: "El producto **{name}** (SKU: {sku}) se encuentra actualmente **agotado**.",
-        responseNotFound: "No encontramos ningún producto con el código **{sku}** en nuestro catálogo."
-      };
-
-      if (skuExtraction) {
-        const { sku, product } = skuExtraction;
-        if (product) {
-          this.selectedProduct = product;
-          const template = product.stock > 0 ? parametricRule.responseInStock : parametricRule.responseOutOfStock;
-          const text = template
-            .replace(/\{sku\}/g, product.sku || sku)
-            .replace(/\{name\}/g, product.name)
-            .replace(/\{stock\}/g, String(product.stock))
-            .replace(/\{salePrice\}/g, Number(product.salePrice).toLocaleString("es-HN"))
-            .replace(/\{regularPrice\}/g, Number(product.regularPrice).toLocaleString("es-HN"));
-
-          return {
-            text,
-            product,
-            images: product.images?.slice(0, 2) || []
-          };
-        } else {
-          // SKU was given explicitly (e.g. XXX) but not found in products
-          const text = (parametricRule.responseNotFound || "No encontramos productos con el SKU {sku}.")
-            .replace(/\{sku\}/g, sku);
-          return { text };
-        }
+    if (skuExtraction || (isStockQuery && currentProduct)) {
+      const targetProd = (skuExtraction && skuExtraction.product) || currentProduct;
+      if (targetProd) {
+        this.selectedProduct = targetProd;
+        const isAvailable = (targetProd.stock > 0);
+        return {
+          text: isAvailable
+            ? `¡Sí, tenemos disponible! Del SKU **${targetProd.sku}** (${targetProd.name}) nos quedan **${targetProd.stock} unidades** a L.${Number(targetProd.salePrice).toLocaleString("es-HN")}.\n\n🎨 **Color:** ${targetProd.colors || 'Negro'}\n📏 **Medidas:** ${targetProd.dimensions || 'Estándar'}\n\n¿Deseas que preparemos tu pedido o tienes alguna duda?`
+            : `El producto **${targetProd.name}** (SKU: ${targetProd.sku}) se encuentra actualmente **agotado**.`,
+          product: targetProd,
+          images: targetProd.images?.slice(0, 2) || []
+        };
       }
     }
 
-    // 7. General Catalog Query ("ver catálogo", "qué productos tienen", etc.)
+    // 9. General Catalog Query ("ver catálogo", "qué productos tienen", etc.)
     const isCatalogQuery = tokens.some(t => ["catalogo", "productos", "modelos", "articulos"].includes(t)) ||
       cleanText.includes("que venden") || cleanText.includes("ver catalogo") || cleanText.includes("que tienen");
     if (isCatalogQuery) {
       const catalogItems = products.map(p => `• **${p.sku}** · ${p.name} — *L.${Number(p.salePrice).toLocaleString("es-HN")}* (${p.stock > 0 ? `${p.stock} en stock` : "Agotado"})`).join("\n");
       return {
-        text: `📦 **Catálogo de ${tenant.name}**:\n\n${catalogItems}\n\nPuedes preguntarme por el stock de cualquiera de ellos (por ejemplo: *"¿Tienen stock para el SKU ${products[0]?.sku || "EST-01"}?"*).`,
+        text: `📦 **Catálogo de ${tenant.name}**:\n\n${catalogItems}\n\nPuedes preguntarme por cualquiera de ellos (por ejemplo: *"¿Tienen stock para la Silla Gamer?"* o *"¿En qué colores viene el sillón ejecutivo?"*).`,
         catalog: products
       };
     }
 
-    // 8. DYNAMIC Q&A RULES (Static & FAQ Rules configured in admin)
+    // 10. DYNAMIC Q&A RULES (Static & FAQ Rules configured in admin)
     const activeRules = rules.filter(r => r.enabled && r.type !== "restriction" && r.type !== "parametric");
     for (const rule of activeRules) {
       const isMatched = rule.trainingPhrases.some(phrase => matchPhrase(cleanText, tokens, phrase));
-
       if (isMatched) {
         if (rule.action === "show_catalog") {
           const catalogItems = products.map(p => `• **${p.sku}** · ${p.name} — *L.${Number(p.salePrice).toLocaleString("es-HN")}* (${p.stock > 0 ? `${p.stock} en stock` : "Agotado"})`).join("\n");
@@ -1201,59 +1508,33 @@ export class BotEngine {
       }
     }
 
-    // 9. Specific attributes using dynamic synonyms (Price, Dimensions, Weight, Photos)
-    if (this.matchesSynonym(tokens, synonyms, "precio") || tokens.some(t => ["precio", "cuesta", "costo", "vale"].includes(t))) {
-      if (currentProduct) {
-        return {
-          text: `El producto **${currentProduct.name}** (SKU: ${currentProduct.sku}) tiene un precio regular de L.${Number(currentProduct.regularPrice).toLocaleString("es-HN")} y precio de oferta especial de **L.${Number(currentProduct.salePrice).toLocaleString("es-HN")}**.`
-        };
-      }
-    }
-
-    if (this._isDimensionIntent(cleanText, tokens, synonyms)) {
-      if (currentProduct) {
-        return {
-          text: `📏 **Medidas de ${currentProduct.name} (${currentProduct.sku}):** **${currentProduct.dimensions || 'Estándar'}** (Soporte: ${currentProduct.weightLimit || 'Uso comercial y residencial'}).`,
-          product: currentProduct,
-          images: currentProduct.images?.slice(0, 2) || []
-        };
-      }
-    }
-
-    if (this.matchesSynonym(tokens, synonyms, "peso") || tokens.some(t => ["peso", "aguanta", "soporta", "resistencia"].includes(t))) {
-      if (currentProduct) {
-        return {
-          text: `Capacidad y especificación de **${currentProduct.name}**: **${currentProduct.weightLimit}**.`
-        };
-      }
-    }
-
-    if (this.matchesSynonym(tokens, synonyms, "fotos") || tokens.some(t => ["foto", "fotos", "imagen", "imagenes"].includes(t))) {
-      if (currentProduct && currentProduct.images?.length) {
-        return {
-          text: `¡Claro! Aquí tienes fotografías reales de **${currentProduct.name}** (${currentProduct.sku}):`,
-          images: currentProduct.images
-        };
-      }
-    }
-
-    // 10. Purchase / Checkout initiation
+    // 11. Purchase / Checkout initiation
     if (tokens.some(t => ["comprar", "pedido", "ordenar", "quiero", "orden"].includes(t)) || cleanText.includes("hacer pedido")) {
       return this.startCheckout(currentProduct);
     }
 
-    // 11. Saludos
-    if (tokens.some(t => ["hola", "buenas", "buen", "dia", "tardes", "noches"].includes(t))) {
-      const topSku = products[0]?.sku || "EST-01";
+    // 12. Gratitude ("gracias", "muchas gracias")
+    if (this._isGratitude(cleanText, tokens)) {
       return {
-        text: `¡Hola! 👋 Soy el asistente de ventas de **${tenant.name}**.\n\nPuedes consultarme por:\n• Ver nuestro catálogo completo (*"ver catálogo"*)\n• Disponibilidad de producto (*"¿Tienen stock para el SKU ${topSku}?"*)\n• Formas de pago, envíos y garantías.\n\n¿Qué te gustaría consultar hoy?`
+        text: `¡Con muchísimo gusto! 😊 Estamos a tu entera disposición. Si deseas apartar algún producto, revisar colores, medidas o necesitas comunicarte con un asesor comercial, escríbenos en cualquier momento.`
       };
     }
 
-    // 12. Smart fallback
-    const sampleSku = products[0]?.sku || "EST-01";
+    // 13. Saludos
+    if (tokens.some(t => ["hola", "buenas", "buen", "dia", "tardes", "noches"].includes(t))) {
+      const topSku = products[0]?.sku || "SKM-955-CA-NE";
+      return {
+        text: `¡Hola! 👋 Soy el asistente de ventas de **${tenant.name}**.\n\nPuedes consultarme por:\n• Ver nuestro catálogo completo (*"ver catálogo"*)\n• Disponibilidad y colores (*"¿Qué colores hay de la Silla Gamer?"*)\n• Precios, medidas, formas de pago y envíos.\n\n¿Qué te gustaría consultar hoy?`
+      };
+    }
+
+    // 14. FALLBACK: UNMAPPED QUERY -> EXECUTIVE HANDOVER ("si no se tiene nada mapeado que mande con ejecutivo")
+    this.human = true;
+    const encodedMsg = encodeURIComponent(`Hola SMAK Honduras, requiero asistencia de un ejecutivo comercial sobre: "${rawText}"`);
+    const waLink = `https://wa.me/50498008559?text=${encodedMsg}`;
     return {
-      text: `Puedo informarte sobre precios, stock por SKU (ej. *"¿Tienen stock para el SKU ${sampleSku}?"*), fotos, envíos, o mostrarte nuestro catálogo completo. También puedes pedirme hablar con un asesor humano.`
+      text: `No cuento con esa información específica en mi catálogo automatizado.\n\nPara responderte con exactitud y ofrecerte una atención personalizada, **te comunico de inmediato con un ejecutivo comercial de SMAK Honduras** 👤:\n\n📲 **Contactar a Ejecutivo Comercial:**\n[+504 9800-8559](${waLink})\n\n*(Un asesor humano de nuestro equipo continuará tu conversación en breve)*`,
+      human: true
     };
   }
 }

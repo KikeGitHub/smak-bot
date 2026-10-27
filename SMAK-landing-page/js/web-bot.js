@@ -27,16 +27,37 @@
       "alto", "altura", "ancho", "anchura", "largo", "longitud", "profundidad", "fondo",
       "cm", "centimetros", "metros"
     ],
+    colores: [
+      "color", "colores", "tono", "tonos", "acabado", "acabados", "presentacion", "presentaciones",
+      "en que color viene", "en que colores viene", "que colores hay", "que colores tienen",
+      "otros colores", "mas colores", "otro color", "blanco", "negro", "cafe", "gris", "rosa", "marron", "inox", "madera"
+    ],
+    materiales: [
+      "material", "materiales", "de que material es", "de que esta hecho", "armado", "armada",
+      "desarmado", "desarmada", "herramientas", "llaves", "tornillos", "manual", "facil de armar", "viene armado", "viene armada"
+    ],
     envio: ["entrega", "entregas", "envios", "domicilio", "casa", "tardan", "tarda", "flete", "cargo expreso"],
     pago: ["pagar", "efectivo", "contra entrega", "tarjeta", "transferencia"],
     fotos: ["foto", "imagenes", "ver", "fotografias"],
     asesor: ["humano", "persona", "operador", "contacto", "agente", "telefono", "whatsapp"]
   };
 
-  function matchesConcept(tokens, concept) {
+  function matchesConcept(tokens, concept, cleanText = "") {
     const list = SYNONYMS[concept] || [];
     const targets = [concept, ...list].map(clean);
-    return tokens.some(t => targets.some(target => t === target || (t.length >= 4 && target.length >= 4 && t.includes(target))));
+    return targets.some(term => {
+      if (term.includes(" ")) {
+        return cleanText ? cleanText.includes(term) : false;
+      }
+      return tokens.some(word => {
+        if (term === word) return true;
+        if (word.length >= 4 && term.length >= 4 && Math.abs(word.length - term.length) <= 2) {
+          const rootLen = Math.min(word.length, term.length) - 1;
+          return word.slice(0, rootLen) === term.slice(0, rootLen);
+        }
+        return false;
+      });
+    });
   }
 
   // Precios representativos de catálogo para checkout en lempiras
@@ -59,6 +80,238 @@
       this.selectedProduct = null;
     }
 
+    // Colors intent detection
+    _isColorIntent(cleanText, tokens) {
+      const directWords = ["color", "colores", "tono", "tonos", "acabado", "acabados", "presentacion", "presentaciones"];
+      if (tokens.some(t => directWords.includes(t))) return true;
+
+      const phrases = [
+        "que colores hay", "que colores tienen", "en que colores viene", "en que color viene",
+        "que color viene", "de que color es", "que color es", "colores disponibles",
+        "otros colores", "mas colores", "otro color", "que tonos hay", "cuales colores hay",
+        "hay otros colores", "tienen mas colores", "que colores manejan", "tienen en color",
+        "viene en color", "que color tiene", "tienen colores"
+      ];
+      if (phrases.some(p => cleanText.includes(p))) return true;
+
+      const colorNames = ["blanco", "blanca", "negro", "negra", "marron", "cafe", "gris", "rosa", "rosado", "rojo", "roja", "azul", "verde", "amarillo", "dorado", "plateado", "inox", "madera"];
+      const hasColorWord = tokens.some(t => colorNames.includes(t));
+      if (hasColorWord) {
+        const colorQueryTriggers = ["tienen", "hay", "viene", "la tienen", "lo tienen", "la hay", "lo hay", "color", "tono", "en", "acabado", "busco", "quiero"];
+        if (colorQueryTriggers.some(w => cleanText.includes(w)) || tokens.length <= 3) {
+          return true;
+        }
+      }
+
+      return matchesConcept(tokens, "colores");
+    }
+
+    _handleColorQuery(rawText, cleanText, tokens, currentProduct, allProducts = []) {
+      const colorNames = [
+        { key: "blanco", forms: ["blanco", "blanca", "white"] },
+        { key: "negro", forms: ["negro", "negra", "black"] },
+        { key: "cafe", forms: ["cafe", "cafes", "marron", "marrones", "marrón", "brown"] },
+        { key: "gris", forms: ["gris", "grises", "grey", "gray"] },
+        { key: "rosa", forms: ["rosa", "rosado", "rosada", "pink"] },
+        { key: "rojo", forms: ["rojo", "roja", "red"] },
+        { key: "azul", forms: ["azul", "azules", "blue"] },
+        { key: "verde", forms: ["verde", "verdes", "green"] },
+        { key: "amarillo", forms: ["amarillo", "amarilla", "yellow"] },
+        { key: "dorado", forms: ["dorado", "dorada", "oro", "gold"] },
+        { key: "plateado", forms: ["plateado", "plateada", "plata", "silver"] },
+        { key: "inox", forms: ["inox", "inoxidable", "acero"] },
+        { key: "madera", forms: ["madera", "pino", "natural", "wood"] }
+      ];
+
+      const detectedColors = colorNames.filter(c => c.forms.some(f => cleanText.includes(f)));
+
+      if (currentProduct) {
+        const prodColorsClean = clean(currentProduct.colors || "");
+        const price = currentProduct.price || DEFAULT_PRICES[currentProduct.category] || 1500;
+        const isAvailable = currentProduct.inStock || (currentProduct.stock > 0);
+
+        if (detectedColors.length > 0) {
+          const matchesCurrent = detectedColors.some(c => c.forms.some(f => prodColorsClean.includes(f)));
+
+          if (matchesCurrent) {
+            return {
+              text: `🎨 **¡Sí, disponible!**\n\nEl producto **${currentProduct.name}** cuenta en nuestro catálogo con el acabado oficial en: **${currentProduct.colors}**.\n\n• 🏷️ **Precio:** L.${price.toLocaleString("es-HN")}\n• 📏 **Medidas:** ${currentProduct.dimensions || "Estándar según ficha técnica"}\n• 🚚 **Envío:** ¡Totalmente GRATIS a todo el país vía Cargo Expreso!\n• 💵 **Pago:** En efectivo contra entrega al recibir en tu puerta.\n\n¿Deseas que preparemos tu pedido o tienes alguna otra duda?`,
+              product: currentProduct,
+              images: currentProduct.gallery?.slice(0, 2) || (currentProduct.image ? [currentProduct.image] : [])
+            };
+          } else {
+            const targetColorKey = detectedColors[0].key;
+            const altProduct = allProducts.find(p => p.sku !== currentProduct.sku && clean(p.colors || "").includes(targetColorKey));
+
+            let altText = "";
+            if (altProduct) {
+              const altPrice = altProduct.price || DEFAULT_PRICES[altProduct.category] || 1500;
+              altText = `\n\n💡 **Variante disponible en ese color:** Contamos con **${altProduct.name}** (SKU: ${altProduct.sku}) que viene en acabado **${altProduct.colors}** a precio de **L.${altPrice.toLocaleString("es-HN")}**.`;
+            }
+
+            const askedLabel = detectedColors.map(c => c.key).join(" / ");
+            return {
+              text: `🎨 Para el modelo **${currentProduct.name}** (${currentProduct.sku || 'Catálogo'}), el acabado registrado en fábrica es únicamente: **${currentProduct.colors || "Negro"}** (no viene en ${askedLabel}).${altText}\n\nSi necesitas un modelo o color personalizado, puedo comunicarte con un ejecutivo comercial.`,
+              product: currentProduct
+            };
+          }
+        }
+
+        // General color query for current product
+        return {
+          text: `🎨 **Colores disponibles para ${currentProduct.name} (${currentProduct.sku || 'Catálogo'}):**\n\nEn nuestro catálogo de fábrica, este modelo viene en acabado oficial: **${currentProduct.colors || "Negro"}**.\n\n• 🏷️ **Precio:** L.${price.toLocaleString("es-HN")}\n• 📏 **Dimensiones:** ${currentProduct.dimensions || "Estándar según ficha técnica"}\n• 📦 **Disponibilidad:** ${isAvailable ? "✅ En stock para entrega inmediata" : "⚠️ Agotado"}\n\n¿Deseas conocer las medidas, fotografías reales o preparar tu pedido?`,
+          product: currentProduct,
+          images: currentProduct.gallery?.slice(0, 2) || (currentProduct.image ? [currentProduct.image] : [])
+        };
+      }
+
+      // No product active: check if category mentioned
+      const categoryKeywords = [
+        { name: "Sillas y Sillones", words: ["silla", "sillas", "sillon", "sillones", "gamer", "oficina"] },
+        { name: "Taburetes y Bancos Tolix", words: ["taburete", "taburetes", "banco", "bancos", "tolix"] },
+        { name: "Muebles, Mesas y Escritorios", words: ["escritorio", "escritorios", "mesa", "mesas", "estante", "estanteria"] },
+        { name: "Duchas y Grifería", words: ["ducha", "duchas", "grifo", "monocomando", "pileta"] },
+        { name: "Escaleras y Carga", words: ["escalera", "escaleras", "carro", "carga"] }
+      ];
+
+      const matchedCat = categoryKeywords.find(c => c.words.some(w => cleanText.includes(w)));
+      if (matchedCat) {
+        const filtered = allProducts.filter(p => {
+          const pClean = clean(`${p.name} ${p.category || ""}`);
+          return matchedCat.words.some(w => pClean.includes(w));
+        });
+        const itemsList = filtered.slice(0, 5).map(p => `• **${p.name}** (${p.sku || 'Catálogo'}): Acabado **${p.colors || "Negro"}**`).join("\n");
+        return {
+          text: `🎨 **Colores disponibles en la línea de ${matchedCat.name}:**\n\n${itemsList}\n\n¿Por qué modelo en específico te gustaría consultar?`
+        };
+      }
+
+      // General catalog color overview
+      const topItems = allProducts.slice(0, 6).map(p => `• **${p.name}**: **${p.colors || "Negro"}**`).join("\n");
+      return {
+        text: `🎨 **Guía de Colores y Acabados de SMAK Honduras:**\n\nContamos con acabados de alta durabilidad en pintura electrostática, acero inoxidable y maderas tratadas:\n\n${topItems}\n\n¿Por qué producto en específico deseas consultar sus colores?`
+      };
+    }
+
+    // Material & assembly intent detection
+    _isMaterialIntent(cleanText, tokens) {
+      const directWords = [
+        "material", "materiales", "madera", "hierro", "acero", "aluminio", "marmol", "nylon",
+        "armado", "armada", "desarmado", "desarmada", "herramientas", "llaves", "tornillos", "manual"
+      ];
+      if (tokens.some(t => directWords.includes(t))) return true;
+
+      const phrases = [
+        "de que material es", "que material es", "de que esta hecho", "de que esta fabricado",
+        "es de madera", "es de metal", "es de plastico", "es de hierro", "es de acero",
+        "viene armado", "viene armada", "viene desarmado", "viene desarmada", "viene en caja",
+        "trae herramientas", "trae llaves", "trae tornillos", "incluye herramientas",
+        "es facil de armar", "como se arma", "requiere armado", "manual de armado"
+      ];
+      if (phrases.some(p => cleanText.includes(p))) return true;
+
+      return matchesConcept(tokens, "materiales");
+    }
+
+    _handleMaterialQuery(rawText, cleanText, tokens, currentProduct) {
+      if (!currentProduct) {
+        return {
+          text: `📦 **Materiales y Ensamble en SMAK Honduras:**\n\n• Todos nuestros productos son **100% nuevos de paquete** y vienen en su caja sellada con empaque reforzado.\n• **Materiales de alta durabilidad:** Estructuras de acero al carbono, pintura electrostática horneada anticorrosiva, acero inoxidable 304, madera tratada y aleación de aluminio aeroespacial.\n• **Armado sencillo:** Vienen listos para ensamblar con su **manual gráfico paso a paso y kit de herramientas (llaves Allen y tornillos)** incluidas.\n\n¿Por el material de qué producto en específico deseas consultar?`
+        };
+      }
+
+      let matDetail = "Estructura de alta resistencia y acabados prémium.";
+      const pCat = clean(currentProduct.category || "");
+      const pName = clean(currentProduct.name || "");
+      if (pName.includes("gamer") || pName.includes("sillon") || pName.includes("silla") || pCat.includes("silla")) {
+        matDetail = "Estructura interna de acero tubular reforzado, pistón hidráulico clase 4 certificado, tapizado en PU prémium / malla de nylon de alta tenacidad y base reforzada con ruedas silenciosas 360°.";
+      } else if (pName.includes("tolix") || pName.includes("taburete") || pName.includes("banco")) {
+        matDetail = "Acero al carbono forjado con pintura electrostática anticorrosiva horneada, y asiento reforzado (en modelos con madera, pino natural tratado de alta densidad).";
+      } else if (pName.includes("estanteria") || pName.includes("estante") || pName.includes("escritorio") || pName.includes("mesa")) {
+        matDetail = "Bastidor estructural de hierro industrial con pintura electrostática mate y superficie de madera melamínica de alta densidad resistente al agua y peso (o mármol sintético en mesas auxiliares).";
+      } else if (pName.includes("ducha") || pName.includes("pileta") || pName.includes("monocomando")) {
+        matDetail = "Cuerpo en Acero Inoxidable 304 quirúrgico anticorrosivo con acabado negro mate o cepillado inox, cartucho cerámico anti-fugas y boquillas de silicona anticalcárea.";
+      } else if (pName.includes("escalera")) {
+        matDetail = "Aleación de aluminio estructural de grado aeroespacial, bisagras automáticas de bloqueo de seguridad y zapatas de goma antideslizantes.";
+      } else if (pName.includes("ruedas")) {
+        matDetail = "Chasis de acero al carbono plegable con cruceta reforzada, frenos bilaterales de estacionamiento y tapicería en lona Oxford transpirable e impermeable.";
+      }
+
+      return {
+        text: `📦 **Materiales y Ensamble de ${currentProduct.name} (${currentProduct.sku || 'Catálogo'}):**\n\n• **Materiales:** ${matDetail}\n• **Condición:** 100% nuevo de fábrica en caja original sellada.\n• **Armado fácil:** Viene desarmado para protección durante el envío e incluye su **manual gráfico paso a paso** y el **kit completo de herramientas (llaves Allen y tornillería)**. Se arma en pocos minutos sin herramientas adicionales.\n\n¿Te gustaría ordenar el tuyo o consultar alguna otra característica?`,
+        product: currentProduct
+      };
+    }
+
+    // Price intent detection
+    _isPriceIntent(cleanText, tokens) {
+      if (["costo de envio", "precio del envio", "cuanto vale el envio", "cobran envio"].some(p => cleanText.includes(p))) {
+        return false;
+      }
+
+      const phrases = [
+        "cuanto cuesta", "cuanto vale", "a cuanto sale", "a cuanto esta",
+        "cual es el precio", "cual es el valor", "a como sale", "en cuanto sale",
+        "en cuanto me lo dejan", "a como me lo deja", "que precio tiene", "precio de"
+      ];
+      if (phrases.some(p => cleanText.includes(p))) return true;
+
+      const directWords = ["precio", "precios", "costo", "valor"];
+      if (tokens.some(t => directWords.includes(t))) return true;
+
+      return matchesConcept(tokens, "precio", cleanText);
+    }
+
+    _handlePriceQuery(rawText, cleanText, tokens, currentProduct) {
+      if (!currentProduct) {
+        return {
+          text: `🏷️ **Precios en SMAK Honduras:**\n\nNuestros precios van desde **L.1,050** en taburetes y organizadores, hasta **L.3,390** en sillones ejecutivos con apoyapiés y columnas de ducha de acero inoxidable.\n\n¡Todos incluyen **envío gratuito** a nivel nacional y pago en efectivo contra entrega!\n\n¿Por el precio de qué artículo en específico deseas consultar?`
+        };
+      }
+
+      const saleP = Number(currentProduct.price || DEFAULT_PRICES[currentProduct.category] || 1500);
+      const regP = Number(currentProduct.regularPrice || Math.round(saleP * 1.15));
+
+      return {
+        text: `🏷️ **Precio de ${currentProduct.name} (${currentProduct.sku || 'Catálogo'}):**\n\n• **Precio de oferta especial:** **L.${saleP.toLocaleString("es-HN")}** *(Precio regular: L.${regP.toLocaleString("es-HN")})*\n• 🎨 **Color registrado:** **${currentProduct.colors || "Negro"}**\n• 🚚 **Costo de envío:** ¡Completamente **GRATIS** a cualquier parte de Honduras vía Cargo Expreso!\n• 💵 **Forma de pago:** Pagas en efectivo **contra entrega** al recibir en tu puerta (o transferencia bancaria previa).\n\n¿Deseas que preparemos tu pedido o tienes alguna duda de colores o medidas?`,
+        product: currentProduct
+      };
+    }
+
+    // Weight & durability intent
+    _isWeightIntent(cleanText, tokens) {
+      const phrases = [
+        "cuanto peso aguanta", "cuanto peso soporta", "cual es el peso maximo",
+        "peso maximo", "soporte de peso", "que peso aguanta", "que peso soporta",
+        "cuanto aguanta", "cuanto soporta"
+      ];
+      if (phrases.some(p => cleanText.includes(p))) return true;
+
+      const directWords = ["resistencia", "soporta", "aguanta", "kilos", "libras", "resiste"];
+      if (tokens.some(t => directWords.includes(t)) && !cleanText.includes("transferencia")) return true;
+
+      return matchesConcept(tokens, "peso", cleanText);
+    }
+
+    _handleWeightQuery(rawText, cleanText, tokens, currentProduct) {
+      if (!currentProduct) {
+        return {
+          text: `💪 Todos nuestros productos de mobiliario y equipamiento cuentan con estándares de alta resistencia para uso comercial y residencial intensivo. ¿Por qué artículo en particular deseas consultar su capacidad?`
+        };
+      }
+      return {
+        text: `💪 **Capacidad y Resistencia de ${currentProduct.name} (${currentProduct.sku || 'Catálogo'}):**\n\n• **Soporte certificado:** **${currentProduct.weightLimit || "150 kg / Uso comercial y residencial de alta resistencia"}**\n• **Estructura:** Diseñada con estándares de máxima durabilidad y estabilidad.\n\n¿Deseas consultar medidas, colores o hacer tu pedido?`,
+        product: currentProduct
+      };
+    }
+
+    // Gratitude detection
+    _isGratitude(cleanText, tokens) {
+      const phrases = ["muchas gracias", "mil gracias", "te lo agradezco", "muy amable", "ok gracias", "vale gracias"];
+      if (phrases.some(p => cleanText.includes(p))) return true;
+      return tokens.includes("gracias") && tokens.length <= 4;
+    }
+
     _isDimensionIntent(cleanText, tokens) {
       const directWords = [
         "dimension", "dimensiones", "dimencion", "dimenciones",
@@ -75,7 +328,7 @@
       ];
       if (phrases.some(p => cleanText.includes(p))) return true;
 
-      return matchesConcept(tokens, "dimensiones");
+      return matchesConcept(tokens, "dimensiones", cleanText);
     }
 
     // Detección de retiro en oficinas / agencias de Cargo Expreso o Delivery en Honduras
@@ -191,7 +444,7 @@
       // Generate order number connecting to existing state or sequential
       let orderNumber = "SMAK-ORD-1001";
       try {
-        const saved = localStorage.getItem("smakbot-demo-v4");
+        const saved = localStorage.getItem("smakbot-demo-v5");
         if (saved) {
           const state = JSON.parse(saved);
           const count = Array.isArray(state.orders) ? state.orders.length : 0;
@@ -299,9 +552,9 @@
         }
       };
 
-      // Sincronizar en localStorage bajo smakbot-demo-v3 para que aparezca en el panel admin.html
+      // Sincronizar en localStorage bajo smakbot-demo-v5 para que aparezca en el panel admin.html
       try {
-        const storageKey = "smakbot-demo-v4";
+        const storageKey = "smakbot-demo-v5";
         const saved = localStorage.getItem(storageKey);
         if (saved) {
           const state = JSON.parse(saved);
@@ -610,6 +863,24 @@
               text: `${expl}\n\nPara preparar tu orden, ¿a qué nombre registramos tu pedido?`
             };
           }
+          if (this._isColorIntent(cleanText, tokens, SYNONYMS)) {
+            const cq = this._handleColorQuery(rawText, cleanText, tokens, c.product, window.SMAK_PRODUCTS || []);
+            return {
+              text: `${cq.text}\n\nPara preparar tu orden, ¿a qué nombre registramos tu pedido?`
+            };
+          }
+          if (this._isPriceIntent(cleanText, tokens)) {
+            const pq = this._handlePriceQuery(rawText, cleanText, tokens, c.product);
+            return {
+              text: `${pq.text}\n\nPara preparar tu orden, ¿a qué nombre registramos tu pedido?`
+            };
+          }
+          if (this._isMaterialIntent(cleanText, tokens)) {
+            const mq = this._handleMaterialQuery(rawText, cleanText, tokens, c.product);
+            return {
+              text: `${mq.text}\n\nPara preparar tu orden, ¿a qué nombre registramos tu pedido?`
+            };
+          }
           if (this._isDimensionIntent(cleanText, tokens)) {
             const p = c.product;
             return {
@@ -634,6 +905,24 @@
             const expl = this._getScheduleAndAgencyExplanation();
             return {
               text: `${expl}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+            };
+          }
+          if (this._isColorIntent(cleanText, tokens, SYNONYMS)) {
+            const cq = this._handleColorQuery(rawText, cleanText, tokens, c.product, window.SMAK_PRODUCTS || []);
+            return {
+              text: `${cq.text}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+            };
+          }
+          if (this._isPriceIntent(cleanText, tokens)) {
+            const pq = this._handlePriceQuery(rawText, cleanText, tokens, c.product);
+            return {
+              text: `${pq.text}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
+            };
+          }
+          if (this._isMaterialIntent(cleanText, tokens)) {
+            const mq = this._handleMaterialQuery(rawText, cleanText, tokens, c.product);
+            return {
+              text: `${mq.text}\n\n¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):`
             };
           }
           if (this._isDimensionIntent(cleanText, tokens)) {
@@ -662,6 +951,24 @@
           if (cleanText.includes("transferencia") || cleanText.includes("transfer")) {
             return {
               text: `¡Sí, aceptamos transferencia bancaria y efectivo contra entrega! 🏦\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
+            };
+          }
+          if (this._isColorIntent(cleanText, tokens, SYNONYMS)) {
+            const cq = this._handleColorQuery(rawText, cleanText, tokens, c.product, window.SMAK_PRODUCTS || []);
+            return {
+              text: `${cq.text}\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
+            };
+          }
+          if (this._isPriceIntent(cleanText, tokens)) {
+            const pq = this._handlePriceQuery(rawText, cleanText, tokens, c.product);
+            return {
+              text: `${pq.text}\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
+            };
+          }
+          if (this._isMaterialIntent(cleanText, tokens)) {
+            const mq = this._handleMaterialQuery(rawText, cleanText, tokens, c.product);
+            return {
+              text: `${mq.text}\n\nContinuemos con la entrega: compártenos tu dirección completa (Destinatario, Calle/Casa, Colonia, Ciudad y CP):`
             };
           }
           if (this._isDimensionIntent(cleanText, tokens)) {
@@ -726,6 +1033,24 @@
             const expl = this._getScheduleAndAgencyExplanation();
             return {
               text: `${expl}\n\nPara continuar: compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
+            };
+          }
+          if (this._isColorIntent(cleanText, tokens, SYNONYMS)) {
+            const cq = this._handleColorQuery(rawText, cleanText, tokens, c.product, window.SMAK_PRODUCTS || []);
+            return {
+              text: `${cq.text}\n\nContinuemos: compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
+            };
+          }
+          if (this._isPriceIntent(cleanText, tokens)) {
+            const pq = this._handlePriceQuery(rawText, cleanText, tokens, c.product);
+            return {
+              text: `${pq.text}\n\nContinuemos: compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
+            };
+          }
+          if (this._isMaterialIntent(cleanText, tokens)) {
+            const mq = this._handleMaterialQuery(rawText, cleanText, tokens, c.product);
+            return {
+              text: `${mq.text}\n\nContinuemos: compártenos tu **número telefónico que reciba llamadas** para que Cargo Expreso coordine la entrega 📞:`
             };
           }
           if (this._isDimensionIntent(cleanText, tokens)) {
@@ -820,7 +1145,7 @@
       const matchedCode = rawText.match(trackingRegex);
       if (matchedCode || ((tokens.some(t => ["rastreo", "guia", "tracking", "paquete"].includes(t)) || cleanText.includes("mi pedido")) && (cleanText.includes("donde") || cleanText.includes("estado") || cleanText.includes("numero")))) {
         try {
-          const saved = localStorage.getItem("smakbot-demo-v4");
+          const saved = localStorage.getItem("smakbot-demo-v5");
           if (saved) {
             const state = JSON.parse(saved);
             const orders = Array.isArray(state.orders) ? state.orders : [];
@@ -850,65 +1175,106 @@
     }
 
     _getGeneralAnswer(rawText, cleanText, tokens) {
+      const allProducts = window.SMAK_PRODUCTS || [];
+
       // 1c. Políticas de Negocio y FAQs de SMAK (Roatán, Forza, Tarjeta, Ubicación, Envío Gratis, Garantía, Nuevos, Mejor precio)
       const policy = this._getPolicyResponse(cleanText, tokens);
       if (policy) {
-        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || (window.SMAK_PRODUCTS && window.SMAK_PRODUCTS[0]);
+        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || allProducts[0];
         return {
           text: `${policy}\n\n¿Deseas realizar tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
           product: activeProd || null
         };
       }
 
-      // 2. Intención de Compra / Iniciar Checkout
-      if (tokens.some(t => ["comprar", "ordenar", "pedido", "pedir"].includes(t)) || cleanText.includes("hacer pedido")) {
-        const prod = this.findProduct(rawText) || this.selectedProduct;
-        return this.startCheckout(prod);
+      // 2. Transferencia Bancaria
+      const isTransferQuery = cleanText.includes("transferencia") || cleanText.includes("transfer") || (cleanText.includes("cuenta") && (cleanText.includes("banco") || cleanText.includes("transferir") || cleanText.includes("depositar")));
+      if (isTransferQuery) {
+        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || allProducts[0];
+        return {
+          text: `¡Sí, aceptamos transferencia bancaria! 🏦\n\nPuedes realizar tu pago a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes pagar vía transferencia y adjuntar tu comprobante por el chat, o pagar en efectivo contra entrega al recibir tu paquete en tu puerta.\n\n¿Deseas realizar tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
+          product: activeProd || null
+        };
       }
 
-      // 2b. Consulta de Dimensiones y Medidas ("medidas", "dimenciones", "dimensiones", "cuánto mide", etc.)
+      // 3. Contacto con Asesor Humano / Ejecutivo
+      const asesorKeywords = ["asesor", "humano", "ejecutivo", "agente", "vendedor", "representante", "persona"];
+      const wantsHumanDirectly = asesorKeywords.some(k => {
+        if (k.includes(" ")) return cleanText.includes(k);
+        return tokens.includes(k);
+      });
+      if (wantsHumanDirectly) {
+        this.human = true;
+        const waNum = (window.SMAK_CONFIG && window.SMAK_CONFIG.whatsappNumber) || "50498008559";
+        return {
+          text: `¡Con gusto! Te transfiero con un asesor comercial humano especializado de SMAK Honduras:\n\n📲 **WhatsApp Directo:**\n[+504 9800-8559](https://wa.me/${waNum}?text=${encodeURIComponent("Hola SMAK Honduras, deseo hablar con un asesor comercial")})\n\n*(Un ejecutivo revisará tu mensaje de inmediato para atenderte).*`,
+          human: true
+        };
+      }
+
+      // Identificar si hay producto mencionado o en contexto activo
+      const foundInMsg = this.findProduct(rawText);
+      if (foundInMsg) {
+        this.selectedProduct = foundInMsg;
+      }
+      const currentProduct = this.selectedProduct || (this.checkout ? this.checkout.product : null);
+
+      // 4. Intención de Compra / Iniciar Checkout
+      if (tokens.some(t => ["comprar", "ordenar", "pedido", "pedir"].includes(t)) || cleanText.includes("hacer pedido")) {
+        return this.startCheckout(currentProduct);
+      }
+
+      // 5. Consulta de Colores
+      if (this._isColorIntent(cleanText, tokens, SYNONYMS)) {
+        return this._handleColorQuery(rawText, cleanText, tokens, currentProduct, allProducts);
+      }
+
+      // 6. Consulta de Precio
+      if (this._isPriceIntent(cleanText, tokens)) {
+        return this._handlePriceQuery(rawText, cleanText, tokens, currentProduct);
+      }
+
+      // 7. Consulta de Dimensiones y Medidas
       if (this._isDimensionIntent(cleanText, tokens)) {
-        const prod = this.findProduct(rawText) || this.selectedProduct || (this.checkout ? this.checkout.product : null);
-        if (prod) {
-          this.selectedProduct = prod;
-          const price = prod.price || DEFAULT_PRICES[prod.category] || 1500;
-          const dims = prod.dimensions || "Dimensiones estándar según ficha técnica";
-          const weight = prod.weightLimit || "100 kg / Uso comercial y residencial";
+        if (currentProduct) {
+          const price = currentProduct.price || DEFAULT_PRICES[currentProduct.category] || 1500;
+          const dims = currentProduct.dimensions || "Dimensiones estándar según ficha técnica";
+          const weight = currentProduct.weightLimit || "100 kg / Uso comercial y residencial";
           return {
-            text: `📏 **Medidas y Dimensiones de ${prod.name}:**\n\n• **Dimensiones:** **${dims}**\n• **Capacidad / Resistencia:** ${weight}\n• **Precio:** **L.${price.toLocaleString("es-HN")}**\n• **Disponibilidad:** ${prod.inStock ? "✅ En stock para entrega inmediata" : "⚠️ Consultar tiempo de entrega"}\n\n¿Deseas que preparemos tu pedido contra entrega o tienes alguna otra duda?`,
-            product: {
-              ...prod,
-              price
-            },
-            images: prod.gallery?.slice(0, 2) || (prod.image ? [prod.image] : [])
+            text: `📏 **Medidas y Dimensiones de ${currentProduct.name} (${currentProduct.sku || 'Catálogo'}):**\n\n• **Dimensiones:** **${dims}**\n• **Capacidad / Resistencia:** ${weight}\n• 🎨 **Color oficial:** **${currentProduct.colors || 'Negro'}**\n• 🏷️ **Precio:** **L.${price.toLocaleString("es-HN")}**\n• 📦 **Disponibilidad:** ${currentProduct.inStock ? "✅ En stock para entrega inmediata" : "⚠️ Consultar tiempo de entrega"}\n\n¿Deseas que preparemos tu pedido contra entrega o tienes alguna otra duda?`,
+            product: currentProduct,
+            images: currentProduct.gallery?.slice(0, 2) || (currentProduct.image ? [currentProduct.image] : [])
           };
         } else {
-          const allProds = window.SMAK_PRODUCTS || [];
-          const samples = allProds.slice(0, 6).map(p => `• **${p.name}**: **${p.dimensions || 'Estándar según ficha técnica'}**`).join("\n");
+          const samples = allProducts.slice(0, 6).map(p => `• **${p.name}**: **${p.dimensions || 'Estándar según ficha técnica'}**`).join("\n");
           return {
             text: `📏 **Guía de Medidas y Dimensiones de SMAK Honduras:**\n\nAquí tienes las dimensiones exactas de nuestros artículos más solicitados:\n\n${samples}\n\n¿Por las medidas de qué producto en específico deseas consultar?`
           };
         }
       }
 
-      // 3. Consulta de Producto Específico
-      const prod = this.findProduct(rawText);
-      if (prod) {
-        this.selectedProduct = prod;
-        const price = prod.price || DEFAULT_PRICES[prod.category] || 1500;
-        const featuresText = (prod.features || []).slice(0, 3).map(f => `• ${f}`).join("\n");
+      // 8. Consulta de Materiales y Ensamble
+      if (this._isMaterialIntent(cleanText, tokens)) {
+        return this._handleMaterialQuery(rawText, cleanText, tokens, currentProduct);
+      }
+
+      // 9. Consulta de Peso y Resistencia
+      if (this._isWeightIntent(cleanText, tokens)) {
+        return this._handleWeightQuery(rawText, cleanText, tokens, currentProduct);
+      }
+
+      // 10. Consulta de Producto Específico encontrado en este mensaje
+      if (foundInMsg) {
+        const price = foundInMsg.price || DEFAULT_PRICES[foundInMsg.category] || 1500;
+        const featuresText = (foundInMsg.features || []).slice(0, 3).map(f => `• ${f}`).join("\n");
         return {
-          text: `¡Sí, tenemos disponible! **${prod.name}**:\n\n🏷️ **Precio:** L.${price.toLocaleString("es-HN")}\n✅ **Estado:** ${prod.inStock ? "Disponible para entrega inmediata" : "Agotado temporalmente"}\n\n**Detalles:**\n${featuresText}\n\n¿Deseas que preparemos tu pedido o tienes alguna duda adicional?`,
-          product: {
-            ...prod,
-            price
-          }
+          text: `¡Sí, tenemos disponible! **${foundInMsg.name}** (${foundInMsg.sku || 'Catálogo'}):\n\n🏷️ **Precio:** L.${price.toLocaleString("es-HN")}\n🎨 **Color:** ${foundInMsg.colors || 'Negro'}\n📏 **Dimensiones:** ${foundInMsg.dimensions || 'Estándar'}\n✅ **Estado:** ${foundInMsg.inStock ? "Disponible para entrega inmediata" : "Agotado temporalmente"}\n\n**Detalles:**\n${featuresText}\n\n¿Deseas que preparemos tu pedido o tienes alguna duda adicional?`,
+          product: foundInMsg
         };
       }
 
-      // 4. Consulta de Catálogo General
-      if (tokens.some(t => ["catalogo", "productos", "modelos"].includes(t)) || cleanText.includes("que venden") || cleanText.includes("ver catalogo")) {
-        const allProducts = window.SMAK_PRODUCTS || [];
+      // 11. Consulta de Catálogo General
+      if (tokens.some(t => ["catalogo", "productos", "modelos"].includes(t)) || cleanText.includes("que venden") || cleanText.includes("ver catalogo") || cleanText.includes("que tienen")) {
         const topSamples = allProducts.slice(0, 5);
         return {
           text: `📦 **Catálogo Destacado de SMAK Honduras**:\n\nContamos con mobiliario prémium para hogar, oficina y proyectos comerciales. Aquí tienes algunos de nuestros artículos más solicitados:`,
@@ -916,79 +1282,58 @@
         };
       }
 
-      // 4b. Horarios Específicos, Sábados y Retiro en Agencia Cargo Expreso
+      // 12. Horarios Específicos, Sábados y Retiro en Agencia Cargo Expreso
       if (this._isScheduleDeliveryQuery(cleanText, tokens) || this._isAgencyPickupQuery(cleanText, tokens)) {
         const expl = this._getScheduleAndAgencyExplanation();
-        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || (window.SMAK_PRODUCTS && window.SMAK_PRODUCTS[0]);
         return {
-          text: `${expl}\n\n¿Deseas que preparemos tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
-          product: activeProd || null
+          text: `${expl}\n\n¿Deseas que preparemos tu pedido${currentProduct ? ` para **${currentProduct.name}**` : ''}?`,
+          product: currentProduct || null
         };
       }
 
-      // 5. Tiempos de Entrega y Envíos
+      // 13. Tiempos de Entrega y Envíos
       if (matchesConcept(tokens, "envio") || cleanText.includes("tiempo") || cleanText.includes("cuanto tardan")) {
         return {
           text: `🚚 **Información de Envíos en Honduras**:\n\n• **Tegucigalpa y San Pedro Sula:** 1 a 2 días hábiles (entrega el mismo día si ordenas temprano).\n• **Resto del país:** 2 a 3 días hábiles a través de Cargo Expreso a domicilio.\n💵 **Pago seguro:** Cancelas en efectivo **contra entrega** al recibir el producto en tu puerta.`
         };
       }
 
-      // 5b. Consulta de Transferencia Bancaria
-      const isTransferQuery = cleanText.includes("transferencia") || cleanText.includes("transfer") || (cleanText.includes("cuenta") && (cleanText.includes("banco") || cleanText.includes("transferir") || cleanText.includes("depositar")));
-      if (isTransferQuery) {
-        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null) || (window.SMAK_PRODUCTS && window.SMAK_PRODUCTS[0]);
-        return {
-          text: `¡Sí, aceptamos transferencia bancaria! 🏦\n\nPuedes realizar tu pago a cualquiera de nuestras cuentas oficiales a nombre de **SMAK Honduras S. de R.L.** (RTN: 08011990123456):\n\n• **BAC Credomatic (Cheques):** 742-108-951\n• **Banco Ficohsa (Cheques):** 2000-098-432\n• **Banco Atlántida (Ahorros):** 110-045-892\n• **Banpaís (Cheques):** 01-501-002345\n\nPuedes pagar vía transferencia y adjuntar tu comprobante por el chat, o pagar en efectivo contra entrega al recibir tu paquete en tu puerta.\n\n¿Deseas realizar tu pedido${activeProd ? ` para **${activeProd.name}**` : ''}?`,
-          product: activeProd || null
-        };
-      }
-
-      // 6. Métodos de Pago
+      // 14. Métodos de Pago
       if (matchesConcept(tokens, "pago") || cleanText.includes("como se paga")) {
         return {
           text: `💳 **Formas de Pago**:\n\n1. **Pago contra entrega en efectivo:** Pagas al recibir tu paquete en tu domicilio.\n2. **Transferencia bancaria previa:** A nuestras cuentas en BAC (742-108-951), Ficohsa (2000-098-432) o Atlántida (110-045-892).\n\nTodos nuestros pedidos incluyen garantía de satisfacción y factura fiscal con RTN.`
         };
       }
 
-      // 7. Pregunta de Precio General
-      if (matchesConcept(tokens, "precio")) {
-        const activeProd = this.selectedProduct || (this.checkout ? this.checkout.product : null);
-        if (activeProd) {
-          const price = activeProd.price || DEFAULT_PRICES[activeProd.category] || 1500;
-          return {
-            text: `El producto **${activeProd.name}** tiene un precio de **L.${price.toLocaleString("es-HN")}** con entrega contra entrega disponible.`
-          };
-        }
-        return {
-          text: `Nuestros precios van desde **L.1,050** en sillas y organizadores, hasta **L.2,400** en escritorios ejecutivos y juegos de bancos Tolix. ¿Por qué artículo en particular deseas cotizar?`
-        };
-      }
-
-      // 8. Contacto con Asesor Humano
-      if (matchesConcept(tokens, "asesor")) {
-        const waNum = (window.SMAK_CONFIG && window.SMAK_CONFIG.whatsappNumber) || "50498008559";
-        return {
-          text: `¡Con gusto! Puedes contactar de inmediato a un asesor comercial de SMAK Honduras vía WhatsApp:\n\n📲 **WhatsApp Directo:** [+504 9800-8559](https://wa.me/${waNum}?text=${encodeURIComponent("Hola SMAK Honduras, deseo hablar con un asesor comercial")})\n\nNuestro horario de atención es de Lunes a Viernes de 9:00 am a 7:00 pm.`
-        };
-      }
-
-      // 9. Bloqueo de Regateo (Guardrails)
+      // 15. Bloqueo de Regateo (Guardrails)
       if (cleanText.includes("rebajas") || cleanText.includes("descuento") || cleanText.includes("cuanto lo ultimo") || cleanText.includes("regateo")) {
         return {
           text: `Nuestros precios ya cuentan con descuento directo de fábrica para garantizar la máxima calidad en acero y madera tratada. Si necesitas una cotización por volumen (3 unidades o más), te comunicamos con un asesor.`
         };
       }
 
-      // 10. Saludos
-      if (tokens.some(t => ["hola", "buenas", "buen", "dia", "tardes", "noches"].includes(t))) {
+      // 16. Agradecimientos
+      if (this._isGratitude(cleanText, tokens)) {
         return {
-          text: `¡Hola! 👋 Qué gusto saludarte.\n\nSoy el asistente virtual de **SMAK Honduras**. ¿En qué puedo orientarte hoy?\n\n• Ver productos destacados (*"ver catálogo"*)\n• Consultar stock (*"¿Tienen bancos Tolix?"*)\n• Tiempos de entrega y formas de pago contra entrega.`
+          text: `¡Con muchísimo gusto! 😊 Estamos a tu entera disposición. Si deseas apartar algún producto, revisar colores, medidas o necesitas comunicarte con un asesor comercial, escríbenos en cualquier momento.`
         };
       }
 
-      // 11. Fallback inteligente
+      // 17. Saludos
+      if (tokens.some(t => ["hola", "buenas", "buen", "dia", "tardes", "noches"].includes(t))) {
+        return {
+          text: `¡Hola! 👋 Qué gusto saludarte.\n\nSoy el asistente virtual de **SMAK Honduras**. ¿En qué puedo orientarte hoy?\n\n• Ver productos destacados (*"ver catálogo"*)\n• Consultar stock y colores (*"¿Qué colores hay de la silla gamer?"*)\n• Medidas y materiales (*"¿Qué medidas tiene el escritorio?"*)\n• Tiempos de entrega y compra contra entrega.`
+        };
+      }
+
+      // 18. Fallback -> Derivación inmediata a Asesor Comercial / Ejecutivo
+      this.human = true;
+      const waNum = (window.SMAK_CONFIG && window.SMAK_CONFIG.whatsappNumber) || "50498008559";
+      const waLink = `https://wa.me/${waNum}?text=${encodeURIComponent(`Hola SMAK Honduras, tengo una consulta especial: "${rawText.slice(0, 80)}"`)}`;
+
       return {
-        text: `Puedo informarte sobre stock disponible, tiempos de entrega a domicilio, precios de mobiliario (Sillas Tolix, escritorios, percheros, etc.) o coordinar tu compra contra entrega. ¿Qué te gustaría consultar?`
+        text: `👨‍💼 **Atención con Ejecutivo de Ventas SMAK Honduras:**\n\nNo tengo una respuesta exacta registrada en nuestro catálogo automatizado para tu consulta: *"${rawText}"*.\n\nHe transferido esta conversación a un **asesor comercial especializado** para atenderte de forma personalizada.\n\n📲 **Escríbenos directamente a WhatsApp:**\n[+504 9800-8559](${waLink})\n\n*(Un ejecutivo revisará tu mensaje de inmediato para darte información detallada).*`,
+        human: true
       };
     }
   }

@@ -833,6 +833,79 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
       return;
     }
 
+    // SCENARIO MULTI-TURNO INTELIGENTE: PRODUCTO -> COLORES -> PRECIO -> COLORES DE NUEVO -> MEDIDAS -> MATERIALES/ARMADO
+    if (text === "__smart_multi_turn") {
+      thread.replaceChildren();
+      engine.reset();
+
+      // 1. Preguntar por la Silla Gamer
+      bubble("¿Tienen disponible la Silla Gamer SKM-955-CA-NE?", true);
+      setTimeout(async () => {
+        const ans1 = await engine.reply("¿Tienen disponible la Silla Gamer SKM-955-CA-NE?");
+        bubble(ans1.text, false, ans1);
+      }, 500);
+
+      // 2. Preguntar qué colores hay
+      setTimeout(() => {
+        bubble("¿Qué colores tienen disponibles?", true);
+      }, 2000);
+      setTimeout(async () => {
+        const ans2 = await engine.reply("¿Qué colores tienen disponibles?");
+        bubble(ans2.text, false, ans2);
+      }, 2600);
+
+      // 3. Preguntar precio
+      setTimeout(() => {
+        bubble("¿A cuánto sale?", true);
+      }, 4200);
+      setTimeout(async () => {
+        const ans3 = await engine.reply("¿A cuánto sale?");
+        bubble(ans3.text, false, ans3);
+      }, 4800);
+
+      // 4. Volver a preguntar colores (validar persistencia de contexto)
+      setTimeout(() => {
+        bubble("¿La tienen en blanco?", true);
+      }, 6400);
+      setTimeout(async () => {
+        const ans4 = await engine.reply("¿La tienen en blanco?");
+        bubble(ans4.text, false, ans4);
+      }, 7000);
+
+      // 5. Preguntar medidas
+      setTimeout(() => {
+        bubble("¿Cuáles son las medidas y peso que soporta?", true);
+      }, 8600);
+      setTimeout(async () => {
+        const ans5 = await engine.reply("¿Cuáles son las medidas y peso que soporta?");
+        bubble(ans5.text, false, ans5);
+      }, 9200);
+
+      // 6. Preguntar materiales y armado
+      setTimeout(() => {
+        bubble("¿De qué material es y viene armada o trae herramientas?", true);
+      }, 10800);
+      setTimeout(async () => {
+        const ans6 = await engine.reply("¿De qué material es y viene armada o trae herramientas?");
+        bubble(ans6.text, false, ans6);
+      }, 11400);
+
+      return;
+    }
+
+    // SCENARIO CONSULTA NO MAPEADA -> DERIVACIÓN A EJECUTIVO COMERCIAL
+    if (text === "__unmapped_handover") {
+      thread.replaceChildren();
+      engine.reset();
+
+      bubble("¿Hacen servicio de tapicería de cuero personalizada para vehículos?", true);
+      setTimeout(async () => {
+        const ans = await engine.reply("¿Hacen servicio de tapicería de cuero personalizada para vehículos?");
+        bubble(ans.text, false, ans);
+      }, 600);
+      return;
+    }
+
     send(text, { audio: text === "__audio" });
   });
 });
