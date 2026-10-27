@@ -20,193 +20,222 @@ export class StorageFacade {
     }
   }
 
+  static _isInitializing = false;
+  static _isDispatching = false;
+
   static initialize() {
-    const data = this.read();
-    // Validate if data has v5 structure with real products array, rules, and colors synonyms
-    const isValidV5 = data && data.tenants && Object.values(data.tenants).every(t => Array.isArray(t.products) && t.products.length >= 10 && t.products.some(p => p.sku === "SKM-955-CA-NE") && t.synonyms && t.synonyms.colores);
-    if (!isValidV5) {
-      const tenants = Object.fromEntries(TENANTS.map(t => [t.id, clone(t)]));
-      const initialOrders = [
-        { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "SKM-955-CA-NE", daysAgo: 0, location: { lat: 14.1025, lng: -87.1950, mapUrl: "https://www.google.com/maps?q=14.1025,-87.1950", address: "Col. Palmira, Tegucigalpa" } },
-        { tenantId: "smak", name: "Carlos Mendoza", address: "Residencial Las Uvas, Comayagüela", phone: "+504 9452-6810", sku: "SKM-959-CA-NE", daysAgo: 1, location: { lat: 14.0480, lng: -87.2180, mapUrl: "https://www.google.com/maps?q=14.0480,-87.2180", address: "Residencial Las Uvas, Comayagüela" } },
-        { tenantId: "smak", name: "Andrea Pineda", address: "Barrio El Centro, San Pedro Sula", phone: "+504 9981-3472", sku: "ZGS-946-120x30x180", daysAgo: 2, location: { lat: 15.5030, lng: -88.0260, mapUrl: "https://www.google.com/maps?q=15.5030,-88.0260", address: "Barrio El Centro, San Pedro Sula" } },
-        { tenantId: "smak", name: "Roberto Cálix", address: "Col. El Toronjal, La Ceiba", phone: "+504 9711-4402", sku: "SKM-953-NE-MP", daysAgo: 3 },
-        { tenantId: "smak", name: "Elena Ramos", address: "Lomas del Guijarro, Tegucigalpa", phone: "+504 8820-9150", sku: "ZGM-032-NENE", daysAgo: 4, location: { lat: 14.0980, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0980,-87.1850", address: "Lomas del Guijarro, Tegucigalpa" } },
-        { tenantId: "smak", name: "David Banegas", address: "Col. Los Álamos, San Pedro Sula", phone: "+504 9500-3321", sku: "ZGS-943-120x60x75", daysAgo: 5 },
-        { tenantId: "calzado", name: "José David Rivera", address: "Col. Trejo, San Pedro Sula", phone: "+504 9630-1175", sku: "TEN-01", daysAgo: 0, location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
-        { tenantId: "calzado", name: "Sofía Castellanos", address: "Barrio Río de Piedras, San Pedro Sula", phone: "+504 9714-8206", sku: "BOT-02", daysAgo: 1 },
-        { tenantId: "calzado", name: "Marlon Aguilar", address: "Col. Kennedy, Tegucigalpa", phone: "+504 9460-7719", sku: "MOC-04", daysAgo: 2, location: { lat: 14.0580, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0580,-87.1850", address: "Col. Kennedy, Tegucigalpa" } },
-        { tenantId: "calzado", name: "Daniela Flores", address: "Res. Plaza, Tegucigalpa", phone: "+504 8890-5316", sku: "DEP-05", daysAgo: 3, location: { lat: 14.0720, lng: -87.1720, mapUrl: "https://www.google.com/maps?q=14.0720,-87.1720", address: "Res. Plaza, Tegucigalpa" } },
-        { tenantId: "calzado", name: "Gabriela Santos", address: "Col. Miramar, La Ceiba", phone: "+504 9811-6624", sku: "TAC-06", daysAgo: 4 },
-        { tenantId: "calzado", name: "Cristian Orellana", address: "Barrio El Centro, Choluteca", phone: "+504 9322-1088", sku: "CAS-07", daysAgo: 5 }
-      ];
+    if (this._isInitializing) return;
+    this._isInitializing = true;
 
-      const orders = initialOrders.map((sample, idx) => {
-        const tenant = tenants[sample.tenantId];
-        const prod = tenant?.products?.find(p => p.sku === sample.sku) || tenant?.products?.[0];
-        const prefix = sample.tenantId === "calzado" ? "CALZ-ORD" : "SMAK-ORD";
-        const orderNum = `${prefix}-${String(1001 + idx).padStart(4, "0")}`;
-        const quantity = sample.sku === "SKM-955-CA-NE" ? 1 : (sample.sku === "SKM-953-NE-MP" ? 4 : 1);
-        const quantityLabel = sample.sku === "SKM-953-NE-MP" ? "4 taburetes" : (sample.sku === "SKM-955-CA-NE" ? "1 silla gamer" : "1 unidad");
-        const requiresInvoice = idx === 0 || idx === 3;
-        const trackingNumber = idx === 1 ? "CAEX-HN-948210" : (idx > 2 ? "CAEX-HN-881290" : null);
-        const status = idx === 1 ? "en_camino" : (idx > 2 ? "entregado" : "pendiente");
-        const createdIso = new Date(Date.now() - sample.daysAgo * 86400000).toISOString();
+    try {
+      const data = this.read();
+      // Validar si los datos tienen la estructura v5 para el tenant principal SMAK
+      const smakTenant = data?.tenants?.smak;
+      const isValidV5 = smakTenant &&
+        Array.isArray(smakTenant.products) &&
+        smakTenant.products.length >= 10 &&
+        smakTenant.products.some(p => p.sku === "SKM-955-CA-NE") &&
+        smakTenant.synonyms &&
+        smakTenant.synonyms.colores;
 
-        return {
-          id: safeUuid(),
-          tenantId: sample.tenantId,
-          orderNumber: orderNum,
-          name: sample.name,
-          address: sample.address,
-          phone: sample.phone,
-          productName: prod ? `${prod.name} (${prod.sku})` : "Producto",
-          sku: prod ? prod.sku : "",
-          quantity,
-          quantityLabel,
-          requiresInvoice,
-          rtn: requiresInvoice ? "08011985123456" : null,
-          businessName: requiresInvoice ? sample.name + " S. de R.L." : null,
-          status,
-          trackingNumber,
-          trackingCarrier: "Cargo Expreso",
-          total: (prod ? Number(prod.salePrice) : 0) * quantity,
-          location: sample.location || null,
-          isDemo: true,
-          createdAt: createdIso,
-          audit: {
-            ip: "190.92.112.45 (Tegucigalpa, HN)",
-            userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0",
-            source: sample.location ? "whatsapp_bot" : "landing_page_widget",
+      if (!isValidV5) {
+        const tenants = Object.fromEntries(TENANTS.map(t => [t.id, clone(t)]));
+        const initialOrders = [
+          { tenantId: "smak", name: "María Fernanda López", address: "Col. Palmira, Tegucigalpa", phone: "+504 9876-1204", sku: "SKM-955-CA-NE", daysAgo: 0, location: { lat: 14.1025, lng: -87.1950, mapUrl: "https://www.google.com/maps?q=14.1025,-87.1950", address: "Col. Palmira, Tegucigalpa" } },
+          { tenantId: "smak", name: "Carlos Mendoza", address: "Residencial Las Uvas, Comayagüela", phone: "+504 9452-6810", sku: "SKM-959-CA-NE", daysAgo: 1, location: { lat: 14.0480, lng: -87.2180, mapUrl: "https://www.google.com/maps?q=14.0480,-87.2180", address: "Residencial Las Uvas, Comayagüela" } },
+          { tenantId: "smak", name: "Andrea Pineda", address: "Barrio El Centro, San Pedro Sula", phone: "+504 9981-3472", sku: "ZGS-946-120x30x180", daysAgo: 2, location: { lat: 15.5030, lng: -88.0260, mapUrl: "https://www.google.com/maps?q=15.5030,-88.0260", address: "Barrio El Centro, San Pedro Sula" } },
+          { tenantId: "smak", name: "Roberto Cálix", address: "Col. El Toronjal, La Ceiba", phone: "+504 9711-4402", sku: "SKM-953-NE-MP", daysAgo: 3 },
+          { tenantId: "smak", name: "Elena Ramos", address: "Lomas del Guijarro, Tegucigalpa", phone: "+504 8820-9150", sku: "ZGM-032-NENE", daysAgo: 4, location: { lat: 14.0980, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0980,-87.1850", address: "Lomas del Guijarro, Tegucigalpa" } },
+          { tenantId: "smak", name: "David Banegas", address: "Col. Los Álamos, San Pedro Sula", phone: "+504 9500-3321", sku: "ZGS-943-120x60x75", daysAgo: 5 },
+          { tenantId: "calzado", name: "José David Rivera", address: "Col. Trejo, San Pedro Sula", phone: "+504 9630-1175", sku: "TEN-01", daysAgo: 0, location: { lat: 15.4980, lng: -88.0390, mapUrl: "https://www.google.com/maps?q=15.4980,-88.0390", address: "Col. Trejo, San Pedro Sula" } },
+          { tenantId: "calzado", name: "Sofía Castellanos", address: "Barrio Río de Piedras, San Pedro Sula", phone: "+504 9714-8206", sku: "BOT-02", daysAgo: 1 },
+          { tenantId: "calzado", name: "Marlon Aguilar", address: "Col. Kennedy, Tegucigalpa", phone: "+504 9460-7719", sku: "MOC-04", daysAgo: 2, location: { lat: 14.0580, lng: -87.1850, mapUrl: "https://www.google.com/maps?q=14.0580,-87.1850", address: "Col. Kennedy, Tegucigalpa" } },
+          { tenantId: "calzado", name: "Daniela Flores", address: "Res. Plaza, Tegucigalpa", phone: "+504 8890-5316", sku: "DEP-05", daysAgo: 3, location: { lat: 14.0720, lng: -87.1720, mapUrl: "https://www.google.com/maps?q=14.0720,-87.1720", address: "Res. Plaza, Tegucigalpa" } },
+          { tenantId: "calzado", name: "Gabriela Santos", address: "Col. Miramar, La Ceiba", phone: "+504 9811-6624", sku: "TAC-06", daysAgo: 4 },
+          { tenantId: "calzado", name: "Cristian Orellana", address: "Barrio El Centro, Choluteca", phone: "+504 9322-1088", sku: "CAS-07", daysAgo: 5 }
+        ];
+
+        const orders = initialOrders.map((sample, idx) => {
+          const tenant = tenants[sample.tenantId];
+          const prod = tenant?.products?.find(p => p.sku === sample.sku) || tenant?.products?.[0];
+          const prefix = sample.tenantId === "calzado" ? "CALZ-ORD" : "SMAK-ORD";
+          const orderNum = `${prefix}-${String(1001 + idx).padStart(4, "0")}`;
+          const quantity = sample.sku === "SKM-955-CA-NE" ? 1 : (sample.sku === "SKM-953-NE-MP" ? 4 : 1);
+          const quantityLabel = sample.sku === "SKM-953-NE-MP" ? "4 taburetes" : (sample.sku === "SKM-955-CA-NE" ? "1 silla gamer" : "1 unidad");
+          const requiresInvoice = idx === 0 || idx === 3;
+          const trackingNumber = idx === 1 ? "CAEX-HN-948210" : (idx > 2 ? "CAEX-HN-881290" : null);
+          const status = idx === 1 ? "en_camino" : (idx > 2 ? "entregado" : "pendiente");
+          const createdIso = new Date(Date.now() - sample.daysAgo * 86400000).toISOString();
+
+          return {
+            id: safeUuid(),
+            tenantId: sample.tenantId,
+            orderNumber: orderNum,
+            name: sample.name,
+            address: sample.address,
+            phone: sample.phone,
+            productName: prod ? `${prod.name} (${prod.sku})` : "Producto",
+            sku: prod ? prod.sku : "",
+            quantity,
+            quantityLabel,
+            requiresInvoice,
+            rtn: requiresInvoice ? "08011985123456" : null,
+            businessName: requiresInvoice ? sample.name + " S. de R.L." : null,
+            status,
+            trackingNumber,
+            trackingCarrier: "Cargo Expreso",
+            total: (prod ? Number(prod.salePrice) : 0) * quantity,
+            location: sample.location || null,
+            isDemo: true,
             createdAt: createdIso,
-            history: [
-              {
-                action: "creacion_pedido",
-                status,
-                timestamp: createdIso,
-                note: `Pedido ${orderNum} creado. Factura: ${requiresInvoice ? 'Sí (con RTN)' : 'No'}.`
-              }
-            ]
-          }
-        };
-      });
+            audit: {
+              ip: "190.92.112.45 (Tegucigalpa, HN)",
+              userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0",
+              source: sample.location ? "whatsapp_bot" : "landing_page_widget",
+              createdAt: createdIso,
+              history: [
+                {
+                  action: "creacion_pedido",
+                  status,
+                  timestamp: createdIso,
+                  note: `Pedido ${orderNum} creado. Factura: ${requiresInvoice ? 'Sí (con RTN)' : 'No'}.`
+                }
+              ]
+            }
+          };
+        });
 
-      this.write({ activeTenantId: "smak", tenants, orders });
-    } else {
-      // Ensure existing tenants have campaigns and newly added products/rules migrated
-      let modified = false;
-      TENANTS.forEach(defT => {
-        const curTenant = data.tenants[defT.id];
-        if (curTenant) {
-          if (!Array.isArray(curTenant.campaigns) || !curTenant.campaigns.length) {
-            curTenant.campaigns = clone(defT.campaigns || []);
-            modified = true;
-          }
-          // Merge missing products (like PER-09 and REG-10)
-          (defT.products || []).forEach(p => {
-            if (!curTenant.products.some(cp => cp.sku === p.sku)) {
-              curTenant.products.push(clone(p));
+        // Guardar directamente sin disparar eventos sincronos que provoquen recursion
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ activeTenantId: "smak", tenants, orders }));
+      } else {
+        // Ensure existing tenants have campaigns and newly added products/rules migrated
+        let modified = false;
+        TENANTS.forEach(defT => {
+          const curTenant = data.tenants[defT.id];
+          if (curTenant) {
+            if (!Array.isArray(curTenant.campaigns) || !curTenant.campaigns.length) {
+              curTenant.campaigns = clone(defT.campaigns || []);
               modified = true;
             }
-          });
-          // Merge updated rules
-          (defT.rules || []).forEach(defR => {
-            const curR = curTenant.rules.find(r => r.id === defR.id);
-            if (curR) {
-              if (defR.id.includes("transferencia") || defR.id.includes("pagos") || defR.id.includes("tarjetas")) {
-                curR.response = defR.response;
-                curR.trainingPhrases = clone(defR.trainingPhrases);
+            // Merge missing products (like PER-09 and REG-10)
+            (defT.products || []).forEach(p => {
+              if (!curTenant.products.some(cp => cp.sku === p.sku)) {
+                curTenant.products.push(clone(p));
                 modified = true;
-              } else {
-                (defR.trainingPhrases || []).forEach(phrase => {
-                  if (!curR.trainingPhrases.includes(phrase)) {
-                    curR.trainingPhrases.push(phrase);
-                    modified = true;
-                  }
-                });
               }
-            } else {
-              curTenant.rules.push(clone(defR));
-              modified = true;
-            }
-          });
-          // Merge updated synonyms (especially dimensiones & spelling variations)
-          if (defT.synonyms) {
-            if (!curTenant.synonyms) {
-              curTenant.synonyms = clone(defT.synonyms);
-              modified = true;
-            } else {
-              Object.keys(defT.synonyms).forEach(k => {
-                if (!curTenant.synonyms[k]) {
-                  curTenant.synonyms[k] = clone(defT.synonyms[k]);
+            });
+            // Merge updated rules
+            (defT.rules || []).forEach(defR => {
+              const curR = curTenant.rules.find(r => r.id === defR.id);
+              if (curR) {
+                if (defR.id.includes("transferencia") || defR.id.includes("pagos") || defR.id.includes("tarjetas")) {
+                  curR.response = defR.response;
+                  curR.trainingPhrases = clone(defR.trainingPhrases);
                   modified = true;
-                } else if (k === "dimensiones") {
-                  (defT.synonyms[k] || []).forEach(word => {
-                    if (!curTenant.synonyms[k].includes(word)) {
-                      curTenant.synonyms[k].push(word);
+                } else {
+                  (defR.trainingPhrases || []).forEach(phrase => {
+                    if (!curR.trainingPhrases.includes(phrase)) {
+                      curR.trainingPhrases.push(phrase);
                       modified = true;
                     }
                   });
                 }
-              });
+              } else {
+                curTenant.rules.push(clone(defR));
+                modified = true;
+              }
+            });
+            // Merge updated synonyms (especially dimensiones & spelling variations)
+            if (defT.synonyms) {
+              if (!curTenant.synonyms) {
+                curTenant.synonyms = clone(defT.synonyms);
+                modified = true;
+              } else {
+                Object.keys(defT.synonyms).forEach(k => {
+                  if (!curTenant.synonyms[k]) {
+                    curTenant.synonyms[k] = clone(defT.synonyms[k]);
+                    modified = true;
+                  } else if (k === "dimensiones") {
+                    (defT.synonyms[k] || []).forEach(word => {
+                      if (!curTenant.synonyms[k].includes(word)) {
+                        curTenant.synonyms[k].push(word);
+                        modified = true;
+                      }
+                    });
+                  }
+                });
+              }
             }
           }
-        }
-      });
-
-      // Migrate existing orders with orderNumber, quantity, requiresInvoice, audit
-      if (Array.isArray(data.orders)) {
-        let orderCounter = 1000 + data.orders.length;
-        data.orders.forEach((o, idx) => {
-          if (!o.orderNumber) {
-            const prefix = o.tenantId === "calzado" ? "CALZ-ORD" : "SMAK-ORD";
-            o.orderNumber = `${prefix}-${String(orderCounter - idx).padStart(4, "0")}`;
-            modified = true;
-          }
-          if (o.quantity === undefined) {
-            o.quantity = 1;
-            o.quantityLabel = "1 unidad";
-            modified = true;
-          }
-          if (o.requiresInvoice === undefined) {
-            o.requiresInvoice = idx % 3 === 0;
-            o.rtn = o.requiresInvoice ? ("08011990" + String(100000 + idx)) : null;
-            o.businessName = o.requiresInvoice ? (o.name + " S.A.") : null;
-            modified = true;
-          }
-          if (!o.status) {
-            o.status = o.trackingNumber ? "en_camino" : "pendiente";
-            modified = true;
-          }
-          if (!o.audit) {
-            o.audit = {
-              ip: "190.92.112.45 (Tegucigalpa, HN)",
-              userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0",
-              source: o.source || (o.location ? "whatsapp_bot" : "landing_page_widget"),
-              createdAt: o.createdAt || new Date().toISOString(),
-              history: [
-                {
-                  action: "creacion_pedido",
-                  status: o.status,
-                  timestamp: o.createdAt || new Date().toISOString(),
-                  note: `Pedido ${o.orderNumber} registrado en el sistema.`
-                }
-              ]
-            };
-            modified = true;
-          }
         });
-      }
 
-      if (modified) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        // Migrate existing orders with orderNumber, quantity, requiresInvoice, audit
+        if (Array.isArray(data.orders)) {
+          let orderCounter = 1000 + data.orders.length;
+          data.orders.forEach((o, idx) => {
+            if (!o.orderNumber) {
+              const prefix = o.tenantId === "calzado" ? "CALZ-ORD" : "SMAK-ORD";
+              o.orderNumber = `${prefix}-${String(orderCounter - idx).padStart(4, "0")}`;
+              modified = true;
+            }
+            if (o.quantity === undefined) {
+              o.quantity = 1;
+              o.quantityLabel = "1 unidad";
+              modified = true;
+            }
+            if (o.requiresInvoice === undefined) {
+              o.requiresInvoice = idx % 3 === 0;
+              o.rtn = o.requiresInvoice ? ("08011990" + String(100000 + idx)) : null;
+              o.businessName = o.requiresInvoice ? (o.name + " S.A.") : null;
+              modified = true;
+            }
+            if (!o.status) {
+              o.status = o.trackingNumber ? "en_camino" : "pendiente";
+              modified = true;
+            }
+            if (!o.audit) {
+              o.audit = {
+                ip: "190.92.112.45 (Tegucigalpa, HN)",
+                userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0",
+                source: o.source || (o.location ? "whatsapp_bot" : "landing_page_widget"),
+                createdAt: o.createdAt || new Date().toISOString(),
+                history: [
+                  {
+                    action: "creacion_pedido",
+                    status: o.status,
+                    timestamp: o.createdAt || new Date().toISOString(),
+                    note: `Pedido ${o.orderNumber} registrado en el sistema.`
+                  }
+                ]
+              };
+              modified = true;
+            }
+          });
+        }
+
+        if (modified) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
       }
+    } finally {
+      this._isInitializing = false;
     }
   }
 
   static write(state) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    window.dispatchEvent(new CustomEvent("smakbot:data-changed", { detail: state }));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (err) {
+      console.error("StorageFacade.write error:", err);
+    }
+    // Evitar llamadas recursivas anidadas al disparar el evento
+    if (this._isDispatching) return;
+    this._isDispatching = true;
+    try {
+      window.dispatchEvent(new CustomEvent("smakbot:data-changed", { detail: state }));
+    } finally {
+      this._isDispatching = false;
+    }
   }
 
   static getState() {
