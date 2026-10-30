@@ -685,6 +685,175 @@ document.querySelectorAll("[data-scenario]").forEach(btn => {
       return;
     }
 
+    // =========================================================================
+    // ⭐ FLUJO MAESTRO COMPLETO DE VENTA ONLINE E-COMMERCE HONDURAS
+    // =========================================================================
+    if (text === "__master_sales_flow") {
+      thread.replaceChildren();
+      engine.reset();
+      const t = StorageFacade.getTenant();
+      const wynnProd = t.products?.find(p => p.sku === "SKM-956-CA-NE") || t.products?.[3] || { name: "Silla Ergonómica Wynn con Apoyapiés Negro", sku: "SKM-956-CA-NE", salePrice: 2950 };
+
+      // 1. Cliente saluda y pide recomendación de sillas ergonómicas
+      bubble("¡Hola! Buenas tardes. ¿Qué sillas ergonómicas tienen para trabajar en oficina o home office?", true);
+
+      // 2. Bot responde con la línea de sillas ergonómicas y precios
+      setTimeout(async () => {
+        const ans1 = await engine.reply("¿Qué sillas ergonómicas tienen para oficina?");
+        bubble(ans1.text, false, ans1);
+      }, 500);
+
+      // 3. Cliente pregunta por medidas, capacidad de peso y si viene armada la Silla Wynn
+      setTimeout(() => {
+        bubble("Me interesa la Silla Wynn con apoyapiés. ¿Cuánto peso soporta, qué medidas tiene y cómo viene el armado?", true);
+      }, 1600);
+
+      // 4. Bot da especificaciones técnicas y herramientas de ensamble
+      setTimeout(async () => {
+        engine.selectedProduct = wynnProd;
+        const ans2 = await engine.reply(`¿Cuáles son las medidas, peso máximo y cómo viene el armado de ${wynnProd.name}?`);
+        bubble(ans2.text, false, ans2);
+      }, 2400);
+
+      // 5. Cliente pregunta por envío a Tegucigalpa y formas de pago
+      setTimeout(() => {
+        bubble("¿Cuánto cobran de envío a Tegucigalpa y cómo se paga?", true);
+      }, 3600);
+
+      // 6. Bot responde envío gratis vía Cargo Expreso en 24-48h y pago contra entrega
+      setTimeout(async () => {
+        const ans3 = await engine.reply("¿Cuánto cobran de envío a Tegucigalpa y cómo se paga?");
+        bubble(ans3.text, false, ans3);
+      }, 4400);
+
+      // 7. Cliente decide comprar 2 sillas Wynn
+      setTimeout(() => {
+        bubble("¡Excelente! Quiero hacer el pedido de 2 sillas Wynn con apoyapiés", true);
+      }, 5500);
+
+      // 8. Bot inicia checkout preguntando nombre
+      setTimeout(() => {
+        const ans4 = engine.startCheckout(wynnProd, 2);
+        bubble(ans4.text, false, ans4);
+      }, 6200);
+
+      // 9. Cliente da su nombre
+      setTimeout(async () => {
+        bubble("Carlos Roberto Mendoza", true);
+        const ans5 = await engine.reply("Carlos Roberto Mendoza");
+        bubble(ans5.text, false, ans5);
+      }, 7300);
+
+      // 10. Cliente indica cantidad
+      setTimeout(async () => {
+        bubble("2 sillas", true);
+        const ans6 = await engine.reply("2 sillas");
+        bubble(ans6.text, false, ans6);
+      }, 8400);
+
+      // 11. Cliente comparte ubicación GPS interactiva
+      setTimeout(async () => {
+        const palmira = LocationService.PRESETS[0];
+        const locPayload = {
+          ...palmira,
+          mapUrl: LocationService.getGoogleMapsUrl(palmira.lat, palmira.lng)
+        };
+        bubble("📍 Colonia Palmira, Ave. República de Chile, Tegucigalpa", true, { location: locPayload });
+        const ans7 = await engine.reply("Colonia Palmira, Ave. República de Chile, Tegucigalpa", { location: locPayload });
+        bubble(ans7.text, false, ans7);
+      }, 9600);
+
+      // 12. Cliente da teléfono activo para llamadas
+      setTimeout(async () => {
+        bubble("+504 9876-5432", true);
+        const ans8 = await engine.reply("+504 9876-5432");
+        bubble(ans8.text, false, ans8);
+      }, 10800);
+
+      // 13. Cliente confirma No factura
+      setTimeout(async () => {
+        bubble("No", true);
+        const ans9 = await engine.reply("No");
+        bubble(ans9.text, false, ans9);
+      }, 11900);
+
+      // 14. Cliente confirma la orden
+      setTimeout(async () => {
+        bubble("¡Sí, confirmo el pedido!", true);
+        const ans10 = await engine.reply("¡Sí, confirmo el pedido!");
+        bubble(ans10.text, false, ans10);
+      }, 13200);
+
+      return;
+    }
+
+    // SCENARIO: CONSULTA DE SILLAS DE OFICINA
+    if (text === "__scenario_chairs") {
+      thread.replaceChildren();
+      send("¿Qué sillas de oficina y ergonómicas tienen?");
+      return;
+    }
+
+    // SCENARIO: CONSULTA DE TABURETES Y BANCOS TOLIX
+    if (text === "__scenario_stools") {
+      thread.replaceChildren();
+      send("¿Qué taburetes para barra venden?");
+      return;
+    }
+
+    // SCENARIO: CONSULTA DE ESCRITORIOS Y MESAS
+    if (text === "__scenario_desks") {
+      thread.replaceChildren();
+      send("¿Qué escritorios y mesas tienen disponibles?");
+      return;
+    }
+
+    // SCENARIO: ARMADO Y HERRAMIENTAS
+    if (text === "__scenario_assembly") {
+      thread.replaceChildren();
+      send("¿Viene armado o desarmado? ¿Trae herramientas y manual de armado?");
+      return;
+    }
+
+    // SCENARIO: COBERTURA Y ENVÍO A CIUDADES DE HONDURAS
+    if (text === "__scenario_cities_shipping") {
+      thread.replaceChildren();
+      send("¿Hacen envíos a San Pedro Sula y cuánto cobran de flete?");
+      return;
+    }
+
+    // SCENARIO: COTIZACIÓN POR VOLUMEN Y MAYOREO (3 UNIDADES)
+    if (text === "__scenario_volume_discount") {
+      thread.replaceChildren();
+      engine.reset();
+      const t = StorageFacade.getTenant();
+      const wynnProd = t.products?.find(p => p.sku === "SKM-956-CA-NE") || t.products?.[3] || { name: "Silla Ergonómica Wynn con Apoyapiés Negro", sku: "SKM-956-CA-NE", salePrice: 2950 };
+      
+      bubble(`¿Tienen stock de la Silla Ergonómica Wynn (${wynnProd.sku})?`, true);
+      setTimeout(async () => {
+        const ans1 = await engine.reply(`¿Tienen stock de la Silla Ergonómica Wynn (${wynnProd.sku})?`);
+        bubble(ans1.text, false, ans1);
+      }, 400);
+
+      setTimeout(() => {
+        bubble("¿Si compro 3 sillas cuánto me saldría con descuento?", true);
+      }, 1500);
+
+      setTimeout(async () => {
+        const ans2 = await engine.reply("¿Si compro 3 sillas cuánto me saldría con descuento?");
+        bubble(ans2.text, false, ans2);
+      }, 2300);
+
+      return;
+    }
+
+    // SCENARIO: RASTREO DE PEDIDO
+    if (text === "__scenario_tracking") {
+      thread.replaceChildren();
+      send("¿Cómo puedo rastrear mi pedido SMAK-ORD-1001?");
+      return;
+    }
+
     // SCENARIO NUEVO: CHECKOUT COMPLETO CON UBICACION GPS DE WHATSAPP
     if (text === "__order_with_location") {
       thread.replaceChildren();

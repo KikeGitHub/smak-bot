@@ -3152,7 +3152,54 @@ Por favor comp\xE1rtenos tu n\xFAmero de **RTN** (14 d\xEDgitos):`
         }
       }
       const cleanMsg = clean(rawText);
-      const GENERIC_ATTR_WORDS = /* @__PURE__ */ new Set(["negro", "negra", "blanco", "blanca", "cafe", "marron", "gris", "rosa", "rojo", "roja", "madera", "metal", "hierro", "acero", "precio", "medidas", "colores", "tamano", "fotos"]);
+      const GENERIC_ATTR_WORDS = /* @__PURE__ */ new Set([
+        "negro",
+        "negra",
+        "blanco",
+        "blanca",
+        "cafe",
+        "marron",
+        "gris",
+        "rosa",
+        "rojo",
+        "roja",
+        "madera",
+        "metal",
+        "hierro",
+        "acero",
+        "precio",
+        "medidas",
+        "colores",
+        "tamano",
+        "fotos",
+        "silla",
+        "sillas",
+        "sillon",
+        "sillones",
+        "taburete",
+        "taburetes",
+        "banco",
+        "bancos",
+        "escritorio",
+        "escritorios",
+        "mueble",
+        "muebles",
+        "estante",
+        "estantes",
+        "estanteria",
+        "estanterias",
+        "repisa",
+        "repisas",
+        "cocina",
+        "bano",
+        "banos",
+        "griferia",
+        "piletas",
+        "despacho",
+        "oficina",
+        "barra",
+        "hogar"
+      ]);
       for (const p of products) {
         const pClean = clean(p.name);
         if (pClean && (cleanMsg.includes(pClean) || matchPhrase(cleanMsg, tokenize(cleanMsg), pClean))) {
@@ -3678,7 +3725,7 @@ Nuestros precios van desde **L.1,050** en taburetes y organizadores, hasta **L.3
       ];
       return agencyPhrases.some((p) => cleanText.includes(p));
     }
-    _getPolicyResponse(cleanText, tokens) {
+    _getPolicyResponse(cleanText, tokens, rawText = "", currentProduct = null, allProducts = []) {
       if (["roatan", "utila", "guanaja", "islas de la bahia", "isla de la bahia", "islas bahia", "ferry", "galaxy wave", "utila dream", "muelle de cabotaje", "cabotaje"].some((t) => cleanText.includes(t))) {
         return `\u{1F3DD}\uFE0F **Entregas en Roat\xE1n, \xDAtila o Islas de la Bah\xEDa:**
 Para Roat\xE1n o \xDAtila, solo hacemos env\xEDos con **transferencia previa**.
@@ -3696,6 +3743,38 @@ Una vez nos hace llegar el comprobante de transferencia bancaria, nosotros envia
 
 \xA1Realizamos env\xEDos gratuitos a domicilio a cualquier parte del pa\xEDs v\xEDa Cargo Expreso!`;
       }
+      const hondurasCities = [
+        { name: "San Pedro Sula", keys: ["san pedro sula", "san pedro", "sps"] },
+        { name: "Tegucigalpa", keys: ["tegucigalpa", "tgu", "teguz", "comayaguela"] },
+        { name: "La Ceiba", keys: ["la ceiba", "ceiba"] },
+        { name: "Choluteca", keys: ["choluteca"] },
+        { name: "Comayagua", keys: ["comayagua"] },
+        { name: "Danl\xED", keys: ["danli"] },
+        { name: "El Progreso", keys: ["el progreso", "progreso yoro"] },
+        { name: "Puerto Cort\xE9s", keys: ["puerto cortes", "pt cortes"] },
+        { name: "Siguatepeque", keys: ["siguatepeque"] },
+        { name: "Juticalpa", keys: ["juticalpa"] },
+        { name: "Catacamas", keys: ["catacamas"] },
+        { name: "Santa Rosa de Cop\xE1n", keys: ["santa rosa de copan", "copan", "santa rosa"] },
+        { name: "Tela", keys: ["tela"] },
+        { name: "Villanueva", keys: ["villanueva"] },
+        { name: "Choloma", keys: ["choloma"] },
+        { name: "Santa B\xE1rbara", keys: ["santa barbara"] },
+        { name: "Tocoa", keys: ["tocoa", "colon"] }
+      ];
+      const matchedCity = hondurasCities.find((c) => c.keys.some((k) => cleanText.includes(k)));
+      const hasDeliveryContext = ["envio", "envios", "entrega", "entregas", "cobertura", "llegan", "mandan", "vienen", "hacen envios", "a domicilio", "hasta"].some((w) => cleanText.includes(w)) || cleanText.startsWith("a ") || cleanText.includes(" en ");
+      if (matchedCity && hasDeliveryContext) {
+        return `\u{1F69A} **Cobertura de Env\xEDos en ${matchedCity.name}:**
+
+\xA1S\xED! Realizamos env\xEDos directos a domicilio a **${matchedCity.name}** y sus alrededores a trav\xE9s de **Cargo Expreso**.
+
+\u2022 \u{1F193} **Costo de env\xEDo:** \xA1Completamente **GRATIS** a cualquier parte de Honduras!
+\u2022 \u23F1\uFE0F **Tiempo de entrega:** 1 a 2 d\xEDas h\xE1biles (en Tegucigalpa y San Pedro Sula podemos coordinar entrega el mismo d\xEDa si confirmas temprano; el motorista siempre te llamar\xE1 antes de llegar).
+\u2022 \u{1F4B5} **Pago seguro:** Cancelas en efectivo **contra entrega** al recibir tu paquete en la puerta de tu casa o negocio (o retiro en la agencia de Cargo Expreso de ${matchedCity.name} si lo prefieres).
+
+\xBFPor qu\xE9 producto deseas consultar o preparar tu pedido?`;
+      }
       if (["costo de envio", "cuanto cobran", "cuanto vale el envio", "precio del envio", "cobran envio", "cobran el envio", "el envio es gratis", "flete", "flete gratis", "cuanto cobran de flete", "cobran por traerlo", "hay que pagar envio", "el envio tiene costo"].some((t) => cleanText.includes(t))) {
         return `\u{1F69A} **Costo de Env\xEDo:** \xA1El env\xEDo es **completamente gratuito** a cualquier parte del pa\xEDs! Solo cancelas el valor del producto al recibirlo en efectivo contra entrega.`;
       }
@@ -3706,7 +3785,18 @@ Una vez nos hace llegar el comprobante de transferencia bancaria, nosotros envia
         return `\u2728 **Condici\xF3n del Producto:** S\xED, todos nuestros productos son **100% nuevos de f\xE1brica** en su caja original sellada.`;
       }
       if (["mejor precio", "descuento", "descuentos", "rebaja", "rebajas", "cuanto es lo menos", "lo menos", "mayoreo", "por mayor", "en cuanto me lo deja", "si compro varios", "precio especial"].some((t) => cleanText.includes(t))) {
+        const vQuote = this._handleVolumeQuote(rawText, cleanText, tokens, currentProduct, allProducts);
+        if (vQuote) return vQuote.text;
         return `\u{1F3F7}\uFE0F **Mejor Precio:** El precio especial ser\xEDa equivalente a la cantidad de piezas solicitadas por el cliente. Si necesitas ordenar varias piezas o mayoreo, ind\xEDcanos cu\xE1ntas unidades deseas y con gusto te cotizamos.`;
+      }
+      if (["viene armado", "viene armada", "vienen armados", "vienen armadas", "como se arma", "trae herramientas", "trae llaves", "facil de armar", "manual de armado", "herramientas para armar", "requiere herramientas"].some((t) => cleanText.includes(t))) {
+        return `\u{1F4E6} **Condici\xF3n, Ensamble y Herramientas en SMAK Honduras:**
+
+\u2022 **Condici\xF3n:** 100% nuevo de f\xE1brica en caja sellada con empaque protector anti-impactos.
+\u2022 **Armado sencillo:** Para garantizar su \xF3ptima protecci\xF3n en transporte, vienen desarmados e incluyen su **manual gr\xE1fico ilustrado paso a paso** y el **kit completo de herramientas (llaves Allen y torniller\xEDa m\xE9trica)**.
+\u2022 **Tiempo estimado:** Se ensamblan en **10 a 15 minutos** de forma muy intuitiva sin necesidad de taladro ni herramientas especiales.
+
+\xBFDeseas conocer m\xE1s detalles de alg\xFAn producto o que preparemos tu pedido?`;
       }
       return null;
     }
@@ -3717,6 +3807,224 @@ Una vez nos hace llegar el comprobante de transferencia bancaria, nosotros envia
 \u2022 **Dependencia de la agencia:** Como las entregas se coordinan con la empresa de transporte (**Cargo Expreso / agencias de delivery en Honduras**), las rutas dependen directamente de su log\xEDstica diaria. Por esta raz\xF3n, **no depende de nosotros garantizar un horario espec\xEDfico o d\xEDa fijo en tiempo y forma** (el motorista siempre te llamar\xE1 antes de llegar a tu domicilio).
 
 \u{1F4A1} **Recomendaci\xF3n (Retiro en Agencia):** Si necesitas un horario muy espec\xEDfico o no est\xE1s seguro de estar en casa, **te sugerimos solicitar el paquete para retiro en una agencia u oficina de Cargo Expreso** en tu ciudad. Tu paquete te esperar\xE1 en ventanilla para recogerlo a tu conveniencia (ten presente que los s\xE1bados tambi\xE9n atienden medio d\xEDa).`;
+    }
+    _detectCategoryOrGroupAdvisory(rawText, cleanText, tokens, allProducts = []) {
+      const bracketMatch = rawText.match(/\[(?:sku:?\s*)?([a-zA-Z0-9_\-xX]{2,35})\]/i);
+      if (bracketMatch) return null;
+      const explicitSkuPattern = rawText.match(/(?:sku|c[oó]digo|codigo|art[ií]culo|articulo|ref|modelo)\s*[:#\-]?\s*([a-zA-Z0-9_\-xX]{2,35})/i);
+      if (explicitSkuPattern) return null;
+      const hasRegisteredSku = allProducts.some((p) => p.sku && (cleanText.includes(clean(p.sku)) || rawText.toUpperCase().includes(p.sku.toUpperCase())));
+      if (hasRegisteredSku) return null;
+      const specificModels = ["wynn", "miles", "ezri", "savadir", "todd", "doncaster", "elam", "kira", "nobby", "bicicleta", "hamaca"];
+      if (specificModels.some((m) => cleanText.includes(m))) return null;
+      const chairTokens = ["silla", "sillas", "sillon", "sillones", "ergonomica", "ergonomicas", "gamer", "oficina", "ejecutiva", "ejecutivas", "despacho", "trabajar", "home office", "estar sentado", "pasar sentado"];
+      const isChairQuery = chairTokens.some((t) => cleanText.includes(t)) && (tokens.some((t) => ["que", "cuales", "tienen", "hay", "venden", "muestrame", "recomiendan", "recomienda", "busco", "opciones", "modelos", "catalogo", "ver", "linea", "tipos"].includes(t)) || cleanText.includes("sillas") || cleanText.includes("sillones") || cleanText.includes("para trabajar") || cleanText.includes("home office") || cleanText.includes("para oficina") || cleanText.includes("de oficina"));
+      if (isChairQuery) {
+        const wynn = allProducts.find((p) => p.sku === "SKM-956-CA-NE") || allProducts[3];
+        const miles = allProducts.find((p) => p.sku === "SKM-959-CA-NE") || allProducts[1];
+        const gamer = allProducts.find((p) => p.sku === "SKM-955-CA-NE") || allProducts[0];
+        const ezri = allProducts.find((p) => p.sku === "SKM-935-NE") || allProducts[5];
+        const sampleImages = [wynn?.images?.[0], miles?.images?.[0], gamer?.images?.[0], ezri?.images?.[0]].filter(Boolean);
+        return {
+          text: `\u{1FA91} **L\xEDnea de Sillas y Sillones Disponibles en SMAK Honduras:**
+
+Contamos con modelos pr\xE9mium dise\xF1ados para confort postural, trabajo intensivo de oficina y gaming:
+
+\u2022 **Silla Ergon\xF3mica Wynn con Apoyapi\xE9s** (SKU: SKM-956-CA-NE) \u2014 **L.2,950**
+  *Respaldo en malla transpirable de alta tenacidad, soporte lumbar y apoyapi\xE9s retr\xE1ctil (soporte 140 kg).*
+
+\u2022 **Sill\xF3n Ejecutivo Miles con Apoyapi\xE9s** (SKU: SKM-959-CA-NE) \u2014 **L.3,390**
+  *Reclinable de lujo en eco-cuero negro o caf\xE9 con pist\xF3n hidr\xE1ulico clase 4 certificado (soporte 160 kg).*
+
+\u2022 **Silla Gamer Rom CA** (SKU: SKM-955-CA-NE) \u2014 **L.3,190**
+  *Estructura de acero tubular reforzado, reclinaci\xF3n hasta 180\xB0 y cojines ergon\xF3micos cervical y lumbar.*
+
+\u2022 **Silla de Despacho Ezri Negra** (SKU: SKM-935-NE) \u2014 **L.1,790**
+  *Dise\xF1o compacto giratorio 360\xB0, ideal para escritorios de estudio o espacios reducidos (soporte 120 kg).*
+
+\u{1F69A} **Beneficio SMAK:** \xA1Todas incluyen **env\xEDo 100% GRATIS** a todo el pa\xEDs v\xEDa Cargo Expreso y pago en efectivo contra entrega!
+
+\xBFCu\xE1l de estas opciones te gustar\xEDa revisar a detalle (medidas, colores) o deseas preparar tu pedido?`,
+          images: sampleImages.slice(0, 4),
+          categoryGroup: "sillas"
+        };
+      }
+      const stoolTokens = ["taburete", "taburetes", "banco", "bancos", "tolix", "barra", "desayunador", "altos", "para barra"];
+      const isStoolQuery = stoolTokens.some((t) => cleanText.includes(t)) && (tokens.some((t) => ["que", "cuales", "tienen", "hay", "venden", "muestrame", "recomiendan", "busco", "opciones", "modelos", "ver", "linea"].includes(t)) || cleanText.includes("taburetes") || cleanText.includes("bancos") || cleanText.includes("para barra") || cleanText.includes("tolix"));
+      if (isStoolQuery) {
+        const tolixMadera = allProducts.find((p) => p.sku === "SKM-953-NE-MP");
+        const tolixRespaldo = allProducts.find((p) => p.sku === "SKM-972-NE");
+        const tolixPino = allProducts.find((p) => p.sku === "SKM-952-NE-MP");
+        const tolixSimple = allProducts.find((p) => p.sku === "SKM-951-NE");
+        const stoolImages = [tolixMadera?.images?.[0], tolixRespaldo?.images?.[0], tolixPino?.images?.[0], tolixSimple?.images?.[0]].filter(Boolean);
+        return {
+          text: `\u{1F378} **L\xEDnea de Taburetes y Bancos para Barra SMAK Honduras:**
+
+Nuestra l\xEDnea estilo industrial Tolix est\xE1 fabricada en acero al carbono forjado con pintura electrost\xE1tica anticorrosiva horneada:
+
+\u2022 **Taburete Tolix Negro con Respaldo y Asiento de Madera** (SKU: SKM-953-NE-MP) \u2014 **L.1,250**
+  *Asiento en madera de pino tratada y estructura negra mate.*
+
+\u2022 **Taburete Tolix con Respaldo Met\xE1lico** (SKU: SKM-972-NE / SKM-972-GR) \u2014 **L.1,090**
+  *Disponible en acabados Negro Mate y Gris Acero industrial.*
+
+\u2022 **Taburete Alto Tolix Pino sin Respaldo** (SKU: SKM-952-NE-MP) \u2014 **L.950**
+  *Asiento de madera natural de alta densidad, apilable.*
+
+\u2022 **Taburete Tolix Simple Met\xE1lico** (SKU: SKM-951-NE) \u2014 **L.850**
+  *100% acero al carbono reforzado con zapatas de goma antideslizantes.*
+
+\u{1F69A} \xA1Env\xEDos **GRATIS** a toda Honduras con pago contra entrega!
+
+\xBFCu\xE1ntas piezas necesitas para tu barra o te gustar\xEDa ver fotograf\xEDas reales?`,
+          images: stoolImages.slice(0, 4),
+          categoryGroup: "taburetes"
+        };
+      }
+      const deskTokens = ["escritorio", "escritorios", "estanteria", "estanterias", "estante", "estantes", "mesa", "mesas", "comedor", "organizacion", "muebles", "mueble", "repisa", "repisas"];
+      const isDeskQuery = deskTokens.some((t) => cleanText.includes(t)) && (tokens.some((t) => ["que", "cuales", "tienen", "hay", "venden", "muestrame", "recomiendan", "busco", "opciones", "modelos", "ver", "linea"].includes(t)) || cleanText.includes("escritorios") || cleanText.includes("estanterias") || cleanText.includes("mesas") || cleanText.includes("muebles") || cleanText.includes("de oficina"));
+      if (isDeskQuery) {
+        const escritorio = allProducts.find((p) => p.sku === "ZGS-943-120x60x75");
+        const mesa = allProducts.find((p) => p.sku === "ZGS-944-120x80x75");
+        const estante = allProducts.find((p) => p.sku === "ZGS-946-120x30x180");
+        const doncaster = allProducts.find((p) => p.sku === "ZGM-032-NENE");
+        const deskImages = [escritorio?.images?.[0], mesa?.images?.[0], estante?.images?.[0], doncaster?.images?.[0]].filter(Boolean);
+        return {
+          text: `\u{1FAB5} **L\xEDnea de Escritorios, Mesas y Organizaci\xF3n SMAK:**
+
+Fabricados en combinaci\xF3n de madera melam\xEDnica de alta densidad y bastidores estructurales de hierro industrial:
+
+\u2022 **Escritorio de Madera y Hierro 120\xD760\xD775 cm** (SKU: ZGS-943-120x60x75) \u2014 **L.2,250**
+  *Superficie amplia resistente al agua y peso, estructura tubular reforzada anti-tambaleo.*
+
+\u2022 **Mesa de Comedor de Madera y Hierro 120\xD780\xD775 cm** (SKU: ZGS-944-120x80x75) \u2014 **L.2,990**
+  *Capacidad para 4 a 6 personas, acabado r\xFAstico moderno pr\xE9mium.*
+
+\u2022 **Estanter\xEDa de Metal y Madera 120\xD730\xD7180 cm** (SKU: ZGS-946-120x30x180) \u2014 **L.2,850**
+  *5 niveles reforzados, ideal para libros, decoraci\xF3n, oficinas y almacenamiento.*
+
+\u2022 **Juego de 2 Mesas Redondas Auxiliares M\xE1rmol Doncaster** (SKU: ZGM-032-NENE) \u2014 **L.2,450**
+  *Cubiertas con veteado tipo m\xE1rmol negro y base geom\xE9trica dorada/negra.*
+
+\u{1F69A} Vienen en caja sellada con manual gr\xE1fico y herramientas incluidas. \xA1Env\xEDo gratis a todo el pa\xEDs!
+
+\xBFPor cu\xE1l de estos muebles deseas consultar medidas o hacer tu pedido?`,
+          images: deskImages.slice(0, 4),
+          categoryGroup: "muebles"
+        };
+      }
+      const kitchenTokens = ["cocina", "bano", "ba\xF1o", "regadera", "regaderas", "ducha", "duchas", "monocomando", "monocomandos", "grifo", "grifos", "griferia", "fregadero", "fregaderos", "pileta", "piletas"];
+      const isKitchenQuery = kitchenTokens.some((t) => cleanText.includes(t)) && (tokens.some((t) => ["que", "cuales", "tienen", "hay", "venden", "muestrame", "recomiendan", "busco", "opciones", "modelos", "ver", "linea"].includes(t)) || cleanText.includes("duchas") || cleanText.includes("regaderas") || cleanText.includes("monocomandos") || cleanText.includes("piletas") || cleanText.includes("cocina") || cleanText.includes("bano"));
+      if (isKitchenQuery) {
+        const savadir = allProducts.find((p) => p.sku === "ZGB-148-NM");
+        const toddNm = allProducts.find((p) => p.sku === "ZGB-146-NM");
+        const toddInox = allProducts.find((p) => p.sku === "ZGB-146-INOX");
+        const kImages = [savadir?.images?.[0], toddNm?.images?.[0], toddInox?.images?.[0]].filter(Boolean);
+        return {
+          text: `\u{1F6BF} **L\xEDnea de Grifer\xEDa, Piletas y Ba\xF1o SMAK Honduras:**
+
+Cuerpo 100% en Acero Inoxidable 304 quir\xFArgico con cartuchos cer\xE1micos anti-fuga:
+
+\u2022 **Pileta de Cocina Multifuncional Negro Mate Savadir** (SKU: ZGB-148-NM) \u2014 **L.3,990**
+  *Incluye grifo extensible tipo cascada, lava-vasos a presi\xF3n, tabla de corte y accesorios completos.*
+
+\u2022 **Monocomando con Salida Flexible Todd** (SKU: ZGB-146-NM / ZGB-146-INOX) \u2014 **L.1,090**
+  *Manguera dirigible 360\xB0 en acabado Negro Mate o Acero Inoxidable cepillado.*
+
+\u2022 **Columna de Ducha con Drenaje Lineal Inox** \u2014 **L.3,390**
+  *Grifer\xEDa termost\xE1tica tipo lluvia y rejilla continua anti-olores de 16\xD72.5 cm.*
+
+\u{1F69A} \xA1Env\xEDo gratis a domicilio con pago contra entrega!
+
+\xBFDeseas ver fotograf\xEDas o consultar instalaci\xF3n?`,
+          images: kImages.slice(0, 3),
+          categoryGroup: "cocina_bano"
+        };
+      }
+      const ladderTokens = ["escalera", "escaleras", "andamio", "andamios", "carro de carga", "carretilla", "carga"];
+      const isLadderQuery = ladderTokens.some((t) => cleanText.includes(t)) && (tokens.some((t) => ["que", "cuales", "tienen", "hay", "venden", "muestrame", "opciones", "modelos", "ver"].includes(t)) || cleanText.includes("escaleras") || cleanText.includes("andamios"));
+      if (isLadderQuery) {
+        const escalera = allProducts.find((p) => p.sku === "ZGS-707");
+        const carro = allProducts.find((p) => p.sku === "ZGS-622");
+        const lImages = [escalera?.images?.[0], carro?.images?.[0]].filter(Boolean);
+        return {
+          text: `\u{1FA9C} **L\xEDnea de Escaleras y Equipamiento de Carga:**
+
+\u2022 **Escalera Tipo Andamio Multiprop\xF3sito 16 Escalones + Plancha** (SKU: ZGS-707) \u2014 **L.3,350**
+  *Aleaci\xF3n de aluminio estructural de grado aeroespacial, bisagras autom\xE1ticas de seguridad multiposici\xF3n.*
+
+\u2022 **Carro de Carga Plegable 90 KG** (SKU: ZGS-622) \u2014 **L.990**
+  *Compacto, ruedas de goma maciza y plataforma telesc\xF3pica de acero al carbono.*
+
+\u{1F69A} \xA1Env\xEDos gratis a todo el pa\xEDs v\xEDa Cargo Expreso con pago al recibir!`,
+          images: lImages,
+          categoryGroup: "escaleras"
+        };
+      }
+      return null;
+    }
+    _handleVolumeQuote(rawText, cleanText, tokens, currentProduct, allProducts = []) {
+      const wordToNum = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, diez: 10, docena: 12 };
+      let qty = null;
+      const matchNum = rawText.match(/\b([2-9]|1\d|20)\b/);
+      if (matchNum) {
+        qty = parseInt(matchNum[1], 10);
+      } else {
+        for (const [w, val] of Object.entries(wordToNum)) {
+          if (tokens.includes(w)) {
+            qty = val;
+            break;
+          }
+        }
+      }
+      const hasQuoteIntent = [
+        "cuanto me sale",
+        "cuanto sale",
+        "cuanto seria",
+        "cuanto cuesta",
+        "cuanto es",
+        "en cuanto me sale",
+        "en cuanto sale",
+        "precio por",
+        "total por",
+        "si compro",
+        "si llevo",
+        "si pido",
+        "si ordeno",
+        "por mayor",
+        "mayoreo",
+        "por cantidad",
+        "cuanto saldria"
+      ].some((p) => cleanText.includes(p));
+      if (!qty || !hasQuoteIntent) return null;
+      let prod = currentProduct;
+      if (!prod && allProducts.length) {
+        if (cleanText.includes("silla") || cleanText.includes("sillon")) {
+          prod = allProducts.find((p) => p.sku === "SKM-956-CA-NE") || allProducts[0];
+        } else if (cleanText.includes("taburete") || cleanText.includes("banco")) {
+          prod = allProducts.find((p) => p.sku === "SKM-953-NE-MP");
+        } else if (cleanText.includes("escritorio")) {
+          prod = allProducts.find((p) => p.sku === "ZGS-943-120x60x75");
+        }
+      }
+      if (!prod) return null;
+      const unitPrice = Number(prod.salePrice || prod.price || 0);
+      const total = unitPrice * qty;
+      return {
+        text: `\u{1F3F7}\uFE0F **Cotizaci\xF3n por Volumen (${qty} ${qty === 1 ? "unidad" : "unidades"}):**
+
+\u2022 Producto: **${prod.name}** (SKU: ${prod.sku})
+\u2022 Precio regular unitario: L.${Number(prod.regularPrice || Math.round(unitPrice * 1.15)).toLocaleString("es-HN")}
+\u2022 **Precio especial de oferta:** **L.${unitPrice.toLocaleString("es-HN")}** c/u
+\u2022 **Total a pagar:** **L.${total.toLocaleString("es-HN")}**
+\u2022 \u{1F69A} **Costo de env\xEDo:** \xA1Completamente **GRATIS** a cualquier parte de Honduras v\xEDa Cargo Expreso!
+\u2022 \u{1F4B5} **Forma de pago:** Efectivo contra entrega al recibir en tu puerta (o transferencia bancaria previa).
+\u2022 \u{1F381} **Beneficio por Mayoreo:** Al ordenar ${qty >= 3 ? "3 o m\xE1s unidades" : "en volumen"}, coordinamos con supervisi\xF3n de ventas para incluirte una atenci\xF3n o regal\xEDa especial en tu factura.
+
+\xBFDeseas que preparemos tu pedido para apartar las ${qty} unidades en inventario?`,
+        product: prod,
+        images: prod.images?.slice(0, 2) || []
+      };
     }
     async reply(message, opts = {}) {
       const isVoice = Boolean(opts.audio || opts.audioTranscript || this.voicePreferred);
@@ -4231,7 +4539,8 @@ ${confirmation2.text}`,
       }
       const trackingRegex = /(?:smak-ord-\d+|calz-ord-\d+|caex-[a-z0-9-]+)/i;
       const matchedCode = rawText.match(trackingRegex);
-      if (matchedCode || (tokens.some((t) => ["rastreo", "guia", "tracking", "paquete"].includes(t)) || cleanText.includes("mi pedido")) && (cleanText.includes("donde") || cleanText.includes("estado") || cleanText.includes("numero"))) {
+      const isTrackingIntent = matchedCode || tokens.some((t) => ["rastreo", "rastrear", "guia", "tracking", "paquete"].includes(t)) || cleanText.includes("rastrear") || cleanText.includes("rastreo") || cleanText.includes("tracking") || cleanText.includes("guia de envio") || cleanText.includes("numero de guia") || (cleanText.includes("mi pedido") || cleanText.includes("mi paquete") || cleanText.includes("mi compra") || cleanText.includes("mi orden")) && (cleanText.includes("donde") || cleanText.includes("estado") || cleanText.includes("como va") || cleanText.includes("numero") || cleanText.includes("cuando llega") || cleanText.includes("estatus") || cleanText.includes("rastrear"));
+      if (isTrackingIntent) {
         const codeToSearch = matchedCode ? matchedCode[0] : null;
         let order = codeToSearch ? StorageFacade.getOrderByNumber(codeToSearch) : null;
         if (!order) {
@@ -4390,7 +4699,7 @@ Puedes pagar v\xEDa transferencia bancaria y compartirnos tu comprobante por est
         this.selectedProduct = skuExtraction.product;
       }
       const currentProduct = skuExtraction && skuExtraction.product || this.selectedProduct || (this.checkout ? this.checkout.product : null) || null;
-      const policyAns = this._getPolicyResponse(cleanText, tokens);
+      const policyAns = this._getPolicyResponse(cleanText, tokens, rawText, currentProduct, products);
       if (policyAns) {
         return {
           text: `${policyAns}
@@ -4398,6 +4707,14 @@ Puedes pagar v\xEDa transferencia bancaria y compartirnos tu comprobante por est
 \xBFDeseas que preparemos tu pedido${currentProduct ? ` para **${currentProduct.name}**` : ""}?`,
           product: currentProduct || null
         };
+      }
+      const categoryAdvisory = this._detectCategoryOrGroupAdvisory(rawText, cleanText, tokens, products);
+      if (categoryAdvisory) {
+        return categoryAdvisory;
+      }
+      const volumeQuote = this._handleVolumeQuote(rawText, cleanText, tokens, currentProduct, products);
+      if (volumeQuote) {
+        return volumeQuote;
       }
       if (this._isColorIntent(cleanText, tokens, synonyms)) {
         return this._handleColorQuery(rawText, cleanText, tokens, currentProduct, products);
