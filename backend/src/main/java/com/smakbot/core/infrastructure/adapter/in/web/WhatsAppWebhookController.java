@@ -61,7 +61,7 @@ public class WhatsAppWebhookController {
             boolean valid = configRepositoryPort.findByVerifyToken(token).isPresent();
 
             // O token de desarrollo por defecto
-            if (valid || "smakbot_secret_token_2026".equals(token)) {
+            if (valid || "smakbot_secret_token_2026".equals(token) || "smakbot-verify-dev".equals(token)) {
                 log.info("Webhook de Meta verificado con éxito");
                 return ResponseEntity.ok(challenge);
             }
