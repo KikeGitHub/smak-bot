@@ -83,10 +83,64 @@ class SalesEngineServiceTest {
                 true
         );
 
+        Product gamerChair = new Product(
+                UUID.randomUUID(),
+                "tenant-hn-muebles",
+                "SKM-955-CA-NE",
+                "Silla Gamer Rom CA Negro/Negro",
+                "Silla gamer reclinable 135 grados con soporte de acero",
+                new BigDecimal("3600.00"),
+                new BigDecimal("3190.00"),
+                20,
+                "130 x 52 cm",
+                "160 kg",
+                "Negra",
+                "Sillas y Bancos",
+                List.of("silla gamer", "gamer", "rom", "sia gamer", "cia gamer", "asiento gamer", "butaca gamer", "skm-955-ca-ne", "955"),
+                List.of("https://images.unsplash.com/photo-1598550476439-6847785fcea6"),
+                true
+        );
+
+        Product milesChair = new Product(
+                UUID.randomUUID(),
+                "tenant-hn-muebles",
+                "SKM-959-CA-NE",
+                "Sillón Ejecutivo Miles Negro con Apoyapiés",
+                "Sillón ejecutivo reclinable con apoyapiés integrado y base cromada",
+                new BigDecimal("3800.00"),
+                new BigDecimal("3390.00"),
+                15,
+                "110 x 55 cm",
+                "160 kg",
+                "Negro",
+                "Sillas y Bancos",
+                List.of("silla ejecutiva", "sillon", "miles", "sia ejecutiva", "cia ejecutiva", "sillon ejecutivo", "oficina", "skm-959-ca-ne", "959"),
+                List.of("https://images.unsplash.com/photo-1505797149-43b0069ec26b"),
+                true
+        );
+
+        Product sinkProduct = new Product(
+                UUID.randomUUID(),
+                "tenant-hn-muebles",
+                "ZGB-148-NM",
+                "Pileta de Cocina Multifuncional Negro Mate Savadir",
+                "Pileta de acero nano negro mate con accesorios incluidos",
+                new BigDecimal("4600.00"),
+                new BigDecimal("3990.00"),
+                25,
+                "75 x 45 cm",
+                "Acero inoxidable 304",
+                "Negro mate",
+                "Cocina y Baño",
+                List.of("pileta", "lavatrastos", "fregadero", "lavaplato", "lavaplatos", "fregador", "tarja", "poceta", "savadir", "zgb-148", "148"),
+                List.of("https://images.unsplash.com/photo-1584622650111-993a426fbf0a"),
+                true
+        );
+
         sessionStore = new HashMap<>();
 
         lenient().when(tenantRepo.findById("tenant-hn-muebles")).thenReturn(Optional.of(testTenant));
-        lenient().when(productRepo.findActiveByTenant("tenant-hn-muebles")).thenReturn(List.of(wynnChair, deskProduct));
+        lenient().when(productRepo.findActiveByTenant("tenant-hn-muebles")).thenReturn(List.of(wynnChair, deskProduct, gamerChair, milesChair, sinkProduct));
 
         // Mock stateful session repository in memory
         lenient().when(sessionRepo.findById(anyString())).thenAnswer(inv -> {
@@ -324,6 +378,100 @@ class SalesEngineServiceTest {
         assertNotNull(reply);
         assertTrue(reply.text().contains("2,950") || reply.text().contains("150 kg") || reply.text().contains("GRATIS"),
                 "Debe resolver la intención a pesar de los errores de ortografía ('presio', 'gartis', 'cuamto', 'resistensia')");
+    }
+
+    @Test
+    @DisplayName("Hondureñismos: 'Tiene Sia Gamer?' debe identificar Silla Gamer Rom (SKM-955)")
+    void testHonduranPhoneticSiaGamer() {
+        IncomingMessage msg = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                "sess-hn-01",
+                "Tiene Sia Gamer?",
+                null
+        );
+
+        BotReply reply = salesEngine.process(msg);
+        assertNotNull(reply);
+        assertFalse(reply.human(), "No debe transferir a humano");
+        assertNotNull(reply.product(), "Debe identificar el producto Gamer");
+        assertEquals("SKM-955-CA-NE", reply.product().sku());
+        assertTrue(reply.text().contains("Silla Gamer") || reply.text().contains("3,190"));
+    }
+
+    @Test
+    @DisplayName("Hondureñismos: 'Q Prezio la cia' debe brindar la asesoría de precios de la línea de sillas")
+    void testHonduranPhoneticQPrezioLaCia() {
+        IncomingMessage msg = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                "sess-hn-02",
+                "Q Prezio la cia",
+                null
+        );
+
+        BotReply reply = salesEngine.process(msg);
+        assertNotNull(reply);
+        assertFalse(reply.human(), "No debe transferir a humano");
+        assertTrue(reply.text().contains("Sillas") || reply.text().contains("Línea de Sillas"),
+                "Debe asesorar sobre la línea de sillas");
+        assertTrue(reply.text().contains("L.") || reply.text().contains("3,190") || reply.text().contains("2,950"),
+                "Debe contener precios");
+    }
+
+    @Test
+    @DisplayName("Hondureñismos: 'Sia Ejecutiva' debe identificar Sillón Ejecutivo Miles (SKM-959)")
+    void testHonduranPhoneticSiaEjecutiva() {
+        IncomingMessage msg = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                "sess-hn-03",
+                "Sia Ejecutiva",
+                null
+        );
+
+        BotReply reply = salesEngine.process(msg);
+        assertNotNull(reply);
+        assertFalse(reply.human(), "No debe transferir a humano");
+        assertNotNull(reply.product(), "Debe identificar el producto Ejecutivo");
+        assertEquals("SKM-959-CA-NE", reply.product().sku());
+        assertTrue(reply.text().contains("Miles") || reply.text().contains("3,390"));
+    }
+
+    @Test
+    @DisplayName("Hondureñismos: 'A ke precio el lavaplato' debe identificar Pileta Savadir (ZGB-148-NM)")
+    void testHonduranPhoneticAKePrecioElLavaplato() {
+        IncomingMessage msg = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                "sess-hn-04",
+                "A ke precio el lavaplato",
+                null
+        );
+
+        BotReply reply = salesEngine.process(msg);
+        assertNotNull(reply);
+        assertFalse(reply.human(), "No debe transferir a humano");
+        assertNotNull(reply.product(), "Debe identificar la Pileta de cocina/lavatrastos");
+        assertEquals("ZGB-148-NM", reply.product().sku());
+        assertTrue(reply.text().contains("3,990") || reply.text().contains("Savadir") || reply.text().contains("Pileta"));
+    }
+
+    @Test
+    @DisplayName("Autoservicio: Opción '1' debe desplegar la línea de sillas de inmediato")
+    void testNumericOptionSelection() {
+        IncomingMessage msg = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                "sess-hn-05",
+                "1",
+                null
+        );
+
+        BotReply reply = salesEngine.process(msg);
+        assertNotNull(reply);
+        assertFalse(reply.human());
+        assertTrue(reply.text().contains("Sillas y Sillones"), "Debe mostrar la línea de sillas");
     }
 }
 

@@ -30,7 +30,7 @@ public class CatalogAdvisor {
     private static final Pattern QTY_NUM = Pattern.compile("\\b([2-9]|1\\d|20)\\b");
     private static final Map<String, Integer> QTY_WORDS = Map.of("dos", 2, "tres", 3, "cuatro", 4, "cinco", 5, "seis", 6, "diez", 10, "docena", 12);
     private static final List<String> SPECIFIC_MODELS = List.of("wynn", "miles", "ezri", "savadir", "todd", "doncaster", "elam", "kira", "nobby", "bicicleta", "hamaca");
-    private static final String[] QUERY_WORDS = {"que", "cuales", "tienen", "hay", "venden", "muestrame", "recomiendan", "recomienda", "busco", "opciones", "modelos", "catalogo", "ver", "linea", "tipos"};
+    private static final String[] QUERY_WORDS = {"que", "cuales", "tienen", "hay", "venden", "muestrame", "recomiendan", "recomienda", "busco", "opciones", "modelos", "catalogo", "ver", "linea", "tipos", "precio", "precios", "cuanto", "costo", "valor", "vale", "sale"};
 
     private record ProductLine(String key, String header, String intro, String closing, List<String> triggers,
                                List<String> pluralSignals, Predicate<String> productFilter) {
@@ -75,6 +75,31 @@ public class CatalogAdvisor {
             return Optional.empty();
         }
         if (m.hasAny(SPECIFIC_MODELS)) return Optional.empty();
+
+        // Soporte directo para selección numérica de opciones ("1", "2", "3", "4", "5") o palabras clave directas
+        String cleanSingle = m.clean().trim();
+        int directIdx = -1;
+        if (cleanSingle.equals("1") || cleanSingle.equals("opcion 1") || cleanSingle.equals("1.")) directIdx = 0;
+        else if (cleanSingle.equals("2") || cleanSingle.equals("opcion 2") || cleanSingle.equals("2.")) directIdx = 1;
+        else if (cleanSingle.equals("3") || cleanSingle.equals("opcion 3") || cleanSingle.equals("3.")) directIdx = 2;
+        else if (cleanSingle.equals("4") || cleanSingle.equals("opcion 4") || cleanSingle.equals("4.")) directIdx = 3;
+        else if (cleanSingle.equals("5") || cleanSingle.equals("opcion 5") || cleanSingle.equals("5.")) directIdx = 4;
+
+        if (directIdx >= 0 && directIdx < LINES.size()) {
+            ProductLine line = LINES.get(directIdx);
+            List<Product> lineProducts = dedupeByFamily(products.stream()
+                    .filter(p -> line.productFilter().test(clean(p.name() + " " + nullToEmpty(p.category()))))
+                    .toList(), 4);
+            if (!lineProducts.isEmpty()) {
+                String items = lineProducts.stream()
+                        .map(p -> "• **" + p.name() + "** (SKU: " + p.sku() + ") — **" + lempiras(p.salePrice()) + "**"
+                                + (detailOf(p).isEmpty() ? "" : "\n  *" + detailOf(p) + "*"))
+                        .collect(Collectors.joining("\n\n"));
+                String text = String.format(line.header(), tenant.name()) + "\n\n" + line.intro() + "\n\n" + items + "\n\n" + line.closing();
+                List<String> images = lineProducts.stream().flatMap(p -> p.firstImages(1).stream()).toList();
+                return Optional.of(Answer.withImages(text, null, images));
+            }
+        }
 
         for (ProductLine line : LINES) {
             boolean triggered = m.hasAny(line.triggers()) && (m.token(QUERY_WORDS) || m.hasAny(line.pluralSignals()));

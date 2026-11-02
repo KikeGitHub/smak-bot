@@ -24,7 +24,50 @@ public final class TextNormalizer {
             "mis", "tu", "tus");
 
     private static final java.util.Map<Pattern, String> TYPO_REPLACEMENTS = java.util.Map.ofEntries(
-            java.util.Map.entry(Pattern.compile("\\bpresio(s)?\\b"), "precio$1"),
+            // Abreviaciones de chat / SMS comunes en Honduras
+            java.util.Map.entry(Pattern.compile("\\b[qk]\\b"), "que"),
+            java.util.Map.entry(Pattern.compile("\\bke\\b"), "que"),
+            java.util.Map.entry(Pattern.compile("\\bkhe\\b"), "que"),
+            java.util.Map.entry(Pattern.compile("\\bd\\b"), "de"),
+            java.util.Map.entry(Pattern.compile("\\bx\\b"), "por"),
+            java.util.Map.entry(Pattern.compile("\\bxfa(?:vor)?\\b"), "por favor"),
+            java.util.Map.entry(Pattern.compile("\\bpq\\b"), "porque"),
+            java.util.Map.entry(Pattern.compile("\\btmb\\b"), "tambien"),
+            java.util.Map.entry(Pattern.compile("\\btbn\\b"), "tambien"),
+
+            // Fonética y yeísmo de Sillas y Mobiliario (ej. "sia", "cia", "siya", "ciya" -> "silla")
+            java.util.Map.entry(Pattern.compile("\\b(?:[sc]i[ay]s?|cias?|siyitas?|silletas?)\\b"), "silla"),
+            java.util.Map.entry(Pattern.compile("\\b(?:[sc]iy[oó]n(?:es)?|ciy[oó]n(?:es)?)\\b"), "sillon"),
+            java.util.Map.entry(Pattern.compile("\\bbutacas?\\b"), "silla"),
+            java.util.Map.entry(Pattern.compile("\\bto[li]k[sz]?\\b"), "tolix"),
+            java.util.Map.entry(Pattern.compile("\\btolis\\b"), "tolix"),
+            java.util.Map.entry(Pattern.compile("\\bbanquit[ao]s?\\b"), "banco"),
+            java.util.Map.entry(Pattern.compile("\\bbanquetas?\\b"), "banco"),
+
+            // Cocina y baño
+            java.util.Map.entry(Pattern.compile("\\blavaplatos?\\b"), "lavatrastos"),
+            java.util.Map.entry(Pattern.compile("\\blavatrastes?\\b"), "lavatrastos"),
+            java.util.Map.entry(Pattern.compile("\\bfregador(?:a|es)?\\b"), "fregadero"),
+            java.util.Map.entry(Pattern.compile("\\btarjas?\\b"), "lavatrastos"),
+            java.util.Map.entry(Pattern.compile("\\bpocetas?\\b"), "lavatrastos"),
+            java.util.Map.entry(Pattern.compile("\\bmonomandos?\\b"), "monocomando"),
+
+            // Gaming / Ergonomía / Oficina
+            java.util.Map.entry(Pattern.compile("\\bge[yi]mer\\b"), "gamer"),
+            java.util.Map.entry(Pattern.compile("\\bgueimer\\b"), "gamer"),
+            java.util.Map.entry(Pattern.compile("\\byeymer\\b"), "gamer"),
+            java.util.Map.entry(Pattern.compile("\\berconomic[ao]s?\\b"), "ergonomica"),
+            java.util.Map.entry(Pattern.compile("\\bergonomic[ao]s?\\b"), "ergonomica"),
+            java.util.Map.entry(Pattern.compile("\\bejecutiv[ao]s?\\b"), "ejecutiva"),
+
+            // Carga y Jardín
+            java.util.Map.entry(Pattern.compile("\\bcolumpios?\\b"), "hamaca"),
+            java.util.Map.entry(Pattern.compile("\\bmecedoras?\\b"), "hamaca"),
+            java.util.Map.entry(Pattern.compile("\\bdiablitos?\\b"), "carro de carga"),
+            java.util.Map.entry(Pattern.compile("\\bcarretas?\\b"), "carretilla"),
+
+            // Fonética de Precios, medidas y verbos hondureños
+            java.util.Map.entry(Pattern.compile("\\bpre[sz]io(s)?\\b"), "precio$1"),
             java.util.Map.entry(Pattern.compile("\\bcuamto(s)?\\b"), "cuanto$1"),
             java.util.Map.entry(Pattern.compile("\\bresistens(?:ia|ias)?\\b"), "resistencia"),
             java.util.Map.entry(Pattern.compile("\\bgartis\\b"), "gratis"),
@@ -35,10 +78,50 @@ public final class TextNormalizer {
             java.util.Map.entry(Pattern.compile("\\btamanyo\\b"), "tamano"),
             java.util.Map.entry(Pattern.compile("\\bcolorez\\b"), "colores"),
             java.util.Map.entry(Pattern.compile("\\bdisponivle\\b"), "disponible"),
-            java.util.Map.entry(Pattern.compile("\\bexistensia\\b"), "existencia")
+            java.util.Map.entry(Pattern.compile("\\bexistensia\\b"), "existencia"),
+            java.util.Map.entry(Pattern.compile("\\bnesesit[oó]\\b"), "necesito"),
+            java.util.Map.entry(Pattern.compile("\\bnesecit[oó]\\b"), "necesito"),
+            java.util.Map.entry(Pattern.compile("\\bocupo\\b"), "necesito"),
+            java.util.Map.entry(Pattern.compile("\\bwuen(?:as|os)?\\b"), "buenas"),
+            java.util.Map.entry(Pattern.compile("\\bwen(?:as|os)?\\b"), "buenas")
     );
 
     private TextNormalizer() {
+    }
+
+    /**
+     * Calcula la distancia de Levenshtein entre dos cadenas de texto.
+     */
+    public static int levenshteinDistance(String a, String b) {
+        if (a == null) a = "";
+        if (b == null) b = "";
+        int[] costs = new int[b.length() + 1];
+        for (int j = 0; j < costs.length; j++) costs[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            costs[0] = i;
+            int nw = i - 1;
+            for (int j = 1; j <= b.length(); j++) {
+                int cj = Math.min(1 + Math.min(costs[j], costs[j - 1]),
+                        a.charAt(i - 1) == b.charAt(j - 1) ? nw : nw + 1);
+                nw = costs[j];
+                costs[j] = cj;
+            }
+        }
+        return costs[b.length()];
+    }
+
+    /**
+     * Retorna la similitud métrica entre 0.0 y 1.0 basada en Levenshtein.
+     */
+    public static double similarity(String s1, String s2) {
+        if (s1 == null || s2 == null) return 0.0;
+        String a = clean(s1);
+        String b = clean(s2);
+        if (a.equals(b)) return 1.0;
+        int maxLen = Math.max(a.length(), b.length());
+        if (maxLen == 0) return 1.0;
+        int dist = levenshteinDistance(a, b);
+        return 1.0 - ((double) dist / maxLen);
     }
 
     public static String clean(String s) {
@@ -61,8 +144,11 @@ public final class TextNormalizer {
 
     public static String stem(String w) {
         String s = w == null ? "" : w.trim();
-        if (s.endsWith("es") && s.length() > 4) return s.substring(0, s.length() - 2);
-        if (s.endsWith("s") && s.length() > 3) return s.substring(0, s.length() - 1);
+        if (s.endsWith("es") && s.length() > 4) s = s.substring(0, s.length() - 2);
+        else if (s.endsWith("s") && s.length() > 3) s = s.substring(0, s.length() - 1);
+        if ((s.endsWith("a") || s.endsWith("o")) && s.length() > 4) {
+            s = s.substring(0, s.length() - 1);
+        }
         return s;
     }
 

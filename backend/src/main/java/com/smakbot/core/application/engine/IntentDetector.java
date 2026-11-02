@@ -170,15 +170,16 @@ public final class IntentDetector {
     }
 
     public static boolean isStockQuery(MessageText m) {
-        return m.token("stock", "disponible", "disponibilidad", "quedan", "hay", "existencia", "inventario", "tienen");
+        return m.token("stock", "disponible", "disponibilidad", "quedan", "hay", "existencia", "inventario", "tienen")
+                || m.hasAny("la tienen", "lo tienen", "la hay", "lo hay", "aun tienen", "todavia tienen");
     }
 
     public static boolean isCatalogQuery(MessageText m) {
-        return m.token("catalogo", "productos", "modelos", "articulos")
-                || m.hasAny("que venden", "ver catalogo", "que tienen");
+        return m.token("catalogo", "productos", "modelos", "articulos", "mercaderia")
+                || m.hasAny("que venden", "ver catalogo", "que tienen", "que productos tienes", "que productos tienen", "que productos hay", "mostrar productos", "que cosas tienen", "que muebles tienen");
     }
 
     public static boolean isGreeting(MessageText m) {
-        return m.token("hola", "buenas", "buen", "dia", "tardes", "noches");
+        return m.token("hola", "buenas", "buen", "dia", "tardes", "noches", "saludos", "alero", "compa", "que tal", "epale", "onda");
     }
 }

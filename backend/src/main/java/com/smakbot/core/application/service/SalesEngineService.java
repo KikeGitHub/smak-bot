@@ -61,11 +61,30 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         MessageText m = MessageText.of(msg.text());
 
-        // 1. Ya transferido a humano
+        // 1. Manejo de sesión transferida a humano (reactivación automática si el cliente consulta productos o saluda)
         if (session.isHuman()) {
-            return BotReply.text("Tu conversación está asignada a un asesor comercial. Un miembro de nuestro equipo responderá en breve.")
-                    .human(true)
-                    .build(CheckoutStep.HUMAN);
+            boolean userResumesBot = m.hasAny("bot", "asistente", "menu", "menú", "reiniciar", "inicio", "empezar", "volver", "cancelar")
+                    || IntentDetector.isGreeting(m)
+                    || IntentDetector.isCatalogQuery(m)
+                    || IntentDetector.isPurchase(m)
+                    || IntentDetector.isPrice(m)
+                    || IntentDetector.isStockQuery(m)
+                    || IntentDetector.isColor(m)
+                    || IntentDetector.isDimension(m)
+                    || IntentDetector.isWeight(m)
+                    || IntentDetector.isMaterial(m)
+                    || IntentDetector.isPhotoQuery(m)
+                    || IntentDetector.isShippingQuery(m)
+                    || ProductMatcher.extract(m.raw(), catalog).isPresent();
+
+            if (userResumesBot) {
+                session.reset();
+                sessionRepo.save(session);
+            } else {
+                return BotReply.text("Tu conversación está asignada a un asesor comercial. Si deseas reactivar las consultas automáticas de catálogo o hacer tu pedido, escribe *menú* o *hola*.")
+                        .human(true)
+                        .build(CheckoutStep.HUMAN);
+            }
         }
 
         // 2. Flujo de checkout activo
@@ -283,12 +302,26 @@ public class SalesEngineService implements ProcessMessageUseCase {
             return BotReply.text(text).build(session.getStep());
         }
 
-        // 16. Fallback no mapeado -> transferir a ejecutivo comercial
-        session.handoverToHuman();
-        sessionRepo.save(session);
+        // 16. Fallback no mapeado -> Sugerencias guiadas o menú de autoservicio antes de transferir
+        List<Product> candidates = ProductMatcher.findCandidates(m.raw(), catalog, 3);
+        if (!candidates.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("🔎 ¿Te refieres a alguno de estos modelos de nuestro catálogo?\n\n");
+            int idx = 1;
+            for (Product p : candidates) {
+                sb.append(idx).append("️⃣ **").append(p.name()).append("** (SKU: ").append(p.sku()).append(")\n")
+                        .append("   • Precio de oferta: **").append(Money.lempiras(p.salePrice())).append("**\n\n");
+                idx++;
+            }
+            sb.append("🚚 ¡Todos incluyen **envío 100% GRATIS** y pago contra entrega!\n")
+                    .append("Escribe el nombre o número del producto para ver fotos y medidas, o escribe *catálogo* para ver todo.");
+            return BotReply.text(sb.toString())
+                    .images(candidates.stream().flatMap(p -> p.firstImages(1).stream()).toList())
+                    .build(session.getStep());
+        }
+
         return BotReply.text(commercePolicy.fallbackExecutiveText(tenant, m.raw()))
-                .human(true)
-                .build(CheckoutStep.HUMAN);
+                .build(session.getStep());
     }
 
     @Override
