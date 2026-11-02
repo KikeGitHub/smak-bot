@@ -68,6 +68,13 @@ public final class ProductMatcher {
             if (!pClean.isEmpty() && (cleanMsg.contains(pClean) || matchPhrase(cleanMsg, msgTokens, pClean))) {
                 return Optional.of(new Match(p, false));
             }
+            List<String> pTokens = tokenize(pClean).stream().filter(t -> t.length() > 2).toList();
+            for (int i = 0; i < pTokens.size() - 1; i++) {
+                String bigram = pTokens.get(i) + " " + pTokens.get(i + 1);
+                if (cleanMsg.contains(bigram)) {
+                    return Optional.of(new Match(p, false));
+                }
+            }
             boolean keywordHit = p.keywords().stream()
                     .map(TextNormalizer::clean)
                     .filter(k -> !GENERIC_ATTR_WORDS.contains(k) && k.length() > 2)

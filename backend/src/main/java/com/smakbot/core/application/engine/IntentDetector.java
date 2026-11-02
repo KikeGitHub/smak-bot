@@ -139,7 +139,7 @@ public final class IntentDetector {
     public static boolean isPurchase(MessageText m) {
         return m.token("comprar", "pedido", "ordenar", "orden")
                 || m.hasAny("hacer pedido", "hacer el pedido", "quiero pedir", "quiero ordenar", "quiero comprar", "lo quiero",
-                "la quiero", "lo compro", "la compro", "me lo llevo", "me la llevo", "quiero uno", "quiero una",
+                "la quiero", "quiero la", "quiero el", "lo compro", "la compro", "me lo llevo", "me la llevo", "quiero uno", "quiero una",
                 "deseo comprar", "deseo ordenar", "me interesa comprar", "apartar");
     }
 

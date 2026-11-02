@@ -49,7 +49,11 @@ public class HonduranCommercePolicy {
     public Optional<String> policyResponse(MessageText m, Product currentProduct, List<Product> products) {
         if (m.hasAny("roatan", "utila", "guanaja", "islas de la bahia", "isla de la bahia", "islas bahia", "ferry",
                 "galaxy wave", "utila dream", "muelle de cabotaje", "cabotaje")) {
-            return Optional.of("🏝️ **Entregas en Roatán, Útila o Islas de la Bahía:**\nPara Roatán o Útila, solo hacemos envíos con **transferencia previa**.\nUna vez nos hace llegar el comprobante de transferencia bancaria, nosotros enviamos el producto hacia el **muelle de cabotaje de La Ceiba** con la indicación de subir el paquete al ferry que usted diga (Utila Dream, Galaxy Wave, etc.).\n⚠️ **Nota:** No cubrimos el costo del ferry (el flete marítimo corre por cuenta del cliente).");
+            return Optional.of("🚢 **Entregas en Roatán, Útila o Islas de la Bahía:**\n\n"
+                    + "Para Islas de la Bahía (Roatán, Útila, Guanaja) **no aplica pago contra entrega ni envío gratis regular**.\n"
+                    + "• **Forma de pago:** Requiere **transferencia bancaria previa** del valor del producto.\n"
+                    + "• **Despacho:** Al compartirnos tu comprobante por este chat, despachamos el paquete hacia el **muelle de cabotaje en La Ceiba** para subirlo al ferry que nos indiques (Utila Dream, Galaxy Wave, etc.).\n"
+                    + "• ⚠️ **Flete marítimo:** El cliente cubre directamente el costo del ferry.");
         }
         if (m.hasAny("forza", "otra paqueteria", "otras paqueterias", "otra empresa", "otra agencia", "fedex", "dhl", "rapido cargo")) {
             return Optional.of("📦 **Transportadora:** No, únicamente realizamos entregas a través de **Cargo Expreso**.");
@@ -99,7 +103,7 @@ public class HonduranCommercePolicy {
     }
 
     public String scheduleAndAgencyExplanation() {
-        return "🚚 **Información sobre Horarios y Agencias de Cargo Expreso:**\n\n• **Ruta a domicilio:** Las entregas se realizan de Lunes a Viernes de 8:00 AM a 5:00 PM, y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n• **Dependencia de la agencia:** Como las entregas se coordinan con la empresa de transporte (**Cargo Expreso / agencias de delivery en Honduras**), las rutas dependen directamente de su logística diaria. Por esta razón, **no depende de nosotros garantizar un horario específico o día fijo en tiempo y forma** (el motorista siempre te llamará antes de llegar a tu domicilio).\n\n💡 **Recomendación (Retiro en Agencia):** Si necesitas un horario muy específico o no estás seguro de estar en casa, **te sugerimos solicitar el paquete para retiro en una agencia u oficina de Cargo Expreso** en tu ciudad. Tu paquete te esperará en ventanilla para recogerlo a tu conveniencia (ten presente que los sábados también atienden medio día).";
+        return "🚚 **Información sobre Horarios y Entregas de Cargo Expreso:**\n\n• **Coordinación previa:** El repartidor de Cargo Expreso se contacta telefónicamente o por WhatsApp antes de la entrega para coordinar el horario de llegada a tu domicilio.\n• **Ruta a domicilio:** Las entregas se realizan de Lunes a Viernes de 8:00 AM a 5:00 PM, y los **Sábados únicamente medio día** (hasta las 12:00 PM).\n• **Dependencia de ruta logística:** Como las entregas se coordinan mediante Cargo Expreso a nivel nacional, las rutas dependen de su logística diaria. Por ello, no se programa una hora exacta cerrada, pero el repartidor siempre te contacta antes.\n\n💡 **Recomendación (Retiro en Agencia):** Si necesitas un horario muy específico o no estás seguro de estar en casa, **te sugerimos solicitar el paquete para retiro en una agencia u oficina de Cargo Expreso** en tu ciudad. Tu paquete te esperará en ventanilla para recogerlo a tu conveniencia (ten presente que los sábados también atienden medio día).";
     }
 
     public String shortTransferText() {

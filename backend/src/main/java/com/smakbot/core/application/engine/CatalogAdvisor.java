@@ -219,11 +219,12 @@ public class CatalogAdvisor {
             return Answer.of("📏 **Guía de Medidas y Dimensiones de " + tenant.name() + ":**\n\nAquí tienes las dimensiones exactas de nuestros productos más destacados:\n\n"
                     + items + "\n\n¿Por las medidas o especificaciones de qué producto en específico deseas consultar?");
         }
-        return Answer.withImages("📏 **Medidas y Especificaciones de " + p.name() + " (SKU: " + p.sku() + "):**\n\n• **Dimensiones:** **"
-                + orDefault(p.dimensions(), "Estándar según especificación técnica") + "**\n• **Capacidad / Soporte:** "
-                + orDefault(p.weightLimit(), "Uso comercial y residencial") + "\n• 🎨 **Color oficial:** **" + colorsOf(p)
-                + "**\n• 🏷️ **Precio de oferta:** **" + lempiras(p.salePrice()) + "**\n• 📦 **Disponibilidad:** "
-                + (p.inStock() ? "✅ ¡" + p.stock() + " en stock!" : "⚠️ Agotado temporalmente")
+        return Answer.withImages("📏 **Medidas y Especificaciones de " + p.name() + " (SKU: " + p.sku() + "):**\n\n• 📐 **Medidas del producto armado:** **"
+                + orDefault(p.dimensions(), "Estándar según especificación técnica") + "**\n• 💪 **Peso máximo soportado (resistencia):** "
+                + orDefault(p.weightLimit(), "150 kg / Alta resistencia") + "\n• 🎨 **Color registrado:** **" + colorsOf(p)
+                + "**\n• 🏷️ **Precio de oferta (mejor precio):** **" + lempiras(p.salePrice()) + "** *(Precio regular: " + lempiras(p.effectiveRegularPrice()) + ")*"
+                + "\n• 📦 **Stock disponible:** "
+                + (p.inStock() ? "✅ ¡" + p.stock() + " unidades en stock!" : "⚠️ Agotado temporalmente")
                 + "\n\n¿Deseas que preparemos tu pedido contra entrega o prefieres consultar algo más?", p, p.firstImages(2));
     }
 
@@ -252,15 +253,18 @@ public class CatalogAdvisor {
         if (p == null) {
             return Answer.of("💪 Todos nuestros productos de mobiliario y equipamiento cuentan con estándares de alta resistencia para uso comercial y residencial intensivo. ¿Por qué artículo en particular deseas consultar su capacidad?");
         }
-        return Answer.of("💪 **Capacidad y Resistencia de " + p.name() + " (" + p.sku() + "):**\n\n• **Soporte certificado:** **"
+        return Answer.of("💪 **Capacidad y Resistencia de " + p.name() + " (" + p.sku() + "):**\n\n• 🏋️ **Peso máximo soportado (resistencia):** **"
                 + orDefault(p.weightLimit(), "150 kg / Uso comercial y residencial de alta resistencia")
-                + "**\n• **Estructura:** Diseñada con estándares de máxima durabilidad y estabilidad.\n\n¿Deseas consultar medidas, colores o hacer tu pedido?", p);
+                + "**\n• 📐 **Medidas del producto armado:** " + orDefault(p.dimensions(), "Estándar según ficha técnica")
+                + "\n• 🛠️ **Estructura:** Diseñada con estándares de máxima durabilidad y estabilidad.\n\n¿Deseas consultar medidas, colores o hacer tu pedido?", p);
     }
 
     public Answer photos(Product p) {
-        return Answer.withImages("¡Claro! Aquí tienes fotografías reales de **" + p.name() + "** (" + p.sku() + "):\n\n🏷️ **Precio:** " + lempiras(p.salePrice())
-                + "\n📦 **Medidas / Detalle:** " + orDefault(p.dimensions(), "Estándar") + "\n🎨 **Color:** " + colorsOf(p)
-                + "\n\n✅ **Disponibilidad:** " + (p.inStock() ? p.stock() + " unidades en stock" : "Agotado") + ". ¿Deseas hacer tu pedido?", p, p.images());
+        return Answer.withImages("¡Claro! Aquí tienes fotografías reales del producto armado **" + p.name() + "** (" + p.sku() + "):\n\n🏷️ **Precio de oferta:** " + lempiras(p.salePrice())
+                + "\n📐 **Medidas del producto armado:** " + orDefault(p.dimensions(), "Estándar")
+                + "\n💪 **Peso máximo soportado:** " + orDefault(p.weightLimit(), "Estándar")
+                + "\n🎨 **Color:** " + colorsOf(p)
+                + "\n\n✅ **Stock disponible:** " + (p.inStock() ? p.stock() + " unidades en inventario" : "Agotado") + ". ¿Deseas hacer tu pedido?", p, p.images());
     }
 
     public Answer shipping(Product p) {

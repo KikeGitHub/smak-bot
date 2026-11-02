@@ -25,6 +25,7 @@ public class CheckoutDraft {
     public boolean requiresInvoice;
     public String rtn;
     public String businessName;
+    public String pendingAlternativeProductSku;
 
     public static CheckoutDraft start(Product product, int quantity, String orderNumber) {
         CheckoutDraft d = new CheckoutDraft();
@@ -39,7 +40,18 @@ public class CheckoutDraft {
         this.productSku = product.sku();
         this.productName = product.name();
         this.unitPrice = product.salePrice();
+        this.pendingAlternativeProductSku = null;
         recalculate();
+    }
+
+    public void addProductBundle(Product additionalProduct) {
+        this.productName = this.productName + " + " + additionalProduct.name();
+        this.productSku = this.productSku + " + " + additionalProduct.sku();
+        this.total = this.total.add(additionalProduct.salePrice());
+        this.quantityLabel = (this.quantityLabel != null && !this.quantityLabel.isBlank())
+                ? this.quantityLabel + " + 1 unid. " + additionalProduct.name()
+                : this.quantity + " unid. + 1 unid. " + additionalProduct.name();
+        this.pendingAlternativeProductSku = null;
     }
 
     public void recalculate() {

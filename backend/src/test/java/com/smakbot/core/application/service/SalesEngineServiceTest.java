@@ -65,10 +65,28 @@ class SalesEngineServiceTest {
                 true
         );
 
+        Product deskProduct = new Product(
+                UUID.randomUUID(),
+                "tenant-hn-muebles",
+                "SKM-412-ES-RO",
+                "Escritorio Ejecutivo Industrial L-Shape",
+                "Escritorio esquinero de madera tratada con estructura de acero",
+                new BigDecimal("4200.00"),
+                new BigDecimal("3450.00"),
+                10,
+                "140 x 120 x 75 cm",
+                "120 kg",
+                "Roble oscuro y negro mate",
+                "escritorios",
+                List.of("escritorio", "industrial", "mesa", "oficina"),
+                List.of("https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd"),
+                true
+        );
+
         sessionStore = new HashMap<>();
 
         lenient().when(tenantRepo.findById("tenant-hn-muebles")).thenReturn(Optional.of(testTenant));
-        lenient().when(productRepo.findActiveByTenant("tenant-hn-muebles")).thenReturn(List.of(wynnChair));
+        lenient().when(productRepo.findActiveByTenant("tenant-hn-muebles")).thenReturn(List.of(wynnChair, deskProduct));
 
         // Mock stateful session repository in memory
         lenient().when(sessionRepo.findById(anyString())).thenAnswer(inv -> {
@@ -216,4 +234,96 @@ class SalesEngineServiceTest {
         assertEquals(CheckoutStep.IDLE, savedSession.getStep());
         assertNull(savedSession.getCheckout());
     }
+
+    @Test
+    @DisplayName("Regla de Oro de Blindaje (Backtracking): Debe responder dudas técnicas y preservar datos de orden")
+    void testBacktrackingRuleDuringCheckout() {
+        String client = "client-backtrack-001";
+
+        // 1. Iniciar compra
+        salesEngine.process(new IncomingMessage("tenant-hn-muebles", Channel.WEB, client, "Quiero la silla Wynn", null));
+
+        // 2. Dar nombre
+        salesEngine.process(new IncomingMessage("tenant-hn-muebles", Channel.WEB, client, "Kike Martinez", null));
+
+        // 3. Dar cantidad
+        BotReply rQty = salesEngine.process(new IncomingMessage("tenant-hn-muebles", Channel.WEB, client, "1", null));
+        assertEquals(CheckoutStep.ADDRESS, rQty.step());
+
+        // 4. Interrupción en ADDRESS: Pregunta técnica de medidas y resistencia
+        BotReply rDoubt = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, client, "¿Cuánto peso aguanta y cuánto mide armada?", null
+        ));
+        assertEquals(CheckoutStep.ADDRESS, rDoubt.step(), "El paso debe permanecer en ADDRESS");
+        assertTrue(rDoubt.text().contains("150 kg") || rDoubt.text().contains("Soporte") || rDoubt.text().contains("Peso"));
+        assertTrue(rDoubt.text().contains("Kike Martinez"), "Debe preservar el nombre ya capturado");
+        assertTrue(rDoubt.text().toLowerCase().contains("dirección"), "Debe reanudar pidiendo la dirección de entrega");
+
+        // 5. El usuario responde con su dirección
+        BotReply rAddr = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, client, "Colonia Miramontes, calle 3, Tegucigalpa", null
+        ));
+        assertEquals(CheckoutStep.PHONE, rAddr.step(), "Debe avanzar a PHONE tras recibir la dirección");
+
+        // 6. Interrupción en PHONE: Pregunta por envíos a Roatán (política)
+        BotReply rPolicy = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, client, "¿Hacen envíos a Roatán o Islas de la Bahía?", null
+        ));
+        assertEquals(CheckoutStep.PHONE, rPolicy.step(), "El paso debe permanecer en PHONE");
+        assertTrue(rPolicy.text().contains("Roatán") || rPolicy.text().contains("cabotaje") || rPolicy.text().contains("ferry"));
+        assertTrue(rPolicy.text().contains("Miramontes"), "Debe preservar la dirección ya capturada");
+        assertTrue(rPolicy.text().toLowerCase().contains("teléfon") || rPolicy.text().toLowerCase().contains("llamadas"),
+                "Debe reanudar pidiendo el número telefónico");
+
+        // 7. El usuario proporciona su teléfono
+        BotReply rPhone = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, client, "9876-5432", null
+        ));
+        assertEquals(CheckoutStep.REQUIRES_INVOICE, rPhone.step());
+    }
+
+    @Test
+    @DisplayName("Escenario 3A: Cambio de producto a mitad de orden")
+    void testProductSwitchMidwayDuringCheckout() {
+        String client = "client-switch-001";
+
+        // Iniciar con la silla Wynn
+        salesEngine.process(new IncomingMessage("tenant-hn-muebles", Channel.WEB, client, "Comprar silla Wynn", null));
+        salesEngine.process(new IncomingMessage("tenant-hn-muebles", Channel.WEB, client, "Ana Lopez", null));
+
+        // En paso QUANTITY, menciona el escritorio
+        BotReply rMention = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, client, "¿Y el escritorio ejecutivo cuánto cuesta?", null
+        ));
+        assertEquals(CheckoutStep.QUANTITY, rMention.step());
+        assertTrue(rMention.text().contains("3,450"));
+        assertTrue(rMention.text().contains("cambiar") && rMention.text().contains("ambos"),
+                "Debe preguntar si desea cambiar al nuevo producto o agregar ambos");
+
+        // El usuario confirma que desea cambiar al nuevo producto
+        BotReply rConfirmSwitch = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, client, "Deseo cambiar al nuevo", null
+        ));
+        assertEquals(CheckoutStep.QUANTITY, rConfirmSwitch.step());
+        assertTrue(rConfirmSwitch.text().contains("Escritorio Ejecutivo Industrial L-Shape") || rConfirmSwitch.text().contains("actualizado"));
+        assertTrue(rConfirmSwitch.text().contains("Ana Lopez"), "Debe preservar el nombre capturado");
+    }
+
+    @Test
+    @DisplayName("Escenario 3C: Tolerancia a errores de ortografía y fonética")
+    void testTypoTolerance() {
+        IncomingMessage msg = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WEB,
+                "sess-typo",
+                "cual es el presio con envio gartis y cuamto resistensia aguanta",
+                null
+        );
+
+        BotReply reply = salesEngine.process(msg);
+        assertNotNull(reply);
+        assertTrue(reply.text().contains("2,950") || reply.text().contains("150 kg") || reply.text().contains("GRATIS"),
+                "Debe resolver la intención a pesar de los errores de ortografía ('presio', 'gartis', 'cuamto', 'resistensia')");
+    }
 }
+

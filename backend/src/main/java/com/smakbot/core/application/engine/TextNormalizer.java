@@ -23,6 +23,21 @@ public final class TextNormalizer {
             "se", "me", "te", "le", "y", "o", "al", "del", "a", "con", "para", "como", "si", "su", "sus", "mi",
             "mis", "tu", "tus");
 
+    private static final java.util.Map<Pattern, String> TYPO_REPLACEMENTS = java.util.Map.ofEntries(
+            java.util.Map.entry(Pattern.compile("\\bpresio(s)?\\b"), "precio$1"),
+            java.util.Map.entry(Pattern.compile("\\bcuamto(s)?\\b"), "cuanto$1"),
+            java.util.Map.entry(Pattern.compile("\\bresistens(?:ia|ias)?\\b"), "resistencia"),
+            java.util.Map.entry(Pattern.compile("\\bgartis\\b"), "gratis"),
+            java.util.Map.entry(Pattern.compile("\\bdimencion(es)?\\b"), "dimension$1"),
+            java.util.Map.entry(Pattern.compile("\\benbio(s)?\\b"), "envio$1"),
+            java.util.Map.entry(Pattern.compile("\\bconprar\\b"), "comprar"),
+            java.util.Map.entry(Pattern.compile("\\bhorden\\b"), "orden"),
+            java.util.Map.entry(Pattern.compile("\\btamanyo\\b"), "tamano"),
+            java.util.Map.entry(Pattern.compile("\\bcolorez\\b"), "colores"),
+            java.util.Map.entry(Pattern.compile("\\bdisponivle\\b"), "disponible"),
+            java.util.Map.entry(Pattern.compile("\\bexistensia\\b"), "existencia")
+    );
+
     private TextNormalizer() {
     }
 
@@ -31,7 +46,11 @@ public final class TextNormalizer {
         String lower = s.toLowerCase(ES);
         String nfd = Normalizer.normalize(lower, Normalizer.Form.NFD);
         String noDiacritics = DIACRITICS.matcher(nfd).replaceAll("");
-        return PUNCT.matcher(noDiacritics).replaceAll(" ").trim();
+        String cleaned = PUNCT.matcher(noDiacritics).replaceAll(" ").trim();
+        for (java.util.Map.Entry<Pattern, String> entry : TYPO_REPLACEMENTS.entrySet()) {
+            cleaned = entry.getKey().matcher(cleaned).replaceAll(entry.getValue());
+        }
+        return cleaned;
     }
 
     public static List<String> tokenize(String s) {

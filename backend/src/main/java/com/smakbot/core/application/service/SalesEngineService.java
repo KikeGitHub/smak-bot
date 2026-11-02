@@ -84,7 +84,8 @@ public class SalesEngineService implements ProcessMessageUseCase {
                 sessionRepo.save(session);
 
                 String finalReplyText = "¡Muchas gracias, " + draft.effectiveRecipient() + "! 🎉 Tu pedido **" + saved.orderNumber()
-                        + "** (" + draft.effectiveQuantityLabel() + ") ha quedado formalmente registrado en nuestro sistema backend. En breve te notificaremos cuando la guía de rastreo sea asignada.";
+                        + "** (" + draft.effectiveQuantityLabel() + ") ha quedado formalmente registrado en **" + tenant.name() + "**.\n\n"
+                        + "🚚 **Próximos pasos:** Estamos preparando tu paquete para despacho vía **Cargo Expreso** (1 a 2 días hábiles, envío 100% GRATIS). El repartidor se contactará vía llamada telefónica o WhatsApp antes de llegar para coordinar la entrega en tu puerta. ¡Gracias por tu confianza!";
 
                 return BotReply.text(finalReplyText)
                         .confirmedOrder(saved)
@@ -263,14 +264,22 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     .build(session.getStep());
         }
 
-        // 15. Saludos
+        // 15. Saludos y consulta abierta sin link de anuncio (Escenario 3D)
         if (IntentDetector.isGreeting(m)) {
-            String text = "¡Hola! 👋 Soy el asistente de ventas de **" + tenant.name() + "**.\n\n"
-                    + "Puedes consultarme por:\n"
-                    + "• Ver nuestro catálogo completo (*\"ver catálogo\"*)\n"
-                    + "• Disponibilidad y colores (*\"¿Qué colores hay de la Silla Gamer?\"*)\n"
-                    + "• Precios, medidas, formas de pago y envíos.\n\n"
-                    + "¿Qué te gustaría consultar hoy?";
+            List<Product> topProducts = catalog.stream().filter(Product::inStock).limit(4).toList();
+            StringBuilder catalogSummary = new StringBuilder();
+            for (Product p : topProducts) {
+                catalogSummary.append("• **").append(p.name()).append("** (SKU: ").append(p.sku())
+                        .append(") — **").append(Money.lempiras(p.salePrice())).append("**\n");
+            }
+
+            String text = "¡Hola! 👋 Te damos la bienvenida a **" + tenant.name() + "** (Plaza Krisale, Puerto Cortés).\n\n"
+                    + "✨ **Nuestros productos más solicitados:**\n"
+                    + (catalogSummary.length() > 0 ? catalogSummary.toString() : "• Muebles ergonómicos, sillas de oficina y equipamiento para el hogar.\n")
+                    + "\n🚚 **Beneficios de compra:**\n"
+                    + "• Envíos **100% GRATIS** a nivel nacional a través de **Cargo Expreso** (1 a 2 días hábiles).\n"
+                    + "• Pago en **efectivo contra entrega** al recibir el paquete en la puerta de tu casa o negocio (o transferencia bancaria).\n\n"
+                    + "¿Deseas conocer medidas, colores o fotografías reales de alguno de ellos, o buscas algún mueble en específico?";
             return BotReply.text(text).build(session.getStep());
         }
 
