@@ -1,0 +1,231 @@
+<div class="chat-viewport">
+  <!-- Tarjeta Principal del Widget -->
+  <div class="chat-card">
+    
+    <!-- Encabezado Glassmorphic -->
+    <header class="chat-header">
+      <div class="header-bot-info">
+        <div class="avatar-wrapper">
+          <div class="bot-avatar">⚡</div>
+          <span class="status-indicator" title="En línea"></span>
+        </div>
+        <div class="header-titles">
+          <h2 class="bot-title">SMAKBOT Sales Assistant</h2>
+          <div class="tenant-selector-wrapper">
+            <span class="tenant-label">Comercio:</span>
+            <select [ngModel]="tenantId" (ngModelChange)="onTenantChange($event)" class="tenant-select">
+              <option value="tenant-hn-muebles">Muebles Elegancia HN 🛋️</option>
+              <option value="tenant-hn-calzado">Calzado y Moda HN 👟</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="icon-btn" (click)="openTrackingModal()" title="Rastrear Pedido">
+          📦 Rastrear
+        </button>
+        <button class="icon-btn" (click)="resetChat()" title="Reiniciar Sesión">
+          🔄 Reiniciar
+        </button>
+      </div>
+    </header>
+
+    <!-- Contenedor de Mensajes -->
+    <div class="chat-messages" #scrollContainer>
+      
+      <div *ngFor="let msg of messages" [ngClass]="['message-row', 'row-' + msg.sender]">
+        
+        <!-- Avatar del Bot -->
+        <div class="message-avatar" *ngIf="msg.sender === 'bot'">🤖</div>
+
+        <!-- Burbuja del Mensaje -->
+        <div [ngClass]="['message-bubble', 'bubble-' + msg.sender]">
+          
+          <!-- REPRODUCTOR DE NOTA DE VOZ ESTILO WHATSAPP (BOT) -->
+          <div class="voice-card" *ngIf="msg.audioVoiceNote && msg.sender === 'bot'">
+            <div class="voice-card-header">
+              <span class="voice-title">🎙️ Nota de Voz SMAK Bot</span>
+              <span class="voice-badge">Voz IA</span>
+            </div>
+            <div class="voice-controls">
+              <button type="button" class="voice-play-btn" (click)="togglePlayVoiceNote(msg)" [title]="msg.isPlaying ? 'Pausar' : 'Reproducir'">
+                <span>{{ msg.isPlaying ? '⏸' : '▶' }}</span>
+              </button>
+              <div class="waveform-container" (click)="togglePlayVoiceNote(msg)">
+                <span *ngFor="let h of msg.audioWaveform; let idx = index" 
+                      class="wave-bar" 
+                      [class.active]="(idx / (msg.audioWaveform?.length || 26)) * 100 <= (msg.playbackPercent || 0)"
+                      [style.height.%]="h">
+                </span>
+              </div>
+              <div class="voice-meta">
+                <span class="voice-time">
+                  0:{{ ((msg.playbackElapsed || 0) < 10 ? '0' : '') + (msg.playbackElapsed || 0 | number:'1.0-0') }} / 
+                  0:{{ ((msg.audioDuration || 0) < 10 ? '0' : '') + (msg.audioDuration || 0) }}
+                </span>
+                <button type="button" class="voice-speed-btn" (click)="changeVoiceSpeed(msg, $event)">
+                  {{ msg.playbackSpeed || 1 }}x
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Indicador de Transcripción Whisper para Nota de Voz del Usuario -->
+          <div class="transcription-loading" *ngIf="msg.isTranscribing">
+            <span class="spinner-small"></span> Transcribiendo audio con Whisper...
+          </div>
+          <div class="transcription-result" *ngIf="msg.transcriptionText">
+            <div class="transcription-header">
+              <span>✨ Transcripción IA</span>
+              <span class="whisper-pill">Whisper Sync</span>
+            </div>
+            <div class="transcription-body">"{{ msg.transcriptionText }}"</div>
+          </div>
+
+          <!-- Contenido textual con Markdown -->
+          <div class="bubble-text" [innerHTML]="formatMarkdown(msg.text)"></div>
+
+          <!-- Tarjeta de Producto Preview (Si viene en el mensaje) -->
+          <div class="product-preview-card" *ngIf="msg.product">
+            <img [src]="msg.product.imageUrl || 'https://images.unsplash.com/photo-1580481077195-c22ae2499175?auto=format&fit=crop&w=400&q=80'" 
+                 [alt]="msg.product.name" class="product-thumb">
+            <div class="product-info">
+              <span class="product-sku">{{ msg.product.sku }}</span>
+              <h4 class="product-name">{{ msg.product.name }}</h4>
+              <div class="product-price">L. {{ msg.product.salePrice | number:'1.2-2' }}</div>
+              <div class="product-meta" *ngIf="msg.product.colors">🎨 {{ msg.product.colors }}</div>
+              <div class="product-meta" *ngIf="msg.product.dimensions">📏 {{ msg.product.dimensions }}</div>
+            </div>
+          </div>
+
+          <!-- Tarjeta de Pedido Confirmado -->
+          <div class="order-confirmed-card" *ngIf="msg.order">
+            <div class="order-badge">✓ Pedido Registrado</div>
+            <div class="order-field"><strong>Orden:</strong> {{ msg.order.orderNumber }}</div>
+            <div class="order-field"><strong>Destinatario:</strong> {{ msg.order.customerName }}</div>
+            <div class="order-field"><strong>Producto:</strong> {{ msg.order.productName }} ({{ msg.order.quantity }} unid.)</div>
+            <div class="order-field"><strong>Total:</strong> L. {{ msg.order.total | number:'1.2-2' }} (Pago contra entrega)</div>
+            <div class="order-field" *ngIf="msg.order.trackingNumber">
+              <strong>Guía CAEX:</strong> <span class="tracking-pill">{{ msg.order.trackingNumber }}</span>
+            </div>
+          </div>
+
+          <!-- Botones interactivos de acción rápida -->
+          <div class="bubble-buttons" *ngIf="msg.buttons && msg.buttons.length > 0">
+            <button *ngFor="let btn of msg.buttons" 
+                    class="quick-action-btn"
+                    (click)="sendQuickButton(btn)">
+              {{ btn.title }}
+            </button>
+          </div>
+
+          <!-- Timestamp -->
+          <span class="message-time">{{ msg.timestamp | date:'shortTime' }}</span>
+        </div>
+      </div>
+
+      <!-- Indicador de Bot Escribiendo -->
+      <div class="message-row row-bot typing-row" *ngIf="isTyping">
+        <div class="message-avatar">🤖</div>
+        <div class="message-bubble bubble-bot typing-bubble">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Barra de Sugerencias y Audios de Demostración -->
+    <div class="suggestions-strip">
+      <button class="suggestion-chip audio-demo-chip" (click)="testSampleAudio('perchero')" title="Simular nota de voz sobre disponibilidad y entrega">
+        🎙️ Audio: Perchero
+      </button>
+      <button class="suggestion-chip audio-demo-chip" (click)="testSampleAudio('regadera')" title="Simular nota de voz pidiendo fotos y drenaje lineal">
+        🎙️ Audio: Regadera
+      </button>
+      <button *ngFor="let sug of quickSuggestions" class="suggestion-chip" (click)="sendMessage(sug)">
+        {{ sug }}
+      </button>
+    </div>
+
+    <!-- Banner animado de grabación en curso -->
+    <div class="recording-banner" *ngIf="isRecordingAudio">
+      <div class="recording-status">
+        <span class="pulse-red-dot"></span>
+        <span>Grabando nota de voz... Habla por tu micrófono</span>
+      </div>
+      <div class="recording-actions">
+        <button class="cancel-rec-btn" (click)="cancelRecordingAudio()">✕ Cancelar</button>
+        <button class="stop-rec-btn" (click)="toggleRecordAudio()">✓ Enviar Nota</button>
+      </div>
+    </div>
+
+    <!-- Barra de Entrada Inferior -->
+    <footer class="chat-input-bar">
+      <button class="location-btn" (click)="shareLocation()" title="Compartir mi ubicación GPS para entrega">
+        📍 GPS
+      </button>
+
+      <!-- Botón de Micrófono para Grabar Nota de Voz -->
+      <button class="mic-btn" 
+              [class.recording]="isRecordingAudio" 
+              (click)="toggleRecordAudio()" 
+              [title]="isRecordingAudio ? 'Detener y transcribir nota de voz' : 'Grabar nota de voz con micrófono'">
+        🎙️
+      </button>
+
+      <input type="text" 
+             [(ngModel)]="inputMessage" 
+             (keyup.enter)="sendMessage()" 
+             placeholder="Escribe tu consulta o graba una nota de voz..." 
+             class="chat-text-input" 
+             [disabled]="isTyping || isRecordingAudio">
+
+      <button class="send-btn" (click)="sendMessage()" [disabled]="!inputMessage.trim() || isTyping || isRecordingAudio">
+        ➤
+      </button>
+    </footer>
+
+  </div>
+
+  <!-- Modal de Rastreo Cargo Expreso -->
+  <div class="modal-backdrop" *ngIf="showTrackingModal" (click)="closeTrackingModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📦 Rastreo de Envíos Cargo Expreso</h3>
+        <button class="close-btn" (click)="closeTrackingModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">Ingresa tu número de orden (ej. <code>SMAK-ORD-1001</code>) o guía CAEX:</p>
+        <div class="search-input-group">
+          <input type="text" [(ngModel)]="trackingCodeInput" placeholder="SMAK-ORD-XXXX o CAEX-XXXX" (keyup.enter)="searchTracking()" class="modal-input">
+          <button class="primary-btn" (click)="searchTracking()">Consultar</button>
+        </div>
+
+        <div class="tracking-error" *ngIf="trackingError">
+          {{ trackingError }}
+        </div>
+
+        <div class="tracked-order-result" *ngIf="trackedOrder">
+          <div class="result-header">
+            <span class="order-num">{{ trackedOrder.orderNumber }}</span>
+            <span class="status-tag status-{{ trackedOrder.status }}">{{ trackedOrder.status }}</span>
+          </div>
+          <div class="result-details">
+            <div><strong>Cliente:</strong> {{ trackedOrder.customerName }}</div>
+            <div><strong>Teléfono:</strong> {{ trackedOrder.customerPhone }}</div>
+            <div><strong>Dirección:</strong> {{ trackedOrder.deliveryAddress }}</div>
+            <div><strong>Producto:</strong> {{ trackedOrder.productName }} ({{ trackedOrder.quantity }} unid.)</div>
+            <div><strong>Total:</strong> L. {{ trackedOrder.total | number:'1.2-2' }}</div>
+            <div *ngIf="trackedOrder.trackingNumber">
+              <strong>Guía:</strong> <span class="tracking-pill">{{ trackedOrder.trackingNumber }} ({{ trackedOrder.trackingCarrier }})</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

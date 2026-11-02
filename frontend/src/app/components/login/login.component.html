@@ -1,0 +1,117 @@
+<div class="login-viewport">
+  <div class="login-container">
+
+    <!-- BRANDING TOP -->
+    <div class="login-brand">
+      <div class="brand-badge">S</div>
+      <h1 class="brand-title">SMAKBOT</h1>
+      <p class="brand-tagline">Plataforma Multitenant de Comercio Conversacional</p>
+    </div>
+
+    <!-- LOGIN CARD -->
+    <div class="login-card">
+      <div class="card-header">
+        <div class="header-icon">🔐</div>
+        <h2 class="card-title">Acceso al Panel Administrativo</h2>
+        <p class="card-subtitle">Autenticación basada en JWT con control por Tenant</p>
+      </div>
+
+      <!-- ERROR ALERT -->
+      <div class="error-alert" *ngIf="errorMessage">
+        <span class="error-icon">⚠️</span>
+        <span class="error-text">{{ errorMessage }}</span>
+      </div>
+
+      <form (ngSubmit)="onSubmit()" class="login-form">
+        <!-- USERNAME -->
+        <div class="form-group">
+          <label class="form-label" for="username">Usuario o Correo:</label>
+          <div class="input-wrap">
+            <span class="input-icon">👤</span>
+            <input
+              id="username"
+              type="text"
+              name="username"
+              [(ngModel)]="username"
+              required
+              autocomplete="username"
+              placeholder="Ej: admin o SMAK-Admin"
+              class="form-control"
+            />
+          </div>
+        </div>
+
+        <!-- PASSWORD -->
+        <div class="form-group">
+          <div class="password-label-row">
+            <label class="form-label" for="password">Contraseña:</label>
+            <button type="button" (click)="togglePasswordVisibility()" class="toggle-pwd-btn">
+              {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+          <div class="input-wrap">
+            <span class="input-icon">🔑</span>
+            <input
+              id="password"
+              [type]="showPassword ? 'text' : 'password'"
+              name="password"
+              [(ngModel)]="password"
+              required
+              autocomplete="current-password"
+              placeholder="••••••••"
+              class="form-control"
+            />
+          </div>
+        </div>
+
+        <!-- QUICK CREDENTIAL CHIPS -->
+        <div class="quick-credentials-box">
+          <span class="quick-label">⚡ Cuentas del Sistema (Clic para autocompletar):</span>
+          <div class="chips-container">
+            <button
+              type="button"
+              (click)="quickSelectAccount('admin')"
+              class="account-chip chip-super"
+              [class.chip-selected]="username === 'admin'"
+            >
+              <span class="chip-badge">👑 Super Admin</span>
+              <span class="chip-user">admin</span>
+            </button>
+
+            <button
+              type="button"
+              (click)="quickSelectAccount('smak')"
+              class="account-chip chip-tenant"
+              [class.chip-selected]="username === 'SMAK-Admin'"
+            >
+              <span class="chip-badge">🛋️ SMAK Muebles</span>
+              <span class="chip-user">SMAK-Admin</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SUBMIT BUTTON -->
+        <button type="submit" class="submit-btn" [disabled]="loading">
+          <span *ngIf="!loading">Ingresar al Panel Administrativo →</span>
+          <span *ngIf="loading" class="loading-state">
+            <span class="spinner"></span> Verificando credenciales...
+          </span>
+        </button>
+      </form>
+
+      <!-- CARD FOOTER -->
+      <div class="card-footer">
+        <a routerLink="/chat" class="footer-link">
+          <span>💬 Abrir Simulador de Chat Comercial</span>
+          <span>↗</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- SECURITY NOTICE -->
+    <div class="security-notice">
+      <span>🛡️ Sesión protegida con JSON Web Tokens (JWT) y cifrado seguro BCrypt</span>
+    </div>
+
+  </div>
+</div>

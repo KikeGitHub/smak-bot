@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-playwright"
+      ],
+      "env": {
+        "PLAYWRIGHT_HEADLESS": "true"
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres:admin@localhost:5432/smakbot_db"
+      ],
+      "env": {
+        "DATABASE_URL": "postgresql://postgres:admin@localhost:5432/smakbot_db"
+      }
+    }
+  }
+}

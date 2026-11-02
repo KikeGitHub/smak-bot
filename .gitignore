@@ -6,6 +6,7 @@ desktop.ini
 # Editor / IDE directories
 .vscode/
 .idea/
+*.iml
 *.suo
 *.ntvs*
 *.njsproj
@@ -18,8 +19,19 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Dependencies
+# Dependencies & Package Managers
 node_modules/
+package-lock.json.bak
+
+# Build outputs & caches
+target/
+**/target/
+dist/
+**/dist/
+.angular/
+**/.angular/
+out-tsc/
+**/out-tsc/
 
 # Environment variables & local files
 .env

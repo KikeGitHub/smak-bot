@@ -1,25 +1,30 @@
-# SMAKBOT · Demo & Fuente de Verdad para Desarrollo Fullstack
+# SMAKBOT · Ecosistema Fullstack & Chatbot Omnicanal (SDOP Framework)
 
-Prototipo interactivo de alta fidelidad para chatbot comercial omnicanal (WhatsApp Web) y panel de control administrativo de negocio, diseñado con arquitectura modular en JavaScript ES6, Tailwind CSS y almacenamiento sincronizado.
+Sistema comercial omnicanal con integración a **WhatsApp Business Cloud API**, **Frontend Angular 20**, **Backend Spring Boot 3 (Java 17)** y **Base de Datos PostgreSQL 17**.
 
-Esta demo sirve como **fuente de verdad funcional y de datos** para migrar posteriormente hacia una aplicación fullstack completa (Backend Node.js/Python, Base de Datos PostgreSQL/MongoDB y Frontend React/Next.js/Vue).
+> 📖 **[Ver Guía Maestra de Validación y Operación (Paso a Paso)](./GUIA_VALIDACION_Y_OPERACION.md)**  
+> Contiene instrucciones completas para validar:
+> 1. **Webhook de WhatsApp:** Sandbox local, conexión a Meta Developers (Sandbox) y cuenta Real.
+> 2. **Chatbot Web (SPA / SWAP):** Dual Bridge, catálogo, checkout y rastreo de envíos.
+> 3. **Panel Administrativo (SaaS Backoffice):** Acceso con usuario y contraseña, Kanban de pedidos y despacho CAEX.
+> 4. **Transcripción y Audio:** Notas de voz con Whisper STT y reproductor de audio interactivo estilo WhatsApp (TTS).
 
 ---
 
-## 🚀 Cómo ejecutar la demo localmente
+## 🚀 Inicio Rápido de Servicios
 
-Debido al uso de módulos JavaScript nativos (`type="module"`), se recomienda servir la carpeta con un servidor web local:
+```bash
+# 1. Backend Spring Boot (Puerto 8080)
+cd backend
+mvn spring-boot:run
 
-1. **Con Python:**
-   ```bash
-   python -m http.server 8000
-   ```
-   Abrir: [http://localhost:8000](http://localhost:8000)
+# 2. Frontend Angular (Puerto 4200)
+cd frontend
+npm run dev
 
-2. **Con VS Code:**
-   Instalar la extensión *Live Server* y presionar **Go Live** sobre `index.html`.
-
-Abre `index.html` en una pestaña y `admin.html` en otra; ambas ventanas se sincronizan en tiempo real mediante eventos de almacenamiento local (`storage` / `CustomEvent`).
+# 3. Base de Datos PostgreSQL (Puerto 5432)
+# Base de datos: smakbot_db (Flyway ejecuta las migraciones automáticamente)
+```
 
 ---
 
