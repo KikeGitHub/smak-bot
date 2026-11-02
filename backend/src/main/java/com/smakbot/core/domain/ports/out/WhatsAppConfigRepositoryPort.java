@@ -9,4 +9,6 @@ public interface WhatsAppConfigRepositoryPort {
     Optional<WhatsAppConfig> findByPhoneNumberId(String phoneNumberId);
 
     Optional<WhatsAppConfig> findByVerifyToken(String verifyToken);
+
+    Optional<WhatsAppConfig> findByTenantId(String tenantId);
 }

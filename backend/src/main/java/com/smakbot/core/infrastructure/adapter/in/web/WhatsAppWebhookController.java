@@ -36,15 +36,18 @@ public class WhatsAppWebhookController {
     private final ProcessMessageUseCase processMessageUseCase;
     private final NotificationSenderPort notificationSenderPort;
     private final com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort;
+    private final com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort;
 
     public WhatsAppWebhookController(WhatsAppConfigRepositoryPort configRepositoryPort,
                                      ProcessMessageUseCase processMessageUseCase,
                                      NotificationSenderPort notificationSenderPort,
-                                     com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort) {
+                                     com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort,
+                                     com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort) {
         this.configRepositoryPort = configRepositoryPort;
         this.processMessageUseCase = processMessageUseCase;
         this.notificationSenderPort = notificationSenderPort;
         this.audioTranscriptionPort = audioTranscriptionPort;
+        this.textToSpeechPort = textToSpeechPort;
     }
 
     @GetMapping("/webhook")
@@ -99,7 +102,11 @@ public class WhatsAppWebhookController {
                 // Buscar tenant asociado a este phone_number_id
                 Optional<WhatsAppConfig> configOpt = configRepositoryPort.findByPhoneNumberId(phoneNumberId);
                 if (configOpt.isEmpty()) {
-                    log.warn("No existe configuración de tenant para phone_number_id: {}", phoneNumberId);
+                    log.warn("No existe configuración para phone_number_id [{}]. Usando tenant por defecto [smak] para desarrollo.", phoneNumberId);
+                    configOpt = configRepositoryPort.findByTenantId("smak");
+                }
+                if (configOpt.isEmpty()) {
+                    log.warn("No existe configuración de tenant disponible para procesar el mensaje.");
                     continue;
                 }
                 WhatsAppConfig config = configOpt.get();
@@ -134,15 +141,31 @@ public class WhatsAppWebhookController {
                     : "Ubicación GPS enviada";
         } else if ("interactive".equalsIgnoreCase(msg.getType()) && msg.getInteractive() != null) {
             if (msg.getInteractive().getButtonReply() != null) {
-                messageText = msg.getInteractive().getButtonReply().getTitle();
+                String btnId = msg.getInteractive().getButtonReply().getId();
+                String btnTitle = msg.getInteractive().getButtonReply().getTitle();
+                if ("btn_confirm".equalsIgnoreCase(btnId)) {
+                    messageText = "Confirmar";
+                } else if ("btn_modify".equalsIgnoreCase(btnId)) {
+                    messageText = "Modificar dirección";
+                } else {
+                    messageText = btnTitle != null ? btnTitle : btnId;
+                }
             }
-        } else if (("audio".equalsIgnoreCase(msg.getType()) || "voice".equalsIgnoreCase(msg.getType())) && msg.getAudio() != null) {
+        }
+
+        boolean isVoiceInput = ("audio".equalsIgnoreCase(msg.getType()) || "voice".equalsIgnoreCase(msg.getType())) && msg.getAudio() != null;
+        if (isVoiceInput) {
             String mediaId = msg.getAudio().getId();
             String mimeType = msg.getAudio().getMimeType() != null ? msg.getAudio().getMimeType() : "audio/ogg";
-            log.info("Nota de voz recibida de WhatsApp con MediaId: {}, transcribiendo...", mediaId);
-            // Simular bytes o transcribir con fallback de audio
-            byte[] simulatedBytes = (mediaId != null) ? mediaId.getBytes() : new byte[0];
-            messageText = audioTranscriptionPort.transcribe(simulatedBytes, mimeType, "whatsapp_audio_" + mediaId + ".ogg");
+            log.info("Nota de voz recibida de WhatsApp con MediaId: {}, descargando archivo de Meta...", mediaId);
+            byte[] audioBytes = notificationSenderPort.downloadMedia(config, mediaId);
+            if (audioBytes != null && audioBytes.length > 0) {
+                log.info("Audio descargado con éxito de Meta ({} bytes). Transcribiendo con Whisper...", audioBytes.length);
+                messageText = audioTranscriptionPort.transcribe(audioBytes, mimeType, "whatsapp_audio_" + mediaId + ".ogg");
+            } else {
+                log.warn("No se pudieron descargar los bytes del audio de Meta, ejecutando fallback de audio...");
+                messageText = audioTranscriptionPort.transcribe(new byte[0], mimeType, "whatsapp_audio_" + mediaId + ".ogg");
+            }
             log.info("Texto transcrito de nota de voz WA: '{}'", messageText);
         }
 
@@ -159,10 +182,39 @@ public class WhatsAppWebhookController {
         try {
             BotReply reply = processMessageUseCase.process(incoming);
 
-            // Despachar respuesta hacia WhatsApp
-            String firstImage = (reply.images() != null && !reply.images().isEmpty()) ? reply.images().get(0) : null;
-            if (firstImage != null && !firstImage.isBlank()) {
-                notificationSenderPort.sendImage(config, from, firstImage, reply.text());
+            // 1. Si el cliente envió audio, responder con nota de voz TTS sintetizada
+            if (isVoiceInput) {
+                log.info("Cliente envió nota de voz. Sintetizando respuesta con TTS...");
+                byte[] voiceReplyBytes = textToSpeechPort.synthesize(reply.text());
+                if (voiceReplyBytes != null && voiceReplyBytes.length > 0) {
+                    notificationSenderPort.sendAudio(config, from, voiceReplyBytes, "audio/mpeg");
+                }
+            }
+
+            // 2. Despachar respuesta complementaria (botones interactivos, imágenes o texto) hacia WhatsApp
+            boolean isConfirmationStep = reply.step() == com.smakbot.core.domain.model.CheckoutStep.CONFIRM;
+            java.util.List<String> images = (reply.images() != null) ? reply.images() : java.util.List.of();
+
+            if (isConfirmationStep) {
+                // Enviar botones interactivos nativos de WhatsApp para confirmación táctil
+                java.util.List<NotificationSenderPort.WhatsAppButton> buttons = java.util.List.of(
+                        new NotificationSenderPort.WhatsAppButton("btn_confirm", "✅ Confirmar"),
+                        new NotificationSenderPort.WhatsAppButton("btn_modify", "✏️ Modificar")
+                );
+                notificationSenderPort.sendInteractiveButtons(config, from, reply.text(), buttons);
+            } else if (!images.isEmpty()) {
+                // Galería secuencial: primera imagen con la descripción del producto
+                notificationSenderPort.sendImage(config, from, images.get(0), reply.text());
+                // Despachar imágenes secundarias para que WhatsApp forme la cuadrícula/álbum
+                for (int i = 1; i < Math.min(images.size(), 4); i++) {
+                    String extraImage = images.get(i);
+                    if (extraImage != null && !extraImage.isBlank()) {
+                        try {
+                            Thread.sleep(150); // Pausa breve para garantizar el orden de entrega en WhatsApp
+                        } catch (InterruptedException ignored) {}
+                        notificationSenderPort.sendImage(config, from, extraImage, null);
+                    }
+                }
             } else {
                 notificationSenderPort.sendText(config, from, reply.text());
             }

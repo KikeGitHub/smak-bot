@@ -74,12 +74,19 @@ public class SalesEngineService implements ProcessMessageUseCase {
             session.setStep(res.nextStep());
 
             if (res.orderCompleted()) {
-                Order orderToSave = Order.fromDraft(tenantId, session.getCheckout());
+                CheckoutDraft draft = session.getCheckout();
+                if (draft.orderNumber == null || orderRepo.existsByOrderNumber(draft.orderNumber)) {
+                    draft.orderNumber = generateOrderNumber(tenantId);
+                }
+                Order orderToSave = Order.fromDraft(tenantId, draft);
                 Order saved = orderRepo.save(orderToSave);
                 session.completeCheckout(saved.orderNumber());
                 sessionRepo.save(session);
 
-                return BotReply.text(res.text())
+                String finalReplyText = "¡Muchas gracias, " + draft.effectiveRecipient() + "! 🎉 Tu pedido **" + saved.orderNumber()
+                        + "** (" + draft.effectiveQuantityLabel() + ") ha quedado formalmente registrado en nuestro sistema backend. En breve te notificaremos cuando la guía de rastreo sea asignada.";
+
+                return BotReply.text(finalReplyText)
                         .confirmedOrder(saved)
                         .build(CheckoutStep.IDLE);
             }
@@ -294,8 +301,13 @@ public class SalesEngineService implements ProcessMessageUseCase {
     }
 
     private String generateOrderNumber(String tenantId) {
-        long count = orderRepo.countByTenant(tenantId);
         String prefix = "calzado".equalsIgnoreCase(tenantId) ? "CALZ-ORD" : "SMAK-ORD";
-        return String.format("%s-%04d", prefix, 1001 + count);
+        long nextNum = 1001 + orderRepo.countByTenant(tenantId);
+        String candidate = String.format("%s-%04d", prefix, nextNum);
+        while (orderRepo.existsByOrderNumber(candidate)) {
+            nextNum++;
+            candidate = String.format("%s-%04d", prefix, nextNum);
+        }
+        return candidate;
     }
 }

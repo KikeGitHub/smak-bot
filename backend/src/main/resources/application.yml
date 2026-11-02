@@ -31,12 +31,16 @@ smakbot:
     admin-origins: ${ADMIN_ORIGINS:http://localhost:4200}
   meta:
     graph-base-url: ${META_GRAPH_URL:https://graph.facebook.com/v20.0}
-    # Si es false, no se llama a Meta: los mensajes salientes solo se registran en log (modo sandbox)
-    outbound-enabled: ${META_OUTBOUND_ENABLED:false}
+    # Habilitar despacho saliente real hacia Meta Graph API
+    outbound-enabled: ${META_OUTBOUND_ENABLED:true}
   async:
     core-pool-size: 8
     max-pool-size: 32
     queue-capacity: 1000
+  transcription:
+    url: ${TRANSCRIPTION_URL:https://automatic-space-dollop-976prv4wg4ghpqqx-8000.app.github.dev/v1/transcribe/sync}
+    tts-url: ${TTS_URL:https://automatic-space-dollop-976prv4wg4ghpqqx-8000.app.github.dev/v1/tts/synthesize}
+    api-key: ${TRANSCRIPTION_API_KEY:sales-secret-api-key-change-in-prod}
 
 springdoc:
   api-docs:

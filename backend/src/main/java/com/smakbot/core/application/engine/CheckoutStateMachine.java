@@ -347,7 +347,7 @@ public class CheckoutStateMachine {
                 + "• Entrega: " + deliverySummary + "\n"
                 + "• Contacto (Llamadas Cargo Expreso): " + c.phone + "\n"
                 + "• Facturación: **" + invoiceTxt + "**\n\n"
-                + "Presiona el botón abajo para confirmar tu compra con pago contra entrega.";
+                + "Escribe *Confirmar* (o *Sí*) para confirmar tu compra con pago contra entrega.";
     }
 
     private record ModificationResult(boolean modified, boolean redirect, String ack, String prompt, CheckoutStep targetStep) {

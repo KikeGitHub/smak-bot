@@ -10,4 +10,12 @@ public interface NotificationSenderPort {
     void sendImage(WhatsAppConfig config, String to, String imageUrl, String caption);
 
     void sendAudio(WhatsAppConfig config, String to, String audioUrl);
+
+    void sendAudio(WhatsAppConfig config, String to, byte[] audioBytes, String mimeType);
+
+    void sendInteractiveButtons(WhatsAppConfig config, String to, String text, java.util.List<WhatsAppButton> buttons);
+
+    byte[] downloadMedia(WhatsAppConfig config, String mediaId);
+
+    record WhatsAppButton(String id, String title) {}
 }

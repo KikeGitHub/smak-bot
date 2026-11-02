@@ -27,6 +27,11 @@ public class WhatsAppConfigJpaAdapter implements WhatsAppConfigRepositoryPort {
         return repo.findByVerifyToken(verifyToken).map(this::toDomain);
     }
 
+    @Override
+    public Optional<WhatsAppConfig> findByTenantId(String tenantId) {
+        return repo.findById(tenantId).map(this::toDomain);
+    }
+
     private WhatsAppConfig toDomain(WhatsAppConfigEntity e) {
         return new WhatsAppConfig(e.getTenantId(), e.getPhoneNumberId(), e.getWabaId(), e.getAccessToken(), e.getVerifyToken(), e.getAppSecret());
     }
