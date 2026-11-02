@@ -122,12 +122,8 @@ public class CheckoutStateMachine {
         c.quantityLabel = m.raw().trim().isEmpty() ? q + (q == 1 ? " unidad" : " unidades") : m.raw().trim();
         c.recalculate();
 
-        String prompt = "Anotado: **" + c.quantityLabel + "** (Total: " + lempiras(c.total) + ").\n\n"
-                + "🚚 Para coordinar la entrega con **Cargo Expreso**, por favor compártenos tus datos de entrega:\n\n"
-                + "• **Entrega a domicilio:** Destinatario, Calle y número de casa / referencia, Colonia o barrio, Ciudad y Código postal (o presiona el botón 📍 abajo para enviar tu ubicación GPS de WhatsApp).\n"
-                + "• **¿Prefieres retirar en agencia?** Puedes indicarnos la **oficina o agencia de Cargo Expreso** de tu ciudad donde prefieres retirar (teniendo en cuenta que los sábados trabajan medio día).\n\n"
-                + "💡 *Ejemplo domicilio:* " + c.name + ", Calle Principal #15 frente a pulpería, Col. Palmira, Tegucigalpa, CP 11101\n"
-                + "💡 *Ejemplo agencia:* Agencia Cargo Expreso San Pedro Sula Centro";
+        String prompt = "¡Anotado! Serían **" + c.quantityLabel + "** (Total: **" + lempiras(c.total) + "** con envío gratis incluido).\n\n"
+                + "🚚 ¿A qué dirección te lo enviamos? Indícanos tu ciudad, colonia y una referencia de tu casa o negocio (o si prefieres, puedes enviarme tu ubicación por WhatsApp o pedirlo para retirar en agencia de Cargo Expreso).";
 
         return StepResult.of(prompt, CheckoutStep.ADDRESS);
     }

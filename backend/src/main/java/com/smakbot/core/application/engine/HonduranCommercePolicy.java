@@ -121,19 +121,19 @@ public class HonduranCommercePolicy {
 
     public String humanHandoverText(Tenant tenant) {
         String msg = URLEncoder.encode("Hola " + tenant.name() + ", deseo hablar con un asesor comercial", StandardCharsets.UTF_8).replace("+", "%20");
-        return "Te transfiero de inmediato con un asesor humano. El asistente automático ha quedado en pausa.\n\n📲 **WhatsApp Directo:**\n["
+        return "¡Con mucho gusto! Te paso el contacto directo de mi compañero de ventas para que te atienda personalmente si lo prefieres:\n\n📲 **WhatsApp Directo:**\n["
                 + tenant.phoneContact() + "](https://wa.me/" + tenant.phoneDigits() + "?text=" + msg + ")";
     }
 
     public String fallbackExecutiveText(Tenant tenant, String rawText) {
         String msg = URLEncoder.encode("Hola " + tenant.name() + ", requiero asistencia sobre: \"" + rawText + "\"", StandardCharsets.UTF_8).replace("+", "%20");
-        return "No logré identificar con exactitud tu consulta, pero con gusto te ayudo a encontrar lo que buscas en **" + tenant.name() + "**:\n\n"
-                + "🪑 1. **Sillas Gamer y de Oficina** (desde L. 1,790)\n"
-                + "🍸 2. **Taburetes y Bancos Tolix** (desde L. 850)\n"
-                + "🪵 3. **Escritorios, Mesas y Estanterías** (desde L. 2,250)\n"
-                + "🚿 4. **Piletas y Grifería de Cocina** (desde L. 1,090)\n\n"
-                + "🚚 *Todos nuestros muebles incluyen **envío 100% GRATIS** a todo el país y pago en **efectivo contra entrega**.*\n\n"
-                + "¿Por qué categoría deseas consultar? Escribe el número o nombre (ej. *sillas*, *escritorios*), o si requieres atención personalizada escribe *asesor* o pulsa en WhatsApp: ["
-                + tenant.phoneContact() + "](https://wa.me/" + tenant.phoneDigits() + "?text=" + msg + ").";
+        return "¡Hola! Con mucho gusto te ayudo. Cuéntame, ¿qué estás buscando hoy? En **" + tenant.name() + "** tenemos disponibles:\n\n"
+                + "• **Sillas Gamer y de Oficina** (desde L. 1,790)\n"
+                + "• **Taburetes y Bancos Tolix** (desde L. 850)\n"
+                + "• **Escritorios, Mesas y Estanterías** (desde L. 2,250)\n"
+                + "• **Piletas y Grifería de Cocina** (desde L. 1,090)\n\n"
+                + "🚚 ¡Todos incluyen **envío 100% GRATIS** a todo el país y pago en **efectivo al recibir** en tu puerta!\n\n"
+                + "¿Cuál de estas opciones te gustaría revisar o de cuál deseas ver fotos y medidas? (O si gustas también puedes escribirme por aquí: ["
+                + tenant.phoneContact() + "](https://wa.me/" + tenant.phoneDigits() + "?text=" + msg + ")).";
     }
 }

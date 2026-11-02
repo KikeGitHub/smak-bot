@@ -81,7 +81,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                 session.reset();
                 sessionRepo.save(session);
             } else {
-                return BotReply.text("Tu conversación está asignada a un asesor comercial. Si deseas reactivar las consultas automáticas de catálogo o hacer tu pedido, escribe *menú* o *hola*.")
+                return BotReply.text("¡Hola! Ya te tengo en atención. Si deseas consultar algún modelo, medidas o hacer tu pedido directamente por aquí, dime con confianza y te ayudo de inmediato.")
                         .human(true)
                         .build(CheckoutStep.HUMAN);
             }
@@ -288,33 +288,28 @@ public class SalesEngineService implements ProcessMessageUseCase {
             List<Product> topProducts = catalog.stream().filter(Product::inStock).limit(4).toList();
             StringBuilder catalogSummary = new StringBuilder();
             for (Product p : topProducts) {
-                catalogSummary.append("• **").append(p.name()).append("** (SKU: ").append(p.sku())
-                        .append(") — **").append(Money.lempiras(p.salePrice())).append("**\n");
+                catalogSummary.append("• **").append(p.name()).append("** — **")
+                        .append(Money.lempiras(p.salePrice())).append("**\n");
             }
 
-            String text = "¡Hola! 👋 Te damos la bienvenida a **" + tenant.name() + "** (Plaza Krisale, Puerto Cortés).\n\n"
-                    + "✨ **Nuestros productos más solicitados:**\n"
-                    + (catalogSummary.length() > 0 ? catalogSummary.toString() : "• Muebles ergonómicos, sillas de oficina y equipamiento para el hogar.\n")
-                    + "\n🚚 **Beneficios de compra:**\n"
-                    + "• Envíos **100% GRATIS** a nivel nacional a través de **Cargo Expreso** (1 a 2 días hábiles).\n"
-                    + "• Pago en **efectivo contra entrega** al recibir el paquete en la puerta de tu casa o negocio (o transferencia bancaria).\n\n"
-                    + "¿Deseas conocer medidas, colores o fotografías reales de alguno de ellos, o buscas algún mueble en específico?";
+            String text = "¡Hola! 👋 Bienvenido a **" + tenant.name() + "**. Con mucho gusto te atiendo.\n\n"
+                    + "Te comparto los modelos que más nos piden:\n"
+                    + (catalogSummary.length() > 0 ? catalogSummary.toString() : "• Sillas ergonómicas, gamers y muebles para el hogar.\n")
+                    + "\n🚚 Todos con **envío 100% GRATIS** a todo el país vía Cargo Expreso y pago en **efectivo al recibir** en tu puerta.\n\n"
+                    + "¿Buscas algún mueble en especial o te gustaría ver fotos y detalles de alguno?";
             return BotReply.text(text).build(session.getStep());
         }
 
-        // 16. Fallback no mapeado -> Sugerencias guiadas o menú de autoservicio antes de transferir
+        // 16. Fallback no mapeado -> Sugerencias directas y amigables antes de transferir
         List<Product> candidates = ProductMatcher.findCandidates(m.raw(), catalog, 3);
         if (!candidates.isEmpty()) {
             StringBuilder sb = new StringBuilder();
-            sb.append("🔎 ¿Te refieres a alguno de estos modelos de nuestro catálogo?\n\n");
-            int idx = 1;
+            sb.append("¡Claro con gusto! Tengo estos modelos disponibles en tienda:\n\n");
             for (Product p : candidates) {
-                sb.append(idx).append("️⃣ **").append(p.name()).append("** (SKU: ").append(p.sku()).append(")\n")
-                        .append("   • Precio de oferta: **").append(Money.lempiras(p.salePrice())).append("**\n\n");
-                idx++;
+                sb.append("• **").append(p.name()).append("** — **").append(Money.lempiras(p.salePrice())).append("**\n");
             }
-            sb.append("🚚 ¡Todos incluyen **envío 100% GRATIS** y pago contra entrega!\n")
-                    .append("Escribe el nombre o número del producto para ver fotos y medidas, o escribe *catálogo* para ver todo.");
+            sb.append("\n🚚 ¡Todos con **envío gratis** y pagas al recibir en tu puerta!\n")
+                    .append("¿Cuál te llama la atención o de cuál te gustaría ver fotos?");
             return BotReply.text(sb.toString())
                     .images(candidates.stream().flatMap(p -> p.firstImages(1).stream()).toList())
                     .build(session.getStep());
