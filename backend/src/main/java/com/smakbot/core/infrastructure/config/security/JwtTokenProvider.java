@@ -73,4 +73,19 @@ public class JwtTokenProvider {
     public String getFullName(String token) {
         return getClaims(token).get("fullName", String.class);
     }
+
+    public Date getExpiration(String token) {
+        return getClaims(token).getExpiration();
+    }
+
+    public long getRemainingValidityMilliseconds(String token) {
+        try {
+            Date expiration = getExpiration(token);
+            if (expiration != null) {
+                return expiration.getTime() - System.currentTimeMillis();
+            }
+        } catch (Exception ignored) {
+        }
+        return 0;
+    }
 }

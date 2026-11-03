@@ -24,6 +24,12 @@ spring:
     locations: classpath:db/migration
   jackson:
     default-property-inclusion: non_null
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      connect-timeout: 2000ms
 
 smakbot:
   cors:
@@ -41,6 +47,12 @@ smakbot:
     url: ${TRANSCRIPTION_URL:https://automatic-space-dollop-976prv4wg4ghpqqx-8000.app.github.dev/v1/transcribe/sync}
     tts-url: ${TTS_URL:https://automatic-space-dollop-976prv4wg4ghpqqx-8000.app.github.dev/v1/tts/synthesize}
     api-key: ${TRANSCRIPTION_API_KEY:sales-secret-api-key-change-in-prod}
+  redis:
+    enabled: ${REDIS_ENABLED:true}
+    session-ttl-minutes: ${REDIS_SESSION_TTL:45}
+    checkout-ttl-hours: ${REDIS_CHECKOUT_TTL:24}
+    idempotency-ttl-minutes: ${REDIS_IDEMPOTENCY_TTL:5}
+    catalog-ttl-minutes: ${REDIS_CATALOG_TTL:60}
 
 springdoc:
   api-docs:

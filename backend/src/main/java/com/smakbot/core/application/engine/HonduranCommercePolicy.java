@@ -121,20 +121,16 @@ public class HonduranCommercePolicy {
     }
 
     public String humanHandoverText(Tenant tenant) {
-        String msg = URLEncoder.encode("Hola " + tenant.name() + ", deseo hablar con un asesor comercial", StandardCharsets.UTF_8).replace("+", "%20");
-        return "¡Con mucho gusto! Te paso el contacto directo de mi compañero de ventas para que te atienda personalmente si lo prefieres:\n\n📲 **WhatsApp Directo:**\n["
-                + tenant.phoneContact() + "](https://wa.me/" + tenant.phoneDigits() + "?text=" + msg + ")";
+        return "¡Con mucho gusto! He notificado a nuestro asesor comercial para que tome el chat y te asista personalmente por aquí. Un miembro del equipo te responderá en breve. 😊";
     }
 
     public String fallbackExecutiveText(Tenant tenant, String rawText) {
-        String msg = URLEncoder.encode("Hola " + tenant.name() + ", requiero asistencia sobre: \"" + rawText + "\"", StandardCharsets.UTF_8).replace("+", "%20");
         return "¡Hola! Con mucho gusto te ayudo. Cuéntame, ¿qué estás buscando hoy? En **" + tenant.name() + "** tenemos disponibles:\n\n"
                 + "• **Sillas Gamer y de Oficina** (desde L. 1,790)\n"
                 + "• **Taburetes y Bancos Tolix** (desde L. 850)\n"
                 + "• **Escritorios, Mesas y Estanterías** (desde L. 2,250)\n"
                 + "• **Piletas y Grifería de Cocina** (desde L. 1,090)\n\n"
                 + "🚚 ¡Todos incluyen **envío 100% GRATIS** a todo el país y pago en **efectivo al recibir** en tu puerta!\n\n"
-                + "¿Cuál de estas opciones te gustaría revisar o de cuál deseas ver fotos y medidas? (O si gustas también puedes escribirme por aquí: ["
-                + tenant.phoneContact() + "](https://wa.me/" + tenant.phoneDigits() + "?text=" + msg + ")).";
+                + "¿Cuál de estas opciones te gustaría revisar o de cuál deseas ver fotos y medidas?";
     }
 }

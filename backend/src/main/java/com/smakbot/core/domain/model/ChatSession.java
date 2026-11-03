@@ -17,6 +17,7 @@ public class ChatSession {
     private OffsetDateTime lastInteraction;
     private String activeCategory;
     private java.util.List<String> offeredSkus = new java.util.ArrayList<>();
+    private int fallbackCount = 0;
 
     public ChatSession(String id, String tenantId, Channel channel) {
         this.id = id;
@@ -49,6 +50,7 @@ public class ChatSession {
         this.checkout = null;
         this.activeCategory = null;
         this.offeredSkus.clear();
+        this.fallbackCount = 0;
     }
 
     public boolean isHuman() {
@@ -92,4 +94,6 @@ public class ChatSession {
     public void setOfferedSkus(java.util.List<String> offeredSkus) {
         this.offeredSkus = (offeredSkus != null) ? new java.util.ArrayList<>(offeredSkus) : new java.util.ArrayList<>();
     }
+    public int getFallbackCount() { return fallbackCount; }
+    public void setFallbackCount(int fallbackCount) { this.fallbackCount = fallbackCount; }
 }

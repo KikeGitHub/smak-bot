@@ -34,6 +34,8 @@ public final class TextNormalizer {
             java.util.Map.entry(Pattern.compile("\\bpq\\b"), "porque"),
             java.util.Map.entry(Pattern.compile("\\btmb\\b"), "tambien"),
             java.util.Map.entry(Pattern.compile("\\btbn\\b"), "tambien"),
+            java.util.Map.entry(Pattern.compile("\\b[kq]ier[oa](s)?\\b"), "quiero$1"),
+            java.util.Map.entry(Pattern.compile("\\b[kq]er[oa](s)?\\b"), "quiero$1"),
 
             // Fonética y yeísmo de Sillas y Mobiliario (ej. "sia", "cia", "siya", "ciya" -> "silla")
             java.util.Map.entry(Pattern.compile("\\b(?:[sc]i[ay]s?|cias?|siyitas?|silletas?)\\b"), "silla"),

@@ -19,9 +19,12 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final com.smakbot.core.infrastructure.service.redis.JwtBlacklistService jwtBlacklistService;
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider,
+                                   com.smakbot.core.infrastructure.service.redis.JwtBlacklistService jwtBlacklistService) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.jwtBlacklistService = jwtBlacklistService;
     }
 
     @Override
@@ -32,6 +35,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+            if (jwtBlacklistService.isBlacklisted(token)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             String username = jwtTokenProvider.getUsername(token);
             String role = jwtTokenProvider.getRole(token);
             String tenantId = jwtTokenProvider.getTenantId(token);

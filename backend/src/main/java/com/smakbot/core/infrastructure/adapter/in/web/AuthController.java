@@ -30,13 +30,16 @@ public class AuthController {
     private final SpringDataUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final com.smakbot.core.infrastructure.service.redis.JwtBlacklistService jwtBlacklistService;
 
     public AuthController(SpringDataUserRepository userRepository,
                           PasswordEncoder passwordEncoder,
-                          JwtTokenProvider jwtTokenProvider) {
+                          JwtTokenProvider jwtTokenProvider,
+                          com.smakbot.core.infrastructure.service.redis.JwtBlacklistService jwtBlacklistService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.jwtBlacklistService = jwtBlacklistService;
     }
 
     @PostMapping("/login")
@@ -127,5 +130,17 @@ public class AuthController {
                 "tenantId", principal.tenantId(),
                 "fullName", principal.fullName()
         ));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Cerrar sesión e invalidar JWT", description = "Revoca el token JWT activo agregándolo a la blacklist de Redis")
+    public ResponseEntity<?> logout(jakarta.servlet.http.HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            String token = bearerToken.substring(7);
+            jwtBlacklistService.blacklist(token);
+        }
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.ok(Map.of("message", "Sesión finalizada exitosamente. Token revocado."));
     }
 }

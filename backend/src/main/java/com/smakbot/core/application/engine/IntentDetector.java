@@ -136,11 +136,51 @@ public final class IntentDetector {
         return exact.contains(c) || OK_SI.matcher(c).matches();
     }
 
+    public static final Pattern PURCHASE_QUANTITY_PREFIX = Pattern.compile(
+            "\\b(?:quiero|kiero|ocupo|necesito|dame|mandame|envíame|enviame|llevo|me llevo|ordenar|pedir|comprar)\\s+(?:\\d+|una?|dos|tres|cuatro|cinco|seis|diez|docena)\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+
+    public static final Pattern SHORT_PURCHASE = Pattern.compile(
+            "\\b(?:(?:lo|la)\\s+quiero|(?:me\\s+lo|me\\s+la)\\s+llevo|(?:lo|la)\\s+compro|me\\s+quedo\\s+con|aparta(?:me)?(?:lo|la)?|hacer\\s+(?:el\\s+)?pedido|quiero\\s+(?:pedir|ordenar|comprar|uno|una)|deseo\\s+(?:comprar|ordenar)|me\\s+interesa\\s+comprar)\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+
+    public static boolean isCancellation(MessageText m) {
+        if (m.token("cancelar", "cancela", "cancelacion", "cancelado")) return true;
+        return m.hasAny("cancelar pedido", "cancela la orden", "cancelar orden", "ya no quiero", "ya no",
+                "no quiero comprar", "salir", "dejalo asi", "dejarlo asi", "olvidalo", "no gracias ya no");
+    }
+
     public static boolean isPurchase(MessageText m) {
-        return m.token("comprar", "pedido", "ordenar", "orden")
-                || m.hasAny("hacer pedido", "hacer el pedido", "quiero pedir", "quiero ordenar", "quiero comprar", "lo quiero",
-                "la quiero", "quiero la", "quiero el", "lo compro", "la compro", "me lo llevo", "me la llevo", "quiero uno", "quiero una",
-                "deseo comprar", "deseo ordenar", "me interesa comprar", "apartar");
+        // Exclusión inmediata: Consultas informativas con 'quiero ...' o preguntas de catálogo
+        if (m.hasAny("quiero saber", "quiero ver", "quiero conocer", "quiero preguntar", "quiero informacion",
+                "quiero consultar", "quiero revisar", "quiero cotizar", "que productos tienes", "que productos tienen",
+                "que productos hay", "que modelos tienen", "que tienen", "ver fotos", "ver modelos", "fotos", "catalogo")) {
+            return false;
+        }
+
+        // Si es una pregunta de cómo o dónde comprar, es consulta informativa
+        if (m.isQuestion() && m.hasAny("como", "donde", "cuando", "puedo")) {
+            return false;
+        }
+
+        String c = m.clean().trim();
+        if (isCancellation(m)) return false;
+
+        if (PURCHASE_QUANTITY_PREFIX.matcher(c).find()) return true;
+        if (SHORT_PURCHASE.matcher(c).find()) return true;
+
+        if (m.token("comprar", "ordenar") && !m.isQuestion()) return true;
+
+        if (c.matches("^(?:quiero|kiero|comprar|ordenar|hacer pedido|apartar)\\b.*") && !m.hasAny("saber", "ver", "conocer", "preguntar", "informacion")) {
+            return true;
+        }
+
+        if (c.matches("^(?:\\d+|dos|tres|cuatro|cinco)\\s+(?:piezas?|unidades?|muebles?|sillas?|taburetes?)$")) {
+            return true;
+        }
+        return false;
     }
 
     public static boolean isTracking(MessageText m) {

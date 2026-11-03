@@ -8,10 +8,13 @@ import com.smakbot.core.domain.ports.out.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Orquestador comercial central del motor conversacional.
@@ -262,39 +265,56 @@ public class SalesEngineService implements ProcessMessageUseCase {
             Answer ans = catalogAdvisor.shipping(currentProduct);
             return BotReply.text(ans.text()).product(ans.product()).images(ans.images()).build(session.getStep());
         }
-        // 11b. Inicio de compra / checkout
+        // 11b. Catálogo general (consultas sobre qué productos o modelos tienen)
+        if (IntentDetector.isCatalogQuery(m)) {
+            session.setFallbackCount(0);
+            sessionRepo.save(session);
+            Answer ans = catalogAdvisor.catalog(catalog, tenant);
+            return BotReply.text(ans.text()).build(session.getStep());
+        }
+
+        // 11c. Inicio de compra / checkout
         if (IntentDetector.isPurchase(m)) {
             Product toBuy = matched.map(ProductMatcher.Match::product).orElse(currentProduct);
             if (toBuy == null) {
-                toBuy = catalog.stream().findFirst().orElse(null);
+                return BotReply.text("¡Con mucho gusto te ayudo a tomar tu pedido! 😊 ¿Qué producto o modelo te gustaría ordenar?")
+                        .build(session.getStep());
             }
-            if (toBuy != null) {
-                session.setSelectedSku(toBuy.sku());
-                String orderNumber = generateOrderNumber(tenantId);
-                CheckoutDraft draft = CheckoutDraft.start(toBuy, 1, orderNumber);
-                session.startCheckout(draft);
-                sessionRepo.save(session);
+            session.setSelectedSku(toBuy.sku());
+            String orderNumber = generateOrderNumber(tenantId);
+            int qty = extractPurchaseQuantity(m);
+            CheckoutDraft draft = CheckoutDraft.start(toBuy, qty, orderNumber);
+            if (qty > 1) {
+                draft.quantity = qty;
+                draft.quantityLabel = qty + " unidades";
+                draft.recalculate();
+            }
+            session.startCheckout(draft);
+            session.setFallbackCount(0);
+            sessionRepo.save(session);
 
-                String text = "¡Excelente elección! Preparo tu orden (*N° " + orderNumber + "*) para **" + toBuy.name()
-                        + "** (" + Money.lempiras(toBuy.salePrice()) + "). ¿A qué nombre registramos tu pedido?";
-                return BotReply.text(text).orderDraft(draft).product(toBuy).build(CheckoutStep.NAME);
-            }
+            String qtyText = qty > 1 ? qty + " unidades de " : "";
+            String totalText = qty > 1
+                    ? " (Total: **" + Money.lempiras(toBuy.salePrice().multiply(BigDecimal.valueOf(qty))) + "**)"
+                    : " (" + Money.lempiras(toBuy.salePrice()) + ")";
+
+            String text = "¡Excelente elección! Preparo tu orden (*N° " + orderNumber + "*) para **" + qtyText + toBuy.name()
+                    + "**" + totalText + ". ¿A qué nombre registramos tu pedido?";
+            return BotReply.text(text).orderDraft(draft).product(toBuy).build(CheckoutStep.NAME);
         }
 
         if (matched.isPresent() || (IntentDetector.isStockQuery(m) && currentProduct != null)) {
+            session.setFallbackCount(0);
+            sessionRepo.save(session);
             Product target = matched.map(ProductMatcher.Match::product).orElse(currentProduct);
             Answer ans = catalogAdvisor.stock(target);
             return BotReply.text(ans.text()).product(ans.product()).images(ans.images()).build(session.getStep());
         }
 
-        // 12. Catálogo general
-        if (IntentDetector.isCatalogQuery(m)) {
-            Answer ans = catalogAdvisor.catalog(catalog, tenant);
-            return BotReply.text(ans.text()).build(session.getStep());
-        }
-
         // 14. Agradecimientos
         if (IntentDetector.isGratitude(m)) {
+            session.setFallbackCount(0);
+            sessionRepo.save(session);
             String hook = currentProduct != null
                     ? "¿Te gustaría que tomemos tus datos para apartar tu **" + currentProduct.name() + "** o a qué ciudad sería tu entrega?"
                     : "¿Te gustaría que tomemos tus datos para apartar tu pedido o a qué ciudad sería tu entrega?";
@@ -306,6 +326,8 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         // 15. Saludos y consulta abierta sin link de anuncio (Escenario 3D)
         if (IntentDetector.isGreeting(m)) {
+            session.setFallbackCount(0);
+            sessionRepo.save(session);
             List<Product> topProducts = catalog.stream().filter(Product::inStock).limit(4).toList();
             StringBuilder catalogSummary = new StringBuilder();
             for (Product p : topProducts) {
@@ -324,6 +346,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         // 16. Fallback no mapeado -> Sugerencias directas y amigables antes de transferir
         List<Product> candidates = ProductMatcher.findCandidates(m.raw(), catalog, 3);
         if (!candidates.isEmpty()) {
+            session.setFallbackCount(0);
             StringBuilder sb = new StringBuilder();
             sb.append("¡Claro con gusto! Tengo estos modelos disponibles en tienda:\n\n");
             for (Product p : candidates) {
@@ -342,8 +365,30 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     .build(session.getStep());
         }
 
-        return BotReply.text(commercePolicy.fallbackExecutiveText(tenant, m.raw()))
-                .build(session.getStep());
+        // 17. Mensaje no entendido: Estrategia de 2do intento amable antes de transferir a humano
+        if (session.getFallbackCount() == 0) {
+            session.setFallbackCount(1);
+            sessionRepo.save(session);
+
+            String clarification;
+            if (currentProduct != null) {
+                clarification = "Disculpa, no logré entender bien tu mensajito. 😊 ¿Te gustaría que te tome los datos para apartar tu **"
+                        + currentProduct.name() + "**, o prefieres consultar sus medidas, colores o ver fotos reales? Con gusto te ayudo.";
+            } else {
+                clarification = "Disculpa, no logré entender bien tu mensajito. 😊 ¿Podrías ser un poquito más claro o decirme qué mueble o producto estás buscando? Con gusto te ayudo a revisarlo.";
+            }
+            return BotReply.text(clarification).build(session.getStep());
+        }
+
+        // Segundo intento consecutivo fallido -> Transferencia directa a asesor humano (sin links externos)
+        session.handoverToHuman();
+        session.setFallbackCount(0);
+        sessionRepo.save(session);
+
+        String handoverText = "Para brindarte una mejor atención, voy a transferir tu consulta directamente con un ejecutivo comercial de nuestro equipo para que te asista de forma personalizada por este mismo chat. Un miembro del equipo te responderá en breve. ¡Muchas gracias por tu paciencia! 🙌";
+        return BotReply.text(handoverText)
+                .human(true)
+                .build(CheckoutStep.HUMAN);
     }
 
     @Override
@@ -362,6 +407,28 @@ public class SalesEngineService implements ProcessMessageUseCase {
             if (found.isPresent()) return found.get();
         }
         return null;
+    }
+
+    private static final Pattern DIGITS_QTY = Pattern.compile("\\b(\\d+)\\b");
+    private static final Map<String, Integer> WORD_QTY = Map.of(
+            "un", 1, "uno", 1, "una", 1, "dos", 2, "tres", 3,
+            "cuatro", 4, "cinco", 5, "seis", 6, "diez", 10, "docena", 12
+    );
+
+    private int extractPurchaseQuantity(MessageText m) {
+        Matcher matcher = DIGITS_QTY.matcher(m.raw());
+        if (matcher.find()) {
+            try {
+                int q = Integer.parseInt(matcher.group(1));
+                if (q > 0 && q <= 100) return q;
+            } catch (NumberFormatException ignored) {}
+        }
+        for (Map.Entry<String, Integer> e : WORD_QTY.entrySet()) {
+            if (m.tokens().contains(e.getKey())) {
+                return e.getValue();
+            }
+        }
+        return 1;
     }
 
     private String generateOrderNumber(String tenantId) {

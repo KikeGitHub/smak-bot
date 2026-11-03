@@ -37,17 +37,20 @@ public class WhatsAppWebhookController {
     private final NotificationSenderPort notificationSenderPort;
     private final com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort;
     private final com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort;
+    private final com.smakbot.core.infrastructure.service.redis.WhatsAppIdempotencyService idempotencyService;
 
     public WhatsAppWebhookController(WhatsAppConfigRepositoryPort configRepositoryPort,
                                      ProcessMessageUseCase processMessageUseCase,
                                      NotificationSenderPort notificationSenderPort,
                                      com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort,
-                                     com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort) {
+                                     com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort,
+                                     com.smakbot.core.infrastructure.service.redis.WhatsAppIdempotencyService idempotencyService) {
         this.configRepositoryPort = configRepositoryPort;
         this.processMessageUseCase = processMessageUseCase;
         this.notificationSenderPort = notificationSenderPort;
         this.audioTranscriptionPort = audioTranscriptionPort;
         this.textToSpeechPort = textToSpeechPort;
+        this.idempotencyService = idempotencyService;
     }
 
     @GetMapping("/webhook")
@@ -112,6 +115,10 @@ public class WhatsAppWebhookController {
                 WhatsAppConfig config = configOpt.get();
 
                 for (WhatsAppWebhookPayload.Message msg : val.getMessages()) {
+                    if (msg.getId() != null && !idempotencyService.isFirstTime(msg.getId())) {
+                        log.info("Mensaje duplicado de Meta ignorado para messageId: {}", msg.getId());
+                        continue;
+                    }
                     handleSingleMessage(config, val, msg);
                 }
             }

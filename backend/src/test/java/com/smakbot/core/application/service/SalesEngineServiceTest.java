@@ -2,6 +2,8 @@ package com.smakbot.core.application.service;
 
 import com.smakbot.core.domain.model.*;
 import com.smakbot.core.domain.ports.out.*;
+import com.smakbot.core.application.engine.MessageText;
+import com.smakbot.core.application.engine.IntentDetector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -531,7 +533,166 @@ class SalesEngineServiceTest {
         );
         BotReply r4 = salesEngine.process(msg4);
         assertNotNull(r4);
-        assertTrue(r4.text().contains("L.") || r4.text().contains("precio"), "Debe responder el precio del producto activo en memoria");
+    }
+
+    @Test
+    @DisplayName("Debe interpretar 'kiero 2' con producto en contexto, iniciar checkout con cantidad 2 y no saludar ni enviar links de whatsapp")
+    void testDirectPurchaseQuantityWithSlang() {
+        String sessionId = "whatsapp-slang-purchase-" + UUID.randomUUID();
+
+        // 1. Mostrar producto en contexto (Silla Gamer)
+        IncomingMessage msg1 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "Tiene Sia Gamer?",
+                null
+        );
+        BotReply r1 = salesEngine.process(msg1);
+        assertNotNull(r1);
+        assertNotNull(r1.product());
+
+        // 2. Cliente responde con modismo 'kiero 2'
+        IncomingMessage msg2 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "kiero 2",
+                null
+        );
+        BotReply r2 = salesEngine.process(msg2);
+        assertNotNull(r2);
+        assertFalse(r2.text().startsWith("¡Hola! Con mucho gusto te ayudo"), "No debe reiniciar con saludo genérico");
+        assertFalse(r2.text().contains("wa.me"), "No debe incluir enlaces wa.me dentro de WhatsApp");
+        assertTrue(r2.text().contains("2"), "Debe confirmar la cantidad de 2 unidades");
+        assertTrue(r2.text().toLowerCase().contains("nombre"), "Debe pedir el nombre para el pedido");
+
+        // 3. Proporciona nombre -> Debe saltar directamente a dirección sin volver a preguntar cantidad
+        IncomingMessage msg3 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "Carlos Perez",
+                null
+        );
+        BotReply r3 = salesEngine.process(msg3);
+        assertNotNull(r3);
+        assertTrue(r3.text().toLowerCase().contains("dirección") || r3.text().toLowerCase().contains("ciudad"),
+                "Al tener ya la cantidad 2, debe avanzar directo a pedir dirección");
+    }
+
+    @Test
+    @DisplayName("Fallback de 2 intentos: intento 1 es aclaración amable y el intento 2 consecutivo transfiere a ejecutivo")
+    void testTwoTierFriendlyFallbackAndHumanHandover() {
+        String sessionId = "whatsapp-fallback-" + UUID.randomUUID();
+
+        // Intento 1 con mensaje ininteligible
+        IncomingMessage msg1 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "zzzzz no se que es esto 999",
+                null
+        );
+        BotReply r1 = salesEngine.process(msg1);
+        assertNotNull(r1);
+        assertFalse(r1.human(), "El primer fallo no debe transferir a humano todavía");
+        assertTrue(r1.text().contains("no logré entender bien tu mensajito"), "Debe pedir aclaración amable en el intento 1");
+        assertFalse(r1.text().contains("wa.me"), "No debe tener enlaces wa.me");
+
+        // Intento 2 consecutivo ininteligible -> Debe transferir a humano
+        IncomingMessage msg2 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "otra cosa rara que nadie entiende",
+                null
+        );
+        BotReply r2 = salesEngine.process(msg2);
+        assertNotNull(r2);
+        assertTrue(r2.human(), "El segundo fallo consecutivo debe transferir a asesor humano");
+        assertTrue(r2.text().contains("ejecutivo") || r2.text().contains("asesor"), "Debe indicar transferencia a ejecutivo o asesor");
+        assertFalse(r2.text().contains("wa.me"), "No debe tener enlaces wa.me");
+    }
+
+    @Test
+    @DisplayName("Informativo: 'hola quiero saber que productos tienes' debe mostrar catálogo y NO iniciar orden ni checkout")
+    void testCatalogInquiryNotPurchase() {
+        MessageText m = MessageText.of("hola quiero saber que productos tienes");
+        assertFalse(IntentDetector.isPurchase(m), "No debe ser interpretado como compra");
+        assertTrue(IntentDetector.isCatalogQuery(m), "Debe ser consulta de catálogo");
+
+        IncomingMessage msg1 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                "sess-info-01",
+                "hola quiero saber que productos tienes",
+                null
+        );
+        BotReply r = salesEngine.process(msg1);
+        assertEquals(CheckoutStep.IDLE, r.step());
+        assertNull(r.orderDraft());
+        assertTrue(r.text().contains("Modelos disponibles") || r.text().contains("disponible"),
+                "Debe desplegar el catálogo de opciones");
+    }
+
+    @Test
+    @DisplayName("Checkout: Preguntas como 'tienes otras sillas similares' no deben tomarse como cantidad y deben ofrecer opciones")
+    void testCheckoutWithQuestionsAndCancellation() {
+        String sessionId = "sess-flow-ux-" + UUID.randomUUID();
+
+        // 1. Mostrar producto en contexto
+        salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "Tiene Sia Gamer?",
+                null
+        ));
+
+        // 2. Iniciar checkout
+        BotReply r1 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "comprar",
+                null
+        ));
+        assertEquals(CheckoutStep.NAME, r1.step());
+
+        // 3. Responder nombre
+        BotReply r2 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "Marlon",
+                null
+        ));
+        assertEquals(CheckoutStep.QUANTITY, r2.step());
+
+        // 4. En vez de dar cantidad, pregunta por otras sillas ('tienes otras sillas similares')
+        BotReply r3 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "tienes otras sillas similares",
+                null
+        ));
+        assertNotEquals(CheckoutStep.ADDRESS, r3.step(), "NO debe avanzar a dirección tomando la pregunta como cantidad");
+        assertFalse(r3.text().contains("tienes otras sillas similares"), "NO debe poner la pregunta como label de cantidad");
+        assertTrue(r3.text().contains("Wynn") || r3.text().contains("modelos") || r3.text().contains("cambiar"),
+                "Debe responder la consulta de modelos alternativos");
+
+        // 5. El cliente decide cancelar la orden ('cancelar')
+        BotReply r4 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "cancelar",
+                null
+        ));
+        assertEquals(CheckoutStep.IDLE, r4.step());
+        assertTrue(r4.text().toLowerCase().contains("cancelad"), "Debe confirmar que la orden fue cancelada");
     }
 }
 

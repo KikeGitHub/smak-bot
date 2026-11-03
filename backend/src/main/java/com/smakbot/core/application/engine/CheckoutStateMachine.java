@@ -64,6 +64,21 @@ public class CheckoutStateMachine {
             return StepResult.of("No hay un proceso de compra activo.", CheckoutStep.IDLE);
         }
 
+        // 0. Si el cliente pide explícitamente cancelar la orden o salir del checkout
+        if (IntentDetector.isCancellation(m)) {
+            session.reset();
+            return StepResult.of("Entendido, he cancelado la orden actual. Si deseas consultar cualquier otro modelo o necesitas asesoría, con mucho gusto quedo a tu entera disposición. 😊", CheckoutStep.IDLE);
+        }
+
+        // 0b. Si el cliente pregunta por otras opciones, otros modelos o el catálogo durante el checkout
+        if (IntentDetector.isMoreOptionsQuery(m) || IntentDetector.isCatalogQuery(m)) {
+            Product currentP = findProduct(c, catalog);
+            Answer moreAns = advisor.moreOptions(session, currentP, catalog, tenant);
+            String text = moreAns.text() + "\n\n"
+                    + "💡 *¿Te gustaría cambiar tu orden por alguno de estos modelos, o prefieres cancelar el pedido actual para revisarlos con calma?* (También puedes continuar respondiendo los datos de tu orden para **" + (currentP != null ? currentP.name() : c.productName) + "**).";
+            return StepResult.of(text, session.getStep());
+        }
+
         CheckoutStep current = session.getStep();
 
         switch (current) {
@@ -96,6 +111,13 @@ public class CheckoutStateMachine {
 
         c.name = m.raw().trim();
         c.recipientName = c.name;
+
+        if (c.quantity > 1) {
+            String prompt = "¡Muchas gracias, " + c.name + "! Anotamos **" + c.effectiveQuantityLabel() + "** (Total: **" + lempiras(c.total) + "** con envío gratis incluido).\n\n"
+                    + "🚚 ¿A qué dirección te lo enviamos? Indícanos tu ciudad, colonia y una referencia de tu casa o negocio (o si prefieres, envíame tu ubicación por WhatsApp o para retiro en agencia de Cargo Expreso).";
+            return StepResult.of(prompt, CheckoutStep.ADDRESS);
+        }
+
         return StepResult.of("Gracias, " + c.name + ". ¿Cuántas piezas o unidades deseas ordenar? (Ejemplo: *1 kit de sillas*, *2 regaderas*, *3 escritorios*... o solo el número):", CheckoutStep.QUANTITY);
     }
 
@@ -105,10 +127,12 @@ public class CheckoutStateMachine {
             return StepResult.of(qAns.get() + "\n\n" + buildResumePrompt(c, CheckoutStep.QUANTITY), CheckoutStep.QUANTITY);
         }
 
-        int q = 1;
+        int q = 0;
         Matcher match = DIGITS_PHONE.matcher(m.raw());
         if (match.find()) {
-            q = Math.max(1, Integer.parseInt(match.group()));
+            try {
+                q = Integer.parseInt(match.group());
+            } catch (NumberFormatException ignored) {}
         } else {
             for (Map.Entry<String, Integer> e : NUM_WORDS.entrySet()) {
                 if (m.tokens().contains(e.getKey())) {
@@ -118,8 +142,14 @@ public class CheckoutStateMachine {
             }
         }
 
+        // Si no se reconoció un número o cantidad válida, no asumir texto arbitrario como cantidad
+        if (q <= 0) {
+            String prompt = "Para continuar con tu pedido de **" + c.productName + "**, por favor indícanos cuántas piezas o unidades deseas ordenar (ejemplo: *1*, *2* o solo el número):";
+            return StepResult.of(prompt, CheckoutStep.QUANTITY);
+        }
+
         c.quantity = q;
-        c.quantityLabel = m.raw().trim().isEmpty() ? q + (q == 1 ? " unidad" : " unidades") : m.raw().trim();
+        c.quantityLabel = q == 1 ? "1 unidad" : q + " unidades";
         c.recalculate();
 
         String prompt = "¡Anotado! Serían **" + c.quantityLabel + "** (Total: **" + lempiras(c.total) + "** con envío gratis incluido).\n\n"

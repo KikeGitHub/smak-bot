@@ -1,29 +1,76 @@
 package com.smakbot.core.infrastructure.persistence.adapter;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smakbot.core.domain.model.Product;
 import com.smakbot.core.domain.ports.out.ProductRepositoryPort;
 import com.smakbot.core.infrastructure.persistence.entity.ProductEntity;
 import com.smakbot.core.infrastructure.persistence.repository.SpringDataProductRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class ProductJpaAdapter implements ProductRepositoryPort {
 
-    private final SpringDataProductRepository repo;
+    private static final Logger log = LoggerFactory.getLogger(ProductJpaAdapter.class);
+    private static final String KEY_PREFIX = "smakbot:catalog:";
 
-    public ProductJpaAdapter(SpringDataProductRepository repo) {
+    private final SpringDataProductRepository repo;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final Duration catalogTtl;
+
+    public ProductJpaAdapter(
+            SpringDataProductRepository repo,
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            @Value("${smakbot.redis.catalog-ttl-minutes:60}") long catalogTtlMinutes) {
         this.repo = repo;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.catalogTtl = Duration.ofMinutes(catalogTtlMinutes);
     }
 
     @Override
     public List<Product> findActiveByTenant(String tenantId) {
-        return repo.findByTenantIdAndActiveTrue(tenantId).stream().map(this::toDomain).toList();
+        String key = KEY_PREFIX + tenantId;
+
+        // 1. Intento de lectura ultrarrápida en Redis (< 1ms)
+        try {
+            String json = redisTemplate.opsForValue().get(key);
+            if (json != null && !json.isBlank()) {
+                List<Product> cached = objectMapper.readValue(json, new TypeReference<List<Product>>() {});
+                log.debug("Catálogo de productos para tenant [{}] recuperado desde Redis ({} items)", tenantId, cached.size());
+                return cached;
+            }
+        } catch (Exception ex) {
+            log.warn("Fallo al leer catálogo de Redis para tenant [{}]. Fallback a PostgreSQL: {}", tenantId, ex.getMessage());
+        }
+
+        // 2. Consulta a PostgreSQL y calentamiento de caché
+        List<Product> products = repo.findByTenantIdAndActiveTrue(tenantId).stream().map(this::toDomain).toList();
+
+        try {
+            String json = objectMapper.writeValueAsString(products);
+            redisTemplate.opsForValue().set(key, json, catalogTtl);
+            log.debug("Catálogo para tenant [{}] cacheado en Redis con TTL de {} min", tenantId, catalogTtl.toMinutes());
+        } catch (Exception ex) {
+            log.warn("No se pudo cachear catálogo en Redis para tenant [{}]: {}", tenantId, ex.getMessage());
+        }
+
+        return products;
     }
 
     @Override
-    public java.util.Optional<Product> findById(java.util.UUID id) {
+    public Optional<Product> findById(UUID id) {
         return repo.findById(id).map(this::toDomain);
     }
 
@@ -33,8 +80,19 @@ public class ProductJpaAdapter implements ProductRepositoryPort {
     }
 
     @Override
-    public void deleteById(java.util.UUID id) {
+    public void deleteById(UUID id) {
+        repo.findById(id).ifPresent(entity -> evictCatalogCache(entity.getTenantId()));
         repo.deleteById(id);
+    }
+
+    private void evictCatalogCache(String tenantId) {
+        if (tenantId == null) return;
+        try {
+            redisTemplate.delete(KEY_PREFIX + tenantId);
+            log.info("Caché de catálogo Redis invalidada para tenant [{}]", tenantId);
+        } catch (Exception ex) {
+            log.warn("Error al invalidar caché de catálogo para tenant [{}]: {}", tenantId, ex.getMessage());
+        }
     }
 
     @Override
@@ -59,6 +117,7 @@ public class ProductJpaAdapter implements ProductRepositoryPort {
         entity.setActive(p.active());
 
         ProductEntity saved = repo.save(entity);
+        evictCatalogCache(saved.getTenantId());
         return toDomain(saved);
     }
 

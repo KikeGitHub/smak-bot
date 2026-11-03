@@ -47,6 +47,9 @@ public class ChatSessionJpaAdapter implements ChatSessionRepositoryPort {
         if (session.getOfferedSkus() != null && !session.getOfferedSkus().isEmpty()) {
             data.put("offeredSkus", session.getOfferedSkus());
         }
+        if (session.getFallbackCount() > 0) {
+            data.put("fallbackCount", session.getFallbackCount());
+        }
         if (session.getCheckout() != null) {
             Map<String, Object> draftMap = objectMapper.convertValue(session.getCheckout(), new TypeReference<>() {});
             data.put("checkout", draftMap);
@@ -79,6 +82,7 @@ public class ChatSessionJpaAdapter implements ChatSessionRepositoryPort {
             if (data.get("selectedSku") instanceof String sku) s.setSelectedSku(sku);
             if (data.get("lastOrderNumber") instanceof String lon) s.setLastOrderNumber(lon);
             if (data.get("activeCategory") instanceof String cat) s.setActiveCategory(cat);
+            if (data.get("fallbackCount") instanceof Number fc) s.setFallbackCount(fc.intValue());
             if (data.get("offeredSkus") instanceof java.util.List<?> list) {
                 java.util.List<String> skus = list.stream().filter(java.util.Objects::nonNull).map(Object::toString).toList();
                 s.setOfferedSkus(skus);
