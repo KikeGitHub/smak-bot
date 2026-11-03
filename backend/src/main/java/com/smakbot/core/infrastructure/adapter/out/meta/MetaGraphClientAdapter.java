@@ -329,5 +329,37 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
         }
         return null;
     }
+
+    @Override
+    public void markAsReadAndTyping(WhatsAppConfig config, String messageId) {
+        if (config == null || messageId == null || messageId.isBlank()) return;
+
+        if (!outboundEnabled) {
+            log.info("[SANDBOX META WA] -> Mark as read and typing indicator for messageId: {}", messageId);
+            return;
+        }
+
+        try {
+            String url = String.format("%s/%s/messages", graphBaseUrl, config.phoneNumberId());
+            Map<String, Object> payload = Map.of(
+                    "messaging_product", "whatsapp",
+                    "status", "read",
+                    "message_id", messageId,
+                    "typing_indicator", Map.of("type", "text")
+            );
+
+            restClient.post()
+                    .uri(url)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + config.accessToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+
+            log.info("Indicador de tipeo ('typing...') y marca de leído activados para messageId: {}", messageId);
+        } catch (Exception ex) {
+            log.warn("Aviso al enviar typing indicator a Meta ({}): {}", messageId, ex.getMessage());
+        }
+    }
 }
 

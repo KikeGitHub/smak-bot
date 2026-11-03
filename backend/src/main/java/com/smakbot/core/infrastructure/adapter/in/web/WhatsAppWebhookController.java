@@ -171,6 +171,11 @@ public class WhatsAppWebhookController {
 
         log.info("Mensaje WA entrante de [{}] para tenant [{}]: '{}'", from, config.tenantId(), messageText);
 
+        // Fase 2: Activar marca de leído e indicador de escritura en WhatsApp ("Escribiendo...")
+        if (msg.getId() != null && !msg.getId().isBlank()) {
+            notificationSenderPort.markAsReadAndTyping(config, msg.getId());
+        }
+
         IncomingMessage incoming = new IncomingMessage(
                 config.tenantId(),
                 Channel.WHATSAPP,
@@ -181,6 +186,11 @@ public class WhatsAppWebhookController {
 
         try {
             BotReply reply = processMessageUseCase.process(incoming);
+
+            // Fase 2: Pausa orgánica (1.5 segundos) para simular tiempo de lectura y tipeo humano
+            try {
+                Thread.sleep(1500);
+            } catch (InterruptedException ignored) {}
 
             // 1. Si el cliente envió audio, responder con nota de voz TTS sintetizada
             if (isVoiceInput) {

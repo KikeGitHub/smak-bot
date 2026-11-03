@@ -182,4 +182,23 @@ public final class IntentDetector {
     public static boolean isGreeting(MessageText m) {
         return m.token("hola", "buenas", "buen", "dia", "tardes", "noches", "saludos", "alero", "compa", "que tal", "epale", "onda");
     }
+
+    public static boolean isMoreOptionsQuery(MessageText m) {
+        if (m.hasAny("tienes mas", "tienen mas", "tienes otro", "tienen otro", "tienes otros", "tienen otros",
+                "otro modelo", "otros modelos", "otra opcion", "otras opciones", "otro estilo", "otros estilos",
+                "otra alternativa", "otras alternativas", "que mas tienen", "que mas hay", "que mas tiene",
+                "cuales otros", "cuales mas", "muestrame mas", "muestrame otro", "muestrame otros",
+                "mostrame mas", "mostrame otro", "mostrame otros", "ver mas", "ver otro", "ver otros",
+                "algo mas", "algun otro", "alguna otra", "que otro", "que otros", "que otra", "que otras",
+                "hay mas", "hay otro", "hay otros", "tienen alguna otra", "tienen algun otro",
+                "otra silla", "otras sillas", "otro sillon", "otros sillones", "otro escritorio",
+                "otra mesa", "otro taburete", "otra pileta", "otro grifo", "tienen mas modelos",
+                "tienes mas modelos", "otro diseno", "otros disenos")) {
+            return true;
+        }
+        String c = m.clean().trim();
+        return c.equals("mas") || c.equals("otro") || c.equals("otra") || c.equals("otros") || c.equals("otras")
+                || c.equals("mas opciones") || c.equals("otros modelos") || c.equals("mas modelos")
+                || c.equals("otro mas") || c.equals("otra mas");
+    }
 }

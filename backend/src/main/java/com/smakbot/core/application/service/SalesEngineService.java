@@ -153,7 +153,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
             String reply = "¡Ubicación detectada! 📍 Veo que te encuentras en **" + locName + "**.\n\n"
                     + "🚚 **Cobertura de Entrega:** ¡Sí, tenemos cobertura completa a domicilio en tu zona a través de Cargo Expreso!\n"
                     + "💵 **Pago Seguro:** Cancelas en efectivo contra entrega al recibir tu paquete.\n\n"
-                    + "¿Te gustaría ver nuestro catálogo completo o hacer el pedido de algún producto?";
+                    + "¿Te gustaría que te tome los datos para programar la entrega a tu dirección o qué mueble te gustaría cotizar?";
             return BotReply.text(reply).location(msg.location()).build(session.getStep());
         }
 
@@ -177,24 +177,41 @@ public class SalesEngineService implements ProcessMessageUseCase {
         // 7. Identificar producto en contexto del mensaje
         Optional<ProductMatcher.Match> matched = ProductMatcher.extract(m.raw(), catalog);
         if (matched.isPresent()) {
-            session.setSelectedSku(matched.get().product().sku());
+            Product p = matched.get().product();
+            session.setSelectedSku(p.sku());
+            session.addOfferedSku(p.sku());
+            String cat = catalogAdvisor.detectCategoryKey(p);
+            if (cat != null) {
+                session.setActiveCategory(cat);
+            }
+            sessionRepo.save(session);
         }
         Product currentProduct = resolveActiveProduct(session, catalog);
 
         // 8. Políticas comerciales de Honduras (ciudades, envíos, garantía, ensamble, etc.)
         Optional<String> policyAns = commercePolicy.policyResponse(m, currentProduct, catalog);
         if (policyAns.isPresent()) {
-            String suffix = currentProduct != null ? " para **" + currentProduct.name() + "**" : "";
-            return BotReply.text(policyAns.get() + "\n\n¿Deseas que preparemos tu pedido" + suffix + "?")
+            return BotReply.text(policyAns.get())
                     .product(currentProduct)
                     .build(session.getStep());
         }
 
         // 9. Asesoría por categoría / familia de productos ("¿Qué sillas tienen?", etc.)
-        Optional<Answer> categoryAdvisory = catalogAdvisor.categoryAdvisory(m, catalog, tenant);
+        Optional<Answer> categoryAdvisory = catalogAdvisor.categoryAdvisory(m, catalog, tenant, session);
         if (categoryAdvisory.isPresent()) {
+            sessionRepo.save(session);
             Answer ans = categoryAdvisory.get();
             return BotReply.text(ans.text())
+                    .images(ans.images())
+                    .build(session.getStep());
+        }
+
+        // 9b. Continuidad conversacional ("¿Tienes más?", "¿Otro modelo?", "¿Tienes otra opción?")
+        if (IntentDetector.isMoreOptionsQuery(m)) {
+            Answer ans = catalogAdvisor.moreOptions(session, currentProduct, catalog, tenant);
+            sessionRepo.save(session);
+            return BotReply.text(ans.text())
+                    .product(ans.product())
                     .images(ans.images())
                     .build(session.getStep());
         }
@@ -237,8 +254,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
             return BotReply.text(ans.text()).product(ans.product()).images(ans.images()).build(session.getStep());
         }
         if (IntentDetector.isScheduleDelivery(m) || IntentDetector.isAgencyPickupQuery(m)) {
-            String suffix = currentProduct != null ? " para **" + currentProduct.name() + "**" : "";
-            return BotReply.text(commercePolicy.scheduleAndAgencyExplanation() + "\n\n¿Deseas que preparemos tu pedido" + suffix + "?")
+            return BotReply.text(commercePolicy.scheduleAndAgencyExplanation())
                     .product(currentProduct)
                     .build(session.getStep());
         }
@@ -279,7 +295,12 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         // 14. Agradecimientos
         if (IntentDetector.isGratitude(m)) {
-            return BotReply.text("¡Con muchísimo gusto! 😊 Estamos a tu entera disposición. Si deseas apartar algún producto, revisar colores, medidas o necesitas comunicarte con un asesor comercial, escríbenos en cualquier momento.")
+            String hook = currentProduct != null
+                    ? "¿Te gustaría que tomemos tus datos para apartar tu **" + currentProduct.name() + "** o a qué ciudad sería tu entrega?"
+                    : "¿Te gustaría que tomemos tus datos para apartar tu pedido o a qué ciudad sería tu entrega?";
+            return BotReply.text("¡Con muchísimo gusto! 😊 Estamos a tu entera disposición.\n\n"
+                    + "🚚 ¡Aprovecha que hoy tenemos **envío 100% GRATIS** a todo el país y pagas al recibir en tu puerta!\n\n"
+                    + hook)
                     .build(session.getStep());
         }
 
@@ -307,9 +328,15 @@ public class SalesEngineService implements ProcessMessageUseCase {
             sb.append("¡Claro con gusto! Tengo estos modelos disponibles en tienda:\n\n");
             for (Product p : candidates) {
                 sb.append("• **").append(p.name()).append("** — **").append(Money.lempiras(p.salePrice())).append("**\n");
+                session.addOfferedSku(p.sku());
             }
+            session.setSelectedSku(candidates.get(0).sku());
+            String cat = catalogAdvisor.detectCategoryKey(candidates.get(0));
+            if (cat != null) session.setActiveCategory(cat);
+            sessionRepo.save(session);
+
             sb.append("\n🚚 ¡Todos con **envío gratis** y pagas al recibir en tu puerta!\n")
-                    .append("¿Cuál te llama la atención o de cuál te gustaría ver fotos?");
+                    .append("¿Cuál de estos te llama más la atención o de cuál te gustaría conocer medidas y fotos reales?");
             return BotReply.text(sb.toString())
                     .images(candidates.stream().flatMap(p -> p.firstImages(1).stream()).toList())
                     .build(session.getStep());

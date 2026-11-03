@@ -17,5 +17,7 @@ public interface NotificationSenderPort {
 
     byte[] downloadMedia(WhatsAppConfig config, String mediaId);
 
+    void markAsReadAndTyping(WhatsAppConfig config, String messageId);
+
     record WhatsAppButton(String id, String title) {}
 }

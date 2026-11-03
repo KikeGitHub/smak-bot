@@ -15,6 +15,8 @@ public class ChatSession {
     private String lastOrderNumber;
     private CheckoutDraft checkout;
     private OffsetDateTime lastInteraction;
+    private String activeCategory;
+    private java.util.List<String> offeredSkus = new java.util.ArrayList<>();
 
     public ChatSession(String id, String tenantId, Channel channel) {
         this.id = id;
@@ -45,6 +47,8 @@ public class ChatSession {
         this.step = CheckoutStep.IDLE;
         this.selectedSku = null;
         this.checkout = null;
+        this.activeCategory = null;
+        this.offeredSkus.clear();
     }
 
     public boolean isHuman() {
@@ -53,6 +57,20 @@ public class ChatSession {
 
     public boolean inCheckout() {
         return checkout != null && step.isCheckout();
+    }
+
+    public void addOfferedSku(String sku) {
+        if (sku != null && !offeredSkus.contains(sku)) {
+            offeredSkus.add(sku);
+        }
+    }
+
+    public void addOfferedSkus(java.util.Collection<String> skus) {
+        if (skus != null) {
+            for (String s : skus) {
+                addOfferedSku(s);
+            }
+        }
     }
 
     public String getId() { return id; }
@@ -68,4 +86,10 @@ public class ChatSession {
     public void setCheckout(CheckoutDraft checkout) { this.checkout = checkout; }
     public OffsetDateTime getLastInteraction() { return lastInteraction; }
     public void setLastInteraction(OffsetDateTime lastInteraction) { this.lastInteraction = lastInteraction; }
+    public String getActiveCategory() { return activeCategory; }
+    public void setActiveCategory(String activeCategory) { this.activeCategory = activeCategory; }
+    public java.util.List<String> getOfferedSkus() { return offeredSkus; }
+    public void setOfferedSkus(java.util.List<String> offeredSkus) {
+        this.offeredSkus = (offeredSkus != null) ? new java.util.ArrayList<>(offeredSkus) : new java.util.ArrayList<>();
+    }
 }

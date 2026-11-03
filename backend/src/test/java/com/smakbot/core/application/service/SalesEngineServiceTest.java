@@ -473,5 +473,65 @@ class SalesEngineServiceTest {
         assertFalse(reply.human());
         assertTrue(reply.text().contains("Sillas y Sillones"), "Debe mostrar la línea de sillas");
     }
+
+    @Test
+    @DisplayName("Fase 1 Memoria: Al preguntar 'Tienes sillas gamer?' y luego 'Tienes más?', debe ofrecer modelos distintos sin perder el contexto")
+    void testConversationalMemoryMoreModelsContinuity() {
+        String sessionId = "sess-mem-01";
+
+        // Turno 1: Cliente pregunta por sillas gamer
+        IncomingMessage msg1 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "Tiene Sia Gamer?",
+                null
+        );
+        BotReply r1 = salesEngine.process(msg1);
+        assertNotNull(r1);
+        assertNotNull(r1.product());
+        assertEquals("SKM-955-CA-NE", r1.product().sku(), "Turno 1 debe identificar la Silla Gamer");
+
+        // Turno 2: Cliente pregunta elípticamente 'Tienes más?' (sin repetir la palabra silla ni gamer)
+        IncomingMessage msg2 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "Tienes mas?",
+                null
+        );
+        BotReply r2 = salesEngine.process(msg2);
+        assertNotNull(r2);
+        assertFalse(r2.human(), "No debe transferir a humano ni quedar en punto ciego");
+        assertNotNull(r2.product(), "Debe identificar un nuevo modelo de la misma línea");
+        assertNotEquals("SKM-955-CA-NE", r2.product().sku(), "No debe repetir el producto ya ofrecido en el Turno 1");
+        assertTrue(r2.text().contains("Miles") || r2.text().contains("Wynn"), "Debe ofrecer una alternativa de silla");
+
+        // Turno 3: Cliente pide 'otro modelo'
+        IncomingMessage msg3 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "Tienes otro modelo?",
+                null
+        );
+        BotReply r3 = salesEngine.process(msg3);
+        assertNotNull(r3);
+        assertNotNull(r3.product());
+        assertNotEquals(r1.product().sku(), r3.product().sku(), "No debe repetir el producto del Turno 1");
+        assertNotEquals(r2.product().sku(), r3.product().sku(), "No debe repetir el producto del Turno 2");
+
+        // Turno 4: Pregunta por precio en contexto ('¿Y cuánto cuesta?')
+        IncomingMessage msg4 = new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "¿Y cuánto cuesta?",
+                null
+        );
+        BotReply r4 = salesEngine.process(msg4);
+        assertNotNull(r4);
+        assertTrue(r4.text().contains("L.") || r4.text().contains("precio"), "Debe responder el precio del producto activo en memoria");
+    }
 }
 
