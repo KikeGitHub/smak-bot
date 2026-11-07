@@ -3,15 +3,25 @@ services:
     image: postgres:17-alpine
     container_name: smakbot-db
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.50
+    command: >
+      postgres
+      -c shared_buffers=32MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=16MB
+      -c max_connections=20
     environment:
       POSTGRES_DB: ${DB_NAME:-smakbot_db}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-SmakbotProd2026!}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - smakbot_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-smakbot_db}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
@@ -19,9 +29,14 @@ services:
     image: redis:7-alpine
     container_name: smakbot-redis
     restart: unless-stopped
+    mem_limit: 32m
+    cpus: 0.25
+    command: redis-server --maxmemory 20mb --maxmemory-policy allkeys-lru --save "" --appendonly no
+    networks:
+      - smakbot_net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
       retries: 5
 
@@ -31,6 +46,8 @@ services:
       dockerfile: Dockerfile
     container_name: smakbot-backend
     restart: unless-stopped
+    mem_limit: 450m
+    cpus: 0.75
     depends_on:
       db:
         condition: service_healthy
@@ -46,6 +63,8 @@ services:
       REDIS_ENABLED: ${REDIS_ENABLED:-true}
       ADMIN_ORIGINS: ${ADMIN_ORIGINS:-*}
       META_OUTBOUND_ENABLED: ${META_OUTBOUND_ENABLED:-true}
+    networks:
+      - smakbot_net
 
   frontend:
     build:
@@ -53,11 +72,18 @@ services:
       dockerfile: Dockerfile
     container_name: smakbot-frontend
     restart: unless-stopped
+    mem_limit: 32m
+    cpus: 0.25
     depends_on:
       - backend
     ports:
-      - "${HTTP_PORT:-80}:80"
+      - "${HTTP_PORT:-8090}:80"
+    networks:
+      - smakbot_net
+
+networks:
+  smakbot_net:
+    driver: bridge
 
 volumes:
   pgdata:
-
