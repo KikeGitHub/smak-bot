@@ -43,7 +43,7 @@ export class AuthService {
     private readonly http: HttpClient,
     private readonly router: Router
   ) {
-    this.baseUrl = environment.apiBaseUrl || 'http://localhost:8080';
+    this.baseUrl = environment.apiBaseUrl ?? 'http://localhost:8080';
   }
 
   public get currentUserValue(): AuthUser | null {

@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: smakbot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-smakbot_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-SmakbotProd2026!}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-smakbot_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: smakbot-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smakbot-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-smakbot_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-SmakbotProd2026!}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      ADMIN_ORIGINS: ${ADMIN_ORIGINS:-*}
+      META_OUTBOUND_ENABLED: ${META_OUTBOUND_ENABLED:-true}
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smakbot-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+volumes:
+  pgdata:
+
