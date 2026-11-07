@@ -694,5 +694,49 @@ class SalesEngineServiceTest {
         assertEquals(CheckoutStep.IDLE, r4.step());
         assertTrue(r4.text().toLowerCase().contains("cancelad"), "Debe confirmar que la orden fue cancelada");
     }
+
+    @Test
+    @DisplayName("Comandos globales: 'reiniciar', 'cancelar' y 'menu' deben reiniciar la conversación en cualquier estado")
+    void testGlobalResetCancelAndMenuCommands() {
+        String sessionId = "sess-reset-cmd-" + UUID.randomUUID();
+
+        // 1. Escribir 'reiniciar' en sesión IDLE
+        BotReply r1 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "reiniciar",
+                null
+        ));
+        assertEquals(CheckoutStep.IDLE, r1.step());
+        assertFalse(r1.human());
+        assertTrue(r1.text().contains("Conversación reiniciada") || r1.text().contains("Bienvenido"),
+                "Debe dar bienvenida al reiniciar");
+
+        // 2. Escribir 'cancelar' fuera de checkout
+        BotReply r2 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "cancelar",
+                null
+        ));
+        assertEquals(CheckoutStep.IDLE, r2.step());
+        assertFalse(r2.human());
+        assertFalse(r2.text().contains("no logré entender"), "No debe caer en fallback al escribir cancelar");
+
+        // 3. Escribir 'menu'
+        BotReply r3 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                sessionId,
+                "menu",
+                null
+        ));
+        assertEquals(CheckoutStep.IDLE, r3.step());
+        assertFalse(r3.human());
+        assertTrue(r3.text().contains("Bienvenido") || r3.text().contains("modelos"),
+                "Debe mostrar el menú de bienvenida al escribir menu");
+    }
 }
 

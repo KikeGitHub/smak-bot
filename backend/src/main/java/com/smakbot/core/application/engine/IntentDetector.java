@@ -152,6 +152,12 @@ public final class IntentDetector {
                 "no quiero comprar", "salir", "dejalo asi", "dejarlo asi", "olvidalo", "no gracias ya no");
     }
 
+    public static boolean isResetOrMenu(MessageText m) {
+        if (m.token("reiniciar", "reset", "resetear", "menu", "inicio", "empezar", "borrar")) return true;
+        return m.hasAny("reiniciar conversacion", "reiniciar chat", "empezar de nuevo", "volver a empezar",
+                "volver al inicio", "volver al menu", "menu principal", "nuevo chat", "nueva consulta");
+    }
+
     public static boolean isPurchase(MessageText m) {
         // Exclusión inmediata: Consultas informativas con 'quiero ...' o preguntas de catálogo
         if (m.hasAny("quiero saber", "quiero ver", "quiero conocer", "quiero preguntar", "quiero informacion",
