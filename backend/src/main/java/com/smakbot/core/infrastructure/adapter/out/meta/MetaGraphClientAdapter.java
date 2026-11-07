@@ -46,6 +46,14 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
         return clean;
     }
 
+    private boolean isSandboxOrInvalidConfig(WhatsAppConfig config) {
+        return !outboundEnabled
+                || config.accessToken() == null
+                || config.accessToken().isBlank()
+                || "CHANGE_ME_META_ACCESS_TOKEN".equals(config.accessToken())
+                || "SANDBOX_PHONE_NUMBER_ID".equals(config.phoneNumberId());
+    }
+
     @Override
     public void sendText(WhatsAppConfig config, String to, String text) {
         if (config == null || to == null || text == null) {
@@ -55,7 +63,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
         String recipient = normalizeRecipient(to);
 
-        if (!outboundEnabled) {
+        if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
             log.info("[SANDBOX META WA] -> Para: {} (orig: {}) | PhoneID: {} | Mensaje:\n{}", recipient, to, config.phoneNumberId(), text);
             return;
         }
@@ -81,7 +89,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
             log.info("Mensaje de texto enviado con éxito vía Meta a {} (orig: {})", recipient, to);
         } catch (Exception ex) {
-            log.error("Error al enviar mensaje vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage(), ex);
+            log.error("Error al enviar mensaje vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage());
         }
     }
 
@@ -94,7 +102,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
         String recipient = normalizeRecipient(to);
 
-        if (!outboundEnabled) {
+        if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
             log.info("[SANDBOX META WA IMAGE] -> Para: {} (orig: {}) | URL: {} | Pie:\n{}", recipient, to, imageUrl, caption);
             return;
         }
@@ -120,7 +128,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
             log.info("Imagen enviada con éxito vía Meta a {} (orig: {})", recipient, to);
         } catch (Exception ex) {
-            log.error("Error al enviar imagen vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage(), ex);
+            log.error("Error al enviar imagen vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage());
             // Fallback de resiliencia: si falla la imagen (e.g. CDN no accesible), asegurar que el cliente reciba la respuesta en texto
             if (caption != null && !caption.isBlank()) {
                 log.info("Ejecutando fallback de resiliencia: enviando texto plano a {}", recipient);
@@ -138,7 +146,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
         String recipient = normalizeRecipient(to);
 
-        if (!outboundEnabled) {
+        if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
             log.info("[SANDBOX META WA AUDIO] -> Para: {} (orig: {}) | URL de Audio: {}", recipient, to, audioUrl);
             return;
         }
@@ -164,7 +172,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
             log.info("Nota de voz enviada con éxito vía Meta a {} (orig: {})", recipient, to);
         } catch (Exception ex) {
-            log.error("Error al enviar audio vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage(), ex);
+            log.error("Error al enviar audio vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage());
         }
     }
 
@@ -177,7 +185,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
         String recipient = normalizeRecipient(to);
 
-        if (!outboundEnabled) {
+        if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
             log.info("[SANDBOX META WA AUDIO BINARY] -> Para: {} (orig: {}) | Bytes: {} | Mime: {}",
                     recipient, to, audioBytes.length, mimeType);
             return;
@@ -234,7 +242,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
                 log.error("Respuesta inesperada al subir audio a Meta: {}", uploadRes);
             }
         } catch (Exception ex) {
-            log.error("Error al enviar audio binario vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage(), ex);
+            log.error("Error al enviar audio binario vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage());
         }
     }
 
@@ -247,7 +255,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
         String recipient = normalizeRecipient(to);
 
-        if (!outboundEnabled) {
+        if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
             log.info("[SANDBOX META WA BUTTONS] -> Para: {} (orig: {}) | PhoneID: {} | Botones: {} | Texto:\n{}",
                     recipient, to, config.phoneNumberId(), buttons, text);
             return;
@@ -293,7 +301,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
             log.info("Mensaje interactivo con {} botones enviado con éxito vía Meta a {} (orig: {})", buttons.size(), recipient, to);
         } catch (Exception ex) {
-            log.error("Error al enviar mensaje interactivo vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage(), ex);
+            log.error("Error al enviar mensaje interactivo vía Meta Graph API a {} (orig: {}): {}", recipient, to, ex.getMessage());
             // Fallback de resiliencia: si falla la entrega interactiva, enviar el texto plano
             log.info("Ejecutando fallback de resiliencia: enviando texto plano a {}", recipient);
             sendText(config, recipient, text);
@@ -302,7 +310,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
 
     @Override
     public byte[] downloadMedia(WhatsAppConfig config, String mediaId) {
-        if (config == null || mediaId == null || mediaId.isBlank()) {
+        if (config == null || mediaId == null || mediaId.isBlank() || isSandboxOrInvalidConfig(config)) {
             return null;
         }
 
@@ -334,7 +342,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
     public void markAsReadAndTyping(WhatsAppConfig config, String messageId) {
         if (config == null || messageId == null || messageId.isBlank()) return;
 
-        if (!outboundEnabled) {
+        if (isSandboxOrInvalidConfig(config) || "ABGGFlA5Fpa".equals(messageId)) {
             log.info("[SANDBOX META WA] -> Mark as read and typing indicator for messageId: {}", messageId);
             return;
         }

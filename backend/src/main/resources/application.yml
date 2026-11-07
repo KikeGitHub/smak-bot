@@ -39,6 +39,10 @@ smakbot:
     graph-base-url: ${META_GRAPH_URL:https://graph.facebook.com/v20.0}
     # Habilitar despacho saliente real hacia Meta Graph API
     outbound-enabled: ${META_OUTBOUND_ENABLED:true}
+    phone-number-id: ${META_PHONE_NUMBER_ID:}
+    waba-id: ${META_WABA_ID:}
+    access-token: ${META_ACCESS_TOKEN:}
+    verify-token: ${META_VERIFY_TOKEN:}
   async:
     core-pool-size: 8
     max-pool-size: 32
