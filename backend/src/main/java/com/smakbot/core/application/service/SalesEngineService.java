@@ -18,8 +18,7 @@ import java.util.regex.Pattern;
 
 /**
  * Orquestador comercial central del motor conversacional.
- * Integra detección de SKU, máquina de estados de checkout, políticas de
- * Honduras, asesoría y persistencia.
+ * Integra detección de SKU, máquina de estados de checkout, políticas de Honduras, asesoría y persistencia.
  */
 @Service
 public class SalesEngineService implements ProcessMessageUseCase {
@@ -37,7 +36,8 @@ public class SalesEngineService implements ProcessMessageUseCase {
             TenantRepositoryPort tenantRepo,
             ProductRepositoryPort productRepo,
             OrderRepositoryPort orderRepo,
-            ChatSessionRepositoryPort sessionRepo) {
+            ChatSessionRepositoryPort sessionRepo
+    ) {
         this.tenantRepo = tenantRepo;
         this.productRepo = productRepo;
         this.orderRepo = orderRepo;
@@ -64,8 +64,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         MessageText m = MessageText.of(msg.text());
 
-        // 0. Comando explícito de reinicio o menú principal en cualquier estado (IDLE,
-        // HUMAN o CHECKOUT)
+        // 0. Comando explícito de reinicio o menú principal en cualquier estado (IDLE, HUMAN o CHECKOUT)
         if (IntentDetector.isResetOrMenu(m)) {
             session.reset();
             sessionRepo.save(session);
@@ -76,13 +75,11 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (!session.inCheckout() && IntentDetector.isCancellation(m)) {
             session.reset();
             sessionRepo.save(session);
-            return BotReply.text(
-                    "Entendido, he reiniciado tu conversación. 😊 Si deseas consultar algún mueble, ver el catálogo o hacer un pedido, escríbeme con confianza.")
+            return BotReply.text("Entendido, he reiniciado tu conversación. 😊 Si deseas consultar algún mueble, ver el catálogo o hacer un pedido, escríbeme con confianza.")
                     .build(CheckoutStep.IDLE);
         }
 
-        // 1. Manejo de sesión transferida a humano (reactivación automática si el
-        // cliente consulta productos o saluda)
+        // 1. Manejo de sesión transferida a humano (reactivación automática si el cliente consulta productos o saluda)
         if (session.isHuman()) {
             boolean userResumesBot = m.hasAny("bot", "asistente", "volver")
                     || IntentDetector.isGreeting(m)
@@ -102,8 +99,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                 session.reset();
                 sessionRepo.save(session);
             } else {
-                return BotReply.text(
-                        "¡Hola! Ya te tengo en atención. Si deseas consultar algún modelo, medidas o hacer tu pedido directamente por aquí, dime con confianza y te ayudo de inmediato.")
+                return BotReply.text("¡Hola! Ya te tengo en atención. Si deseas consultar algún modelo, medidas o hacer tu pedido directamente por aquí, dime con confianza y te ayudo de inmediato.")
                         .human(true)
                         .build(CheckoutStep.HUMAN);
             }
@@ -111,8 +107,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         // 2. Flujo de checkout activo
         if (session.inCheckout()) {
-            CheckoutStateMachine.StepResult res = checkoutStateMachine.handle(session, m, msg.location(), catalog,
-                    tenant);
+            CheckoutStateMachine.StepResult res = checkoutStateMachine.handle(session, m, msg.location(), catalog, tenant);
             session.setStep(res.nextStep());
 
             if (res.orderCompleted()) {
@@ -125,10 +120,8 @@ public class SalesEngineService implements ProcessMessageUseCase {
                 session.completeCheckout(saved.orderNumber());
                 sessionRepo.save(session);
 
-                String finalReplyText = "¡Muchas gracias, " + draft.effectiveRecipient() + "! 🎉 Tu pedido **"
-                        + saved.orderNumber()
-                        + "** (" + draft.effectiveQuantityLabel() + ") ha quedado formalmente registrado en **"
-                        + tenant.name() + "**.\n\n"
+                String finalReplyText = "¡Muchas gracias, " + draft.effectiveRecipient() + "! 🎉 Tu pedido **" + saved.orderNumber()
+                        + "** (" + draft.effectiveQuantityLabel() + ") ha quedado formalmente registrado en **" + tenant.name() + "**.\n\n"
                         + "🚚 **Próximos pasos:** Estamos preparando tu paquete para despacho vía **Cargo Expreso** (1 a 2 días hábiles, envío 100% GRATIS). El repartidor se contactará vía llamada telefónica o WhatsApp antes de llegar para coordinar la entrega en tu puerta. ¡Gracias por tu confianza!";
 
                 return BotReply.text(finalReplyText)
@@ -156,8 +149,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                 Order o = orderOpt.get();
                 String statusText = o.status() != null ? o.status().label() : "🚚 En proceso de entrega";
                 String trackingInfo = (o.trackingNumber() != null && !o.trackingNumber().isBlank())
-                        ? "• Guía de rastreo: **" + o.trackingNumber() + "** (" + o.trackingCarrier()
-                                + ")\n• Transportadora: " + o.trackingCarrier() + " a domicilio"
+                        ? "• Guía de rastreo: **" + o.trackingNumber() + "** (" + o.trackingCarrier() + ")\n• Transportadora: " + o.trackingCarrier() + " a domicilio"
                         : "• Guía de rastreo: *En preparación para despacho en el siguiente lote.*";
 
                 String reply = "📦 **Información de tu Pedido (" + o.orderNumber() + ")**:\n\n"
@@ -214,8 +206,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         }
         Product currentProduct = resolveActiveProduct(session, catalog);
 
-        // 8. Políticas comerciales de Honduras (ciudades, envíos, garantía, ensamble,
-        // etc.)
+        // 8. Políticas comerciales de Honduras (ciudades, envíos, garantía, ensamble, etc.)
         Optional<String> policyAns = commercePolicy.policyResponse(m, currentProduct, catalog);
         if (policyAns.isPresent()) {
             return BotReply.text(policyAns.get())
@@ -223,8 +214,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     .build(session.getStep());
         }
 
-        // 9. Asesoría por categoría / familia de productos ("¿Qué sillas tienen?",
-        // etc.)
+        // 9. Asesoría por categoría / familia de productos ("¿Qué sillas tienen?", etc.)
         Optional<Answer> categoryAdvisory = catalogAdvisor.categoryAdvisory(m, catalog, tenant, session);
         if (categoryAdvisory.isPresent()) {
             sessionRepo.save(session);
@@ -234,8 +224,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     .build(session.getStep());
         }
 
-        // 9b. Continuidad conversacional ("¿Tienes más?", "¿Otro modelo?", "¿Tienes
-        // otra opción?")
+        // 9b. Continuidad conversacional ("¿Tienes más?", "¿Otro modelo?", "¿Tienes otra opción?")
         if (IntentDetector.isMoreOptionsQuery(m)) {
             Answer ans = catalogAdvisor.moreOptions(session, currentProduct, catalog, tenant);
             sessionRepo.save(session);
@@ -303,8 +292,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (IntentDetector.isPurchase(m)) {
             Product toBuy = matched.map(ProductMatcher.Match::product).orElse(currentProduct);
             if (toBuy == null) {
-                return BotReply.text(
-                        "¡Con mucho gusto te ayudo a tomar tu pedido! 😊 ¿Qué producto o modelo te gustaría ordenar?")
+                return BotReply.text("¡Con mucho gusto te ayudo a tomar tu pedido! 😊 ¿Qué producto o modelo te gustaría ordenar?")
                         .build(session.getStep());
             }
             session.setSelectedSku(toBuy.sku());
@@ -325,8 +313,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     ? " (Total: **" + Money.lempiras(toBuy.salePrice().multiply(BigDecimal.valueOf(qty))) + "**)"
                     : " (" + Money.lempiras(toBuy.salePrice()) + ")";
 
-            String text = "¡Excelente elección! Preparo tu orden (*N° " + orderNumber + "*) para **" + qtyText
-                    + toBuy.name()
+            String text = "¡Excelente elección! Preparo tu orden (*N° " + orderNumber + "*) para **" + qtyText + toBuy.name()
                     + "**" + totalText + ". ¿A qué nombre registramos tu pedido?";
             return BotReply.text(text).orderDraft(draft).product(toBuy).build(CheckoutStep.NAME);
         }
@@ -344,8 +331,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
             session.setFallbackCount(0);
             sessionRepo.save(session);
             String hook = currentProduct != null
-                    ? "¿Te gustaría que tomemos tus datos para apartar tu **" + currentProduct.name()
-                            + "** o a qué ciudad sería tu entrega?"
+                    ? "¿Te gustaría que tomemos tus datos para apartar tu **" + currentProduct.name() + "** o a qué ciudad sería tu entrega?"
                     : "¿Te gustaría que tomemos tus datos para apartar tu pedido o a qué ciudad sería tu entrega?";
             return BotReply.text("¡Con muchísimo gusto! 😊 Estamos a tu entera disposición.\n\n"
                     + "🚚 ¡Aprovecha que hoy tenemos **envío 100% GRATIS** a todo el país y pagas al recibir en tu puerta!\n\n"
@@ -360,22 +346,19 @@ public class SalesEngineService implements ProcessMessageUseCase {
             return buildWelcomeReply(tenant, catalog, false);
         }
 
-        // 16. Fallback no mapeado -> Sugerencias directas y amigables antes de
-        // transferir
+        // 16. Fallback no mapeado -> Sugerencias directas y amigables antes de transferir
         List<Product> candidates = ProductMatcher.findCandidates(m.raw(), catalog, 3);
         if (!candidates.isEmpty()) {
             session.setFallbackCount(0);
             StringBuilder sb = new StringBuilder();
             sb.append("¡Claro con gusto! Tengo estos modelos disponibles en tienda:\n\n");
             for (Product p : candidates) {
-                sb.append("• **").append(p.name()).append("** — **").append(Money.lempiras(p.salePrice()))
-                        .append("**\n");
+                sb.append("• **").append(p.name()).append("** — **").append(Money.lempiras(p.salePrice())).append("**\n");
                 session.addOfferedSku(p.sku());
             }
             session.setSelectedSku(candidates.get(0).sku());
             String cat = catalogAdvisor.detectCategoryKey(candidates.get(0));
-            if (cat != null)
-                session.setActiveCategory(cat);
+            if (cat != null) session.setActiveCategory(cat);
             sessionRepo.save(session);
 
             sb.append("\n🚚 ¡Todos con **envío gratis** y pagas al recibir en tu puerta!\n")
@@ -385,8 +368,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     .build(session.getStep());
         }
 
-        // 17. Mensaje no entendido: Estrategia de 2do intento amable antes de
-        // transferir a humano
+        // 17. Mensaje no entendido: Estrategia de 2do intento amable antes de transferir a humano
         if (session.getFallbackCount() == 0) {
             session.setFallbackCount(1);
             sessionRepo.save(session);
@@ -394,16 +376,14 @@ public class SalesEngineService implements ProcessMessageUseCase {
             String clarification;
             if (currentProduct != null) {
                 clarification = "Disculpa, no logré entender bien tu mensajito. 😊 ¿Te gustaría que te tome los datos para apartar tu **"
-                        + currentProduct.name()
-                        + "**, o prefieres consultar sus medidas, colores o ver fotos reales? Con gusto te ayudo.";
+                        + currentProduct.name() + "**, o prefieres consultar sus medidas, colores o ver fotos reales? Con gusto te ayudo.";
             } else {
                 clarification = "Disculpa, no logré entender bien tu mensajito. 😊 ¿Podrías ser un poquito más claro o decirme qué mueble o producto estás buscando? Con gusto te ayudo a revisarlo.";
             }
             return BotReply.text(clarification).build(session.getStep());
         }
 
-        // Segundo intento consecutivo fallido -> Transferencia directa a asesor humano
-        // (sin links externos)
+        // Segundo intento consecutivo fallido -> Transferencia directa a asesor humano (sin links externos)
         session.handoverToHuman();
         session.setFallbackCount(0);
         sessionRepo.save(session);
@@ -433,14 +413,12 @@ public class SalesEngineService implements ProcessMessageUseCase {
         }
 
         String header = isReset
-                ? "🔄 ¡Conversación reiniciada! 👋 Bienvenido nuevamente a **" + tenant.name()
-                        + "**. Con mucho gusto te atiendo.\n\n"
+                ? "🔄 ¡Conversación reiniciada! 👋 Bienvenido nuevamente a **" + tenant.name() + "**. Con mucho gusto te atiendo.\n\n"
                 : "¡Hola! 👋 Bienvenido a **" + tenant.name() + "**. Con mucho gusto te atiendo.\n\n";
 
         String text = header
                 + "Te comparto los modelos que más nos piden:\n"
-                + (catalogSummary.length() > 0 ? catalogSummary.toString()
-                        : "• Sillas ergonómicas, gamers y muebles para el hogar.\n")
+                + (catalogSummary.length() > 0 ? catalogSummary.toString() : "• Sillas ergonómicas, gamers y muebles para el hogar.\n")
                 + "\n🚚 Todos con **envío 100% GRATIS** a todo el país vía Cargo Expreso y pago en **efectivo al recibir** en tu puerta.\n\n"
                 + "¿Buscas algún mueble en especial o te gustaría ver fotos y detalles de alguno?";
         return BotReply.text(text).build(CheckoutStep.IDLE);
@@ -448,10 +426,8 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
     private Product resolveActiveProduct(ChatSession session, List<Product> catalog) {
         if (session.getSelectedSku() != null) {
-            Optional<Product> found = catalog.stream().filter(p -> session.getSelectedSku().equalsIgnoreCase(p.sku()))
-                    .findFirst();
-            if (found.isPresent())
-                return found.get();
+            Optional<Product> found = catalog.stream().filter(p -> session.getSelectedSku().equalsIgnoreCase(p.sku())).findFirst();
+            if (found.isPresent()) return found.get();
         }
         return null;
     }
@@ -459,17 +435,16 @@ public class SalesEngineService implements ProcessMessageUseCase {
     private static final Pattern DIGITS_QTY = Pattern.compile("\\b(\\d+)\\b");
     private static final Map<String, Integer> WORD_QTY = Map.of(
             "un", 1, "uno", 1, "una", 1, "dos", 2, "tres", 3,
-            "cuatro", 4, "cinco", 5, "seis", 6, "diez", 10, "docena", 12);
+            "cuatro", 4, "cinco", 5, "seis", 6, "diez", 10, "docena", 12
+    );
 
     private int extractPurchaseQuantity(MessageText m) {
         Matcher matcher = DIGITS_QTY.matcher(m.raw());
         if (matcher.find()) {
             try {
                 int q = Integer.parseInt(matcher.group(1));
-                if (q > 0 && q <= 100)
-                    return q;
-            } catch (NumberFormatException ignored) {
-            }
+                if (q > 0 && q <= 100) return q;
+            } catch (NumberFormatException ignored) {}
         }
         for (Map.Entry<String, Integer> e : WORD_QTY.entrySet()) {
             if (m.tokens().contains(e.getKey())) {
