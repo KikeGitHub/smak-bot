@@ -6,13 +6,16 @@ import com.smakbot.core.domain.model.Channel;
 import com.smakbot.core.domain.model.ChatSession;
 import com.smakbot.core.domain.model.CheckoutDraft;
 import com.smakbot.core.domain.model.CheckoutStep;
+import com.smakbot.core.domain.model.ConversationTurn;
 import com.smakbot.core.domain.ports.out.ChatSessionRepositoryPort;
 import com.smakbot.core.infrastructure.persistence.entity.ChatSessionEntity;
 import com.smakbot.core.infrastructure.persistence.repository.SpringDataChatSessionRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Component
@@ -46,6 +49,10 @@ public class ChatSessionJpaAdapter implements ChatSessionRepositoryPort {
         if (session.getActiveCategory() != null) data.put("activeCategory", session.getActiveCategory());
         if (session.getOfferedSkus() != null && !session.getOfferedSkus().isEmpty()) {
             data.put("offeredSkus", session.getOfferedSkus());
+        }
+        if (session.getHistory() != null && !session.getHistory().isEmpty()) {
+            List<Map<String, Object>> historyMaps = objectMapper.convertValue(session.getHistory(), new TypeReference<>() {});
+            data.put("history", historyMaps);
         }
         if (session.getFallbackCount() > 0) {
             data.put("fallbackCount", session.getFallbackCount());
@@ -83,9 +90,16 @@ public class ChatSessionJpaAdapter implements ChatSessionRepositoryPort {
             if (data.get("lastOrderNumber") instanceof String lon) s.setLastOrderNumber(lon);
             if (data.get("activeCategory") instanceof String cat) s.setActiveCategory(cat);
             if (data.get("fallbackCount") instanceof Number fc) s.setFallbackCount(fc.intValue());
-            if (data.get("offeredSkus") instanceof java.util.List<?> list) {
-                java.util.List<String> skus = list.stream().filter(java.util.Objects::nonNull).map(Object::toString).toList();
+            if (data.get("offeredSkus") instanceof List<?> list) {
+                List<String> skus = list.stream().filter(Objects::nonNull).map(Object::toString).toList();
                 s.setOfferedSkus(skus);
+            }
+            if (data.get("history") != null) {
+                try {
+                    List<ConversationTurn> turns = objectMapper.convertValue(data.get("history"), new TypeReference<List<ConversationTurn>>() {});
+                    s.setHistory(turns);
+                } catch (Exception ignored) {
+                }
             }
             if (data.get("checkout") != null) {
                 try {

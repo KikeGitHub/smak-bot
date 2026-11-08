@@ -3,9 +3,11 @@ package com.smakbot.core.infrastructure.adapter.in.web;
 import com.smakbot.core.infrastructure.persistence.entity.BotRuleEntity;
 import com.smakbot.core.infrastructure.persistence.entity.CampaignEntity;
 import com.smakbot.core.infrastructure.persistence.entity.SynonymEntity;
+import com.smakbot.core.infrastructure.persistence.entity.TenantEntity;
 import com.smakbot.core.infrastructure.persistence.repository.SpringDataBotRuleRepository;
 import com.smakbot.core.infrastructure.persistence.repository.SpringDataCampaignRepository;
 import com.smakbot.core.infrastructure.persistence.repository.SpringDataSynonymRepository;
+import com.smakbot.core.infrastructure.persistence.repository.SpringDataTenantRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,19 +30,56 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin")
-@Tag(name = "Admin Knowledge & Campaigns", description = "Gestión de reglas conversacionales, sinónimos y campañas para el panel SaaS")
+@Tag(name = "Admin Knowledge & Campaigns", description = "Gestión de reglas conversacionales, sinónimos, campañas y scope multitenant para el panel SaaS")
 public class AdminKnowledgeController {
 
     private final SpringDataBotRuleRepository ruleRepository;
     private final SpringDataSynonymRepository synonymRepository;
     private final SpringDataCampaignRepository campaignRepository;
+    private final SpringDataTenantRepository tenantRepository;
 
     public AdminKnowledgeController(SpringDataBotRuleRepository ruleRepository,
                                     SpringDataSynonymRepository synonymRepository,
-                                    SpringDataCampaignRepository campaignRepository) {
+                                    SpringDataCampaignRepository campaignRepository,
+                                    SpringDataTenantRepository tenantRepository) {
         this.ruleRepository = ruleRepository;
         this.synonymRepository = synonymRepository;
         this.campaignRepository = campaignRepository;
+        this.tenantRepository = tenantRepository;
+    }
+
+    // ==========================================
+    // TENANT SCOPE (/api/v1/admin/tenant-config)
+    // ==========================================
+    @GetMapping("/tenant-config")
+    @Operation(summary = "Obtener configuración de giro de negocio y scope del tenant")
+    public ResponseEntity<TenantEntity> getTenantConfig(
+            @RequestHeader(value = "X-Tenant-ID", defaultValue = "tenant-hn-muebles") String tenantId) {
+        return tenantRepository.findById(tenantId)
+                .or(() -> tenantRepository.findById("smak"))
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/tenant-config")
+    @Operation(summary = "Actualizar giro de negocio, persona del bot y políticas de alcance (scope) del tenant")
+    public ResponseEntity<TenantEntity> updateTenantConfig(
+            @RequestHeader(value = "X-Tenant-ID", defaultValue = "tenant-hn-muebles") String tenantId,
+            @RequestBody TenantEntity payload) {
+        TenantEntity entity = tenantRepository.findById(tenantId).orElseGet(() -> {
+            TenantEntity t = new TenantEntity();
+            t.setId(tenantId);
+            return t;
+        });
+        if (payload.getName() != null) entity.setName(payload.getName());
+        if (payload.getCountry() != null) entity.setCountry(payload.getCountry());
+        if (payload.getCurrency() != null) entity.setCurrency(payload.getCurrency());
+        if (payload.getPhoneContact() != null) entity.setPhoneContact(payload.getPhoneContact());
+        if (payload.getBusinessType() != null) entity.setBusinessType(payload.getBusinessType());
+        if (payload.getBotPersona() != null) entity.setBotPersona(payload.getBotPersona());
+        if (payload.getScopePolicy() != null) entity.setScopePolicy(payload.getScopePolicy());
+        if (payload.getOrderPrefix() != null) entity.setOrderPrefix(payload.getOrderPrefix());
+        return ResponseEntity.ok(tenantRepository.save(entity));
     }
 
     // ==========================================

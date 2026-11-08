@@ -23,6 +23,17 @@ public class TenantJpaAdapter implements TenantRepositoryPort {
     }
 
     private Tenant toDomain(TenantEntity e) {
-        return new Tenant(e.getId(), e.getName(), e.getCountry(), e.getCurrency(), e.getPhoneContact(), e.isActive());
+        return new Tenant(
+                e.getId(),
+                e.getName(),
+                e.getCountry(),
+                e.getCurrency(),
+                e.getPhoneContact(),
+                e.isActive(),
+                e.getBusinessType(),
+                e.getBotPersona(),
+                e.getScopePolicy(),
+                e.getOrderPrefix()
+        );
     }
 }

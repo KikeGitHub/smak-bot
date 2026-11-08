@@ -1,12 +1,17 @@
 package com.smakbot.core.domain.model;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Sesión conversacional (memoria del bot) por cliente/canal/tenant.
  * Id compuesto: {@code tenantId:CHANNEL:customerId} para garantizar aislamiento multitenant.
  */
 public class ChatSession {
+    public static final int MAX_HISTORY_TURNS = 16;
+
     private final String id;
     private final String tenantId;
     private final Channel channel;
@@ -16,7 +21,8 @@ public class ChatSession {
     private CheckoutDraft checkout;
     private OffsetDateTime lastInteraction;
     private String activeCategory;
-    private java.util.List<String> offeredSkus = new java.util.ArrayList<>();
+    private List<String> offeredSkus = new ArrayList<>();
+    private List<ConversationTurn> history = new ArrayList<>();
     private int fallbackCount = 0;
 
     public ChatSession(String id, String tenantId, Channel channel) {
@@ -50,6 +56,7 @@ public class ChatSession {
         this.checkout = null;
         this.activeCategory = null;
         this.offeredSkus.clear();
+        this.history.clear();
         this.fallbackCount = 0;
     }
 
@@ -61,13 +68,21 @@ public class ChatSession {
         return checkout != null && step.isCheckout();
     }
 
+    public void addTurn(String role, String content) {
+        if (content == null || content.isBlank()) return;
+        this.history.add(new ConversationTurn(role, content));
+        while (this.history.size() > MAX_HISTORY_TURNS) {
+            this.history.remove(0);
+        }
+    }
+
     public void addOfferedSku(String sku) {
         if (sku != null && !offeredSkus.contains(sku)) {
             offeredSkus.add(sku);
         }
     }
 
-    public void addOfferedSkus(java.util.Collection<String> skus) {
+    public void addOfferedSkus(Collection<String> skus) {
         if (skus != null) {
             for (String s : skus) {
                 addOfferedSku(s);
@@ -90,9 +105,13 @@ public class ChatSession {
     public void setLastInteraction(OffsetDateTime lastInteraction) { this.lastInteraction = lastInteraction; }
     public String getActiveCategory() { return activeCategory; }
     public void setActiveCategory(String activeCategory) { this.activeCategory = activeCategory; }
-    public java.util.List<String> getOfferedSkus() { return offeredSkus; }
-    public void setOfferedSkus(java.util.List<String> offeredSkus) {
-        this.offeredSkus = (offeredSkus != null) ? new java.util.ArrayList<>(offeredSkus) : new java.util.ArrayList<>();
+    public List<String> getOfferedSkus() { return offeredSkus; }
+    public void setOfferedSkus(List<String> offeredSkus) {
+        this.offeredSkus = (offeredSkus != null) ? new ArrayList<>(offeredSkus) : new ArrayList<>();
+    }
+    public List<ConversationTurn> getHistory() { return history; }
+    public void setHistory(List<ConversationTurn> history) {
+        this.history = (history != null) ? new ArrayList<>(history) : new ArrayList<>();
     }
     public int getFallbackCount() { return fallbackCount; }
     public void setFallbackCount(int fallbackCount) { this.fallbackCount = fallbackCount; }

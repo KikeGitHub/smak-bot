@@ -54,6 +54,14 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
                 || "SANDBOX_PHONE_NUMBER_ID".equals(config.phoneNumberId());
     }
 
+    private String formatForWhatsApp(String text) {
+        if (text == null) {
+            return "";
+        }
+        // En WhatsApp la negrita es *texto* (un solo asterisco), no **texto**
+        return text.replaceAll("\\*\\*([^*]+)\\*\\*", "*$1*");
+    }
+
     @Override
     public void sendText(WhatsAppConfig config, String to, String text) {
         if (config == null || to == null || text == null) {
@@ -62,9 +70,10 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
         }
 
         String recipient = normalizeRecipient(to);
+        String formattedText = formatForWhatsApp(text);
 
         if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
-            log.info("[SANDBOX META WA] -> Para: {} (orig: {}) | PhoneID: {} | Mensaje:\n{}", recipient, to, config.phoneNumberId(), text);
+            log.info("[SANDBOX META WA] -> Para: {} (orig: {}) | PhoneID: {} | Mensaje:\n{}", recipient, to, config.phoneNumberId(), formattedText);
             return;
         }
 
@@ -76,7 +85,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
                     "recipient_type", "individual",
                     "to", recipient,
                     "type", "text",
-                    "text", Map.of("preview_url", false, "body", text)
+                    "text", Map.of("preview_url", false, "body", formattedText)
             );
 
             restClient.post()
@@ -101,9 +110,10 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
         }
 
         String recipient = normalizeRecipient(to);
+        String formattedCaption = caption != null ? formatForWhatsApp(caption) : "";
 
         if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
-            log.info("[SANDBOX META WA IMAGE] -> Para: {} (orig: {}) | URL: {} | Pie:\n{}", recipient, to, imageUrl, caption);
+            log.info("[SANDBOX META WA IMAGE] -> Para: {} (orig: {}) | URL: {} | Pie:\n{}", recipient, to, imageUrl, formattedCaption);
             return;
         }
 
@@ -115,7 +125,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
                     "recipient_type", "individual",
                     "to", recipient,
                     "type", "image",
-                    "image", Map.of("link", imageUrl, "caption", caption != null ? caption : "")
+                    "image", Map.of("link", imageUrl, "caption", formattedCaption)
             );
 
             restClient.post()
@@ -254,10 +264,11 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
         }
 
         String recipient = normalizeRecipient(to);
+        String formattedBody = formatForWhatsApp(text);
 
         if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
             log.info("[SANDBOX META WA BUTTONS] -> Para: {} (orig: {}) | PhoneID: {} | Botones: {} | Texto:\n{}",
-                    recipient, to, config.phoneNumberId(), buttons, text);
+                    recipient, to, config.phoneNumberId(), buttons, formattedBody);
             return;
         }
 
@@ -265,7 +276,7 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
             String url = String.format("%s/%s/messages", graphBaseUrl, config.phoneNumberId());
 
             // Meta Cloud API limita el body text de mensajes interactivos a 1024 caracteres
-            String bodyText = text.length() > 1024 ? text.substring(0, 1021) + "..." : text;
+            String bodyText = formattedBody.length() > 1024 ? formattedBody.substring(0, 1021) + "..." : formattedBody;
 
             // Formatear botones (Meta Cloud API permite máximo 3 botones de respuesta rápida)
             java.util.List<Map<String, Object>> buttonsPayload = buttons.stream()

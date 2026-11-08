@@ -4,6 +4,7 @@ import com.smakbot.core.domain.model.Channel;
 import com.smakbot.core.domain.model.ChatSession;
 import com.smakbot.core.domain.model.CheckoutDraft;
 import com.smakbot.core.domain.model.CheckoutStep;
+import com.smakbot.core.domain.model.ConversationTurn;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ public class ChatSessionRedisDto {
     private OffsetDateTime lastInteraction;
     private String activeCategory;
     private List<String> offeredSkus = new ArrayList<>();
+    private List<ConversationTurn> history = new ArrayList<>();
     private int fallbackCount;
 
     public ChatSessionRedisDto() {
@@ -42,6 +44,7 @@ public class ChatSessionRedisDto {
         dto.setLastInteraction(session.getLastInteraction());
         dto.setActiveCategory(session.getActiveCategory());
         dto.setOfferedSkus(session.getOfferedSkus() != null ? new ArrayList<>(session.getOfferedSkus()) : new ArrayList<>());
+        dto.setHistory(session.getHistory() != null ? new ArrayList<>(session.getHistory()) : new ArrayList<>());
         dto.setFallbackCount(session.getFallbackCount());
         return dto;
     }
@@ -62,6 +65,7 @@ public class ChatSessionRedisDto {
         session.setLastInteraction(lastInteraction);
         session.setActiveCategory(activeCategory);
         session.setOfferedSkus(offeredSkus != null ? offeredSkus : new ArrayList<>());
+        session.setHistory(history != null ? history : new ArrayList<>());
         session.setFallbackCount(fallbackCount);
         return session;
     }
@@ -95,6 +99,9 @@ public class ChatSessionRedisDto {
 
     public List<String> getOfferedSkus() { return offeredSkus; }
     public void setOfferedSkus(List<String> offeredSkus) { this.offeredSkus = offeredSkus; }
+
+    public List<ConversationTurn> getHistory() { return history; }
+    public void setHistory(List<ConversationTurn> history) { this.history = history; }
 
     public int getFallbackCount() { return fallbackCount; }
     public void setFallbackCount(int fallbackCount) { this.fallbackCount = fallbackCount; }

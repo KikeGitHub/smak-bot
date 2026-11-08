@@ -26,6 +26,18 @@ public class TenantEntity {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    @Column(name = "business_type", length = 150)
+    private String businessType;
+
+    @Column(name = "bot_persona", columnDefinition = "TEXT")
+    private String botPersona;
+
+    @Column(name = "scope_policy", columnDefinition = "TEXT")
+    private String scopePolicy;
+
+    @Column(name = "order_prefix", length = 20)
+    private String orderPrefix;
+
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
@@ -55,6 +67,14 @@ public class TenantEntity {
     public void setPhoneContact(String phoneContact) { this.phoneContact = phoneContact; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public String getBusinessType() { return businessType; }
+    public void setBusinessType(String businessType) { this.businessType = businessType; }
+    public String getBotPersona() { return botPersona; }
+    public void setBotPersona(String botPersona) { this.botPersona = botPersona; }
+    public String getScopePolicy() { return scopePolicy; }
+    public void setScopePolicy(String scopePolicy) { this.scopePolicy = scopePolicy; }
+    public String getOrderPrefix() { return orderPrefix; }
+    public void setOrderPrefix(String orderPrefix) { this.orderPrefix = orderPrefix; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
