@@ -214,14 +214,25 @@ function bubble(text, own = false, extra = {}) {
   // 4. PRODUCT IMAGES
   if (extra.images?.length) {
     const gallery = document.createElement("div");
-    gallery.className = "mt-3 grid grid-cols-2 gap-2";
-    extra.images.forEach(src => {
+    if (extra.images.length === 1) {
+      gallery.className = "mt-3 overflow-hidden rounded-2xl border border-slate-200/80 shadow-sm max-w-sm";
       const img = document.createElement("img");
-      img.src = src;
+      img.src = extra.images[0];
       img.alt = "Foto del producto";
-      img.className = "h-28 w-full rounded-xl object-cover border border-slate-200";
+      img.className = "h-52 w-full object-cover hover:scale-105 transition duration-300 cursor-pointer";
+      img.onclick = () => window.open(extra.images[0], "_blank");
       gallery.append(img);
-    });
+    } else {
+      gallery.className = "mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2";
+      extra.images.forEach((src, idx) => {
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = `Foto ${idx + 1}`;
+        img.className = "h-28 w-full rounded-xl object-cover border border-slate-200 shadow-xs hover:scale-105 transition cursor-pointer";
+        img.onclick = () => window.open(src, "_blank");
+        gallery.append(img);
+      });
+    }
     box.append(gallery);
   }
 

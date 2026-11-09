@@ -94,6 +94,7 @@ export class ChatWidgetComponent implements OnInit, AfterViewChecked, OnDestroy 
           timestamp: new Date(),
           step: reply.step,
           imageUrl: reply.imageUrl,
+          images: reply.images,
           product: reply.product,
           order: reply.order,
           buttons: reply.buttons,

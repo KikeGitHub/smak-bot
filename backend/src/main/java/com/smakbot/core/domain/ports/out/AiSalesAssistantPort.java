@@ -36,10 +36,23 @@ public interface AiSalesAssistantPort {
             CheckoutStep nextStep,
             String selectedSku,
             boolean sendProductPhotos,
+            boolean sendAllPhotos,
             boolean cancelCheckout,
             boolean confirmOrderNow,
             DraftUpdate draftUpdate
-    ) {}
+    ) {
+        public AssistantDecision(
+                String replyText,
+                CheckoutStep nextStep,
+                String selectedSku,
+                boolean sendProductPhotos,
+                boolean cancelCheckout,
+                boolean confirmOrderNow,
+                DraftUpdate draftUpdate
+        ) {
+            this(replyText, nextStep, selectedSku, sendProductPhotos, false, cancelCheckout, confirmOrderNow, draftUpdate);
+        }
+    }
 
     AssistantDecision generateReply(
             Tenant tenant,
@@ -51,4 +64,3 @@ public interface AiSalesAssistantPort {
             IncomingMessage incomingMessage
     );
 }
-

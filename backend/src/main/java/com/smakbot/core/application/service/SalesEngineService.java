@@ -204,10 +204,24 @@ public class SalesEngineService implements ProcessMessageUseCase {
         session.addTurn("assistant", replyText);
         sessionRepo.save(session);
 
-        // 10. Construir respuesta final (adjuntando fotos solo cuando sendProductPhotos == true)
-        List<String> imagesToSend = (decision.sendProductPhotos() && selectedProduct != null)
-                ? selectedProduct.firstImages(4)
-                : Collections.emptyList();
+        // 10. Construir respuesta final y selección de fotos
+        // Si el cliente pide ver más fotos o la galería, enviar hasta 5 fotos.
+        // Si es la presentación inicial, enviar SOLO 1 foto y ofrecer ver más fotos si existen.
+        List<String> imagesToSend = Collections.emptyList();
+        if (selectedProduct != null && selectedProduct.images() != null && !selectedProduct.images().isEmpty()) {
+            boolean userAskedMorePhotos = isMorePhotosQuery(normText);
+            if (decision.sendAllPhotos() || userAskedMorePhotos) {
+                imagesToSend = selectedProduct.firstImages(5);
+            } else if (decision.sendProductPhotos()) {
+                imagesToSend = selectedProduct.firstImages(1);
+                int totalImages = selectedProduct.images().size();
+                if (totalImages > 1 && !replyText.toLowerCase().contains("más fotos") && !replyText.toLowerCase().contains("mas fotos")) {
+                    int extra = totalImages - 1;
+                    replyText += "\n\n📸 *(Tenemos " + extra + (extra == 1 ? " foto más" : " fotos más")
+                            + " con más detalles de este modelo. Si deseas verlas, solo dime *más fotos*)*";
+                }
+            }
+        }
 
         return BotReply.text(replyText)
                 .product(selectedProduct)
@@ -420,6 +434,17 @@ public class SalesEngineService implements ProcessMessageUseCase {
             candidate = String.format("%s-%04d", prefix, nextNum);
         }
         return candidate;
+    }
+
+    private boolean isMorePhotosQuery(String norm) {
+        if (norm == null || norm.isBlank()) return false;
+        return norm.contains("mas foto") || norm.contains("más foto")
+                || norm.contains("mas fotos") || norm.contains("más fotos")
+                || norm.contains("otras fotos") || norm.contains("otra foto")
+                || norm.contains("galeria") || norm.contains("galería")
+                || norm.contains("ver foto") || norm.contains("ver fotos")
+                || norm.contains("todas las fotos") || norm.contains("mas imagenes")
+                || norm.contains("más imagenes") || norm.contains("mas imagenes");
     }
 
     private String normalizeCommand(String raw) {

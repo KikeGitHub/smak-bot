@@ -13,6 +13,7 @@ public class ChatMessageResponse {
     private String text;
     private String step;
     private String imageUrl;
+    private List<String> images;
     private ProductSummaryDto product;
     private OrderSummaryDto order;
     private List<QuickButtonDto> buttons;
@@ -21,9 +22,14 @@ public class ChatMessageResponse {
     }
 
     public ChatMessageResponse(String text, String step, String imageUrl, ProductSummaryDto product, OrderSummaryDto order, List<QuickButtonDto> buttons) {
+        this(text, step, imageUrl, null, product, order, buttons);
+    }
+
+    public ChatMessageResponse(String text, String step, String imageUrl, List<String> images, ProductSummaryDto product, OrderSummaryDto order, List<QuickButtonDto> buttons) {
         this.text = text;
         this.step = step;
         this.imageUrl = imageUrl;
+        this.images = images;
         this.product = product;
         this.order = order;
         this.buttons = buttons;
@@ -51,6 +57,14 @@ public class ChatMessageResponse {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public List<String> getImages() {
+        return images;
+    }
+
+    public void setImages(List<String> images) {
+        this.images = images;
     }
 
     public ProductSummaryDto getProduct() {

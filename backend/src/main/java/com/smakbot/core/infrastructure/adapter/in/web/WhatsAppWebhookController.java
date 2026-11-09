@@ -219,15 +219,17 @@ public class WhatsAppWebhookController {
                         new NotificationSenderPort.WhatsAppButton("btn_modify", "✏️ Modificar")
                 );
                 notificationSenderPort.sendInteractiveButtons(config, from, reply.text(), buttons);
-            } else if (!images.isEmpty()) {
-                // Galería secuencial: primera imagen con la descripción del producto
+            } else if (images.size() == 1) {
+                // Imagen individual: foto principal con el texto explicativo como pie de foto
                 notificationSenderPort.sendImage(config, from, images.get(0), reply.text());
-                // Despachar imágenes secundarias para que WhatsApp forme la cuadrícula/álbum
-                for (int i = 1; i < Math.min(images.size(), 4); i++) {
-                    String extraImage = images.get(i);
+            } else if (images.size() > 1) {
+                // Solicitud de galería completa: primero enviamos el mensaje de texto
+                notificationSenderPort.sendText(config, from, reply.text());
+                // Despachar imágenes consecutivas sin pie de foto para que WhatsApp forme la cuadrícula (álbum nativo)
+                for (String extraImage : images) {
                     if (extraImage != null && !extraImage.isBlank()) {
                         try {
-                            Thread.sleep(150); // Pausa breve para garantizar el orden de entrega en WhatsApp
+                            Thread.sleep(120);
                         } catch (InterruptedException ignored) {}
                         notificationSenderPort.sendImage(config, from, extraImage, null);
                     }

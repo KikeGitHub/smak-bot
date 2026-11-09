@@ -86,6 +86,13 @@
           <!-- Contenido textual con Markdown -->
           <div class="bubble-text" [innerHTML]="formatMarkdown(msg.text)"></div>
 
+          <!-- Galería de Fotos del Producto (cuando el usuario pide ver más fotos) -->
+          <div class="my-2 grid grid-cols-2 gap-1.5 rounded-xl overflow-hidden" *ngIf="msg.images && msg.images.length > 1">
+            <div *ngFor="let img of msg.images" class="relative group cursor-pointer aspect-square bg-slate-100 overflow-hidden rounded-lg border border-slate-200">
+              <img [src]="img" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" alt="Foto galería">
+            </div>
+          </div>
+
           <!-- Tarjeta de Producto Preview (Si viene en el mensaje) -->
           <div class="product-preview-card" *ngIf="msg.product">
             <img [src]="msg.product.imageUrl || 'https://images.unsplash.com/photo-1580481077195-c22ae2499175?auto=format&fit=crop&w=400&q=80'" 

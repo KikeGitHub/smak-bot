@@ -38,6 +38,7 @@ export interface BotResponseDTO {
   text: string;
   step: string;
   imageUrl?: string;
+  images?: string[];
   product?: ProductSummaryDTO;
   order?: OrderSummaryDTO;
   buttons?: QuickButtonDTO[];
@@ -95,6 +96,7 @@ export interface ChatMessage {
   timestamp: Date;
   step?: string;
   imageUrl?: string;
+  images?: string[];
   product?: ProductSummaryDTO;
   order?: OrderSummaryDTO;
   buttons?: QuickButtonDTO[];

@@ -161,6 +161,7 @@ public class WebChatController {
                 reply.text(),
                 reply.step() != null ? reply.step().name() : null,
                 firstImage,
+                reply.images(),
                 productDto,
                 orderDto,
                 buttonDtos
