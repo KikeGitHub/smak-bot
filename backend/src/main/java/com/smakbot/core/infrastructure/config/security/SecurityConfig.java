@@ -40,10 +40,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Endpoints públicos de autenticación, chat widget, webhook de WhatsApp y Swagger
+                        // Endpoints públicos de autenticación, chat widget, webhook de WhatsApp, imágenes y Swagger
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/chat/**").permitAll()
                         .requestMatchers("/api/v1/whatsapp/**").permitAll()
+                        .requestMatchers("/api/v1/images/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/actuator/**").permitAll()
                         // Endpoints administrativos protegidos con JWT
                         .requestMatchers("/api/v1/admin/**").authenticated()

@@ -104,10 +104,196 @@ function renderProducts() {
 }
 
 // Product Modal Handlers
+function getProductImagesList() {
+  const raw = $("#prod-images") ? $("#prod-images").value : "";
+  return raw.split("\n").map(u => u.trim()).filter(Boolean);
+}
+
+function setProductImagesList(urls) {
+  if ($("#prod-images")) {
+    $("#prod-images").value = urls.join("\n");
+  }
+  renderProductImagesGrid();
+}
+
+function renderProductImagesGrid() {
+  const container = $("#prod-images-preview-grid");
+  const countBadge = $("#prod-images-count-badge");
+  if (!container) return;
+
+  const urls = getProductImagesList();
+  if (countBadge) {
+    countBadge.textContent = `${urls.length} / 5 fotos`;
+    countBadge.className = urls.length >= 5
+      ? "badge bg-amber-50 text-amber-700 text-[10px] font-bold"
+      : "badge bg-emerald-50 text-emerald-700 text-[10px] font-bold";
+  }
+
+  container.innerHTML = "";
+  if (urls.length === 0) {
+    container.innerHTML = `<div class="col-span-5 p-3 rounded-xl border border-dashed border-slate-200 text-center text-[11px] text-slate-400">Sin imágenes cargadas. Puedes subir hasta 5 fotos para WhatsApp.</div>`;
+    return;
+  }
+
+  urls.forEach((url, idx) => {
+    const card = document.createElement("div");
+    card.className = "relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 group shadow-sm flex flex-col items-center justify-between";
+    card.style.height = "100px";
+
+    const isCloudinary = url.includes("cloudinary");
+    const isLocal = url.startsWith("data:") || url.includes("/api/v1/images/file");
+
+    card.innerHTML = `
+      <img src="${escapeHtml(url)}" class="w-full h-full object-cover" alt="Foto ${idx + 1}" onerror="this.src='https://placehold.co/150x150?text=Error'">
+      <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5 p-1">
+        <button type="button" class="btn-del-img w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs hover:bg-red-700 shadow" title="Eliminar imagen" data-index="${idx}">✕</button>
+      </div>
+      <span class="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-white shadow-sm ${idx === 0 ? 'bg-emerald-600' : 'bg-blue-600'}">
+        ${idx === 0 ? '⭐ Principal' : 'Foto ' + (idx + 1)}
+      </span>
+      <span class="absolute bottom-1 right-1 px-1 py-0.2 rounded text-[8px] font-semibold text-white bg-black/60 backdrop-blur-xs">
+        ${isCloudinary ? '☁️ Cloud' : isLocal ? '💾 Local' : '🔗 Web'}
+      </span>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// Subir imágenes vía endpoint /api/v1/images/upload (Cloudinary /smak/products)
+async function uploadProductFilesToCloudinary(files) {
+  const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+  if (imageFiles.length === 0) {
+    alert("Por favor selecciona archivos de imagen válidos (PNG, JPG, WEBP, GIF)");
+    return;
+  }
+
+  const currentUrls = getProductImagesList();
+  if (currentUrls.length >= 5) {
+    notify("Este producto ya cuenta con el máximo de 5 imágenes permitidas.");
+    return;
+  }
+
+  const availableSlots = 5 - currentUrls.length;
+  const filesToUpload = imageFiles.slice(0, availableSlots);
+  if (imageFiles.length > availableSlots) {
+    notify(`Solo se procesarán ${availableSlots} imagen(es) para respetar el límite de 5 fotos.`);
+  }
+
+  const spinner = $("#prod-upload-spinner");
+  const statusText = $("#prod-upload-status-text");
+  if (spinner) spinner.classList.remove("hidden");
+
+  const sku = $("#prod-sku") ? $("#prod-sku").value.trim() : "prod";
+
+  for (let i = 0; i < filesToUpload.length; i++) {
+    const file = filesToUpload[i];
+    if (statusText) statusText.textContent = `Subiendo foto ${i + 1} de ${filesToUpload.length} a Cloudinary...`;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("sku", sku);
+      formData.append("index", String(currentUrls.length));
+      formData.append("folder", "products");
+
+      const response = await fetch("/api/v1/images/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.url) {
+          currentUrls.push(data.url);
+          setProductImagesList(currentUrls);
+        }
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (err) {
+      console.warn("Fallo subida a Cloudinary, usando respaldo local Data URL:", err);
+      // Fallback local como Data URL
+      await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          if (e.target?.result) {
+            currentUrls.push(e.target.result);
+            setProductImagesList(currentUrls);
+          }
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  }
+
+  if (spinner) spinner.classList.add("hidden");
+  notify(`${filesToUpload.length} imagen(es) guardada(s) para este producto.`);
+}
+
+// Event delegation para eliminar miniaturas
+document.addEventListener("click", e => {
+  const btn = e.target.closest(".btn-del-img");
+  if (btn) {
+    const idx = parseInt(btn.dataset.index, 10);
+    const urls = getProductImagesList();
+    if (!isNaN(idx) && idx >= 0 && idx < urls.length) {
+      urls.splice(idx, 1);
+      setProductImagesList(urls);
+      notify("Imagen eliminada de la lista.");
+    }
+  }
+});
+
+// Dropzone & File Input listeners
+if ($("#prod-dropzone")) {
+  $("#prod-dropzone").addEventListener("click", e => {
+    if (e.target.closest("#prod-file-input")) return;
+    const urls = getProductImagesList();
+    if (urls.length >= 5) {
+      notify("Límite de 5 imágenes alcanzado para este producto.");
+      return;
+    }
+    $("#prod-file-input").click();
+  });
+
+  $("#prod-file-input").addEventListener("change", e => {
+    if (e.target.files && e.target.files.length > 0) {
+      uploadProductFilesToCloudinary(e.target.files);
+      e.target.value = "";
+    }
+  });
+
+  $("#prod-dropzone").addEventListener("dragover", e => {
+    e.preventDefault();
+    $("#prod-dropzone").classList.add("bg-emerald-100", "border-emerald-500");
+  });
+
+  $("#prod-dropzone").addEventListener("dragleave", e => {
+    e.preventDefault();
+    $("#prod-dropzone").classList.remove("bg-emerald-100", "border-emerald-500");
+  });
+
+  $("#prod-dropzone").addEventListener("drop", e => {
+    e.preventDefault();
+    $("#prod-dropzone").classList.remove("bg-emerald-100", "border-emerald-500");
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      uploadProductFilesToCloudinary(e.dataTransfer.files);
+    }
+  });
+}
+
+if ($("#prod-images")) {
+  $("#prod-images").addEventListener("input", () => {
+    renderProductImagesGrid();
+  });
+}
+
 $("#btn-open-new-product").addEventListener("click", () => {
   $("#modal-product-title").textContent = "Agregar Nuevo Producto al Catálogo";
   $("#form-product").reset();
   $("#prod-id").value = "";
+  renderProductImagesGrid();
   openModal("#modal-product");
 });
 
@@ -130,6 +316,7 @@ $("#products-table-body").addEventListener("click", e => {
     $("#prod-weight").value = product.weightLimit || "";
     $("#prod-keywords").value = (product.keywords || []).join(", ");
     $("#prod-images").value = (product.images || []).join("\n");
+    renderProductImagesGrid();
     openModal("#modal-product");
   }
 

@@ -1000,29 +1000,40 @@
         </div>
         <span class="hint">Carga archivos locales desde tu equipo o añade enlaces directos por URL.</span>
 
-        <!-- NOTA INFORMATIVA: CLOUDINARY PENDIENTE -->
-        <div class="cloudinary-notice-banner">
+        <!-- NOTA INFORMATIVA: CLOUDINARY ACTIVO -->
+        <div class="cloudinary-notice-banner" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-color: #a7f3d0;">
           <div class="cloudinary-badge">
             <span class="cloudinary-icon">☁️</span>
-            <span class="cloudinary-tag">Pendiente</span>
+            <span class="cloudinary-tag" style="background-color: #059669; color: #ffffff;">Cloudinary Activo</span>
           </div>
           <div class="cloudinary-content">
-            <div class="cloudinary-title">Integración con Cloudinary en desarrollo</div>
-            <p class="cloudinary-desc">
-              Este módulo está <strong>pendiente de integrar con Cloudinary</strong> para alojamiento y optimización CDN en la nube. 
-              Por ahora, puedes <strong>leer archivos desde tu sistema de archivos local</strong> (almacenados como Data-URL/Base64) o enlazar imágenes directas vía HTTPS.
+            <div class="cloudinary-title" style="color: #065f46;">Alojamiento CDN /smak/products (Hasta 5 fotos por producto)</div>
+            <p class="cloudinary-desc" style="color: #047857;">
+              Las imágenes subidas se optimizan automáticamente (máximo 800×800, compresión inteligente WebP/AVIF y CDN global).
+              La <strong>primera imagen</strong> es la portada principal y las siguientes se enviarán como galería por WhatsApp.
             </p>
           </div>
+        </div>
+
+        <!-- INDICADOR DE SUBIDA EN PROGRESO -->
+        <div *ngIf="isUploadingImages" class="p-3 mb-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+          <svg class="animate-spin h-4 w-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span class="font-semibold">{{ uploadStatusMessage || 'Subiendo imágenes a Cloudinary...' }}</span>
         </div>
 
         <!-- DROPZONE / BOTÓN DE CARGA DEL SISTEMA DE ARCHIVOS -->
         <div class="file-upload-zone"
              [class.dragging]="isDraggingFile"
+             [style.opacity]="productImagesList.length >= 5 ? '0.6' : '1'"
+             [style.pointer-events]="isUploadingImages ? 'none' : 'auto'"
              (dragover)="onDragOver($event)"
              (dragleave)="onDragLeave($event)"
              (drop)="onFileDrop($event)"
-             (click)="fileInput.click()">
-          <input #fileInput type="file" (change)="onImageFilesSelected($event)" accept="image/*" multiple class="hidden-file-input">
+             (click)="productImagesList.length < 5 ? fileInput.click() : null">
+          <input #fileInput type="file" (change)="onImageFilesSelected($event)" accept="image/*" multiple class="hidden-file-input" [disabled]="productImagesList.length >= 5 || isUploadingImages">
           <div class="upload-icon-circle">
             <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="22" height="22">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
@@ -1031,28 +1042,31 @@
           </div>
           <div class="upload-text-group">
             <span class="upload-title">
-              <strong class="text-emerald-700">Explorar archivos del equipo</strong> o arrastrar imágenes aquí
+              <strong class="text-emerald-700">{{ productImagesList.length >= 5 ? 'Límite alcanzado (5/5 imágenes)' : 'Subir fotos a Cloudinary' }}</strong>
+              {{ productImagesList.length >= 5 ? '' : 'o arrastrar aquí' }}
             </span>
-            <span class="upload-subtitle">Soporta PNG, JPG, JPEG, WEBP y GIF desde el explorador local</span>
+            <span class="upload-subtitle">Soporta PNG, JPG, JPEG, WEBP y GIF (Ranura {{ productImagesList.length }}/5 ocupadas)</span>
           </div>
-          <button type="button" class="btn-browse-files" (click)="$event.stopPropagation(); fileInput.click()">
-            Examinar...
+          <button type="button" class="btn-browse-files" [disabled]="productImagesList.length >= 5 || isUploadingImages" (click)="$event.stopPropagation(); fileInput.click()">
+            {{ productImagesList.length >= 5 ? 'Cupo lleno' : 'Examinar...' }}
           </button>
         </div>
 
-        <!-- GALERÍA DE PREVIEWS DE MINIATURAS -->
+        <!-- GALERÍA DE PREVIEWS DE MINIATURAS (HASTA 5 SLOTS) -->
         <div *ngIf="productImagesList.length > 0" class="previews-wrapper">
           <div class="previews-toolbar">
-            <span class="previews-headline">📸 Vistas previas vinculadas</span>
+            <span class="previews-headline">📸 Galería del Producto ({{ productImagesList.length }}/5 fotos)</span>
             <button type="button" (click)="clearAllProductImages()" class="btn-clear-images">
               Vaciar todas
             </button>
           </div>
           <div class="thumbnails-grid">
-            <div *ngFor="let img of productImagesList; let i = index" class="thumb-item">
-              <img [src]="img" class="thumb-image" alt="Foto producto">
-              <span *ngIf="img.startsWith('data:')" class="badge-source badge-local" title="Leído del File System">Local</span>
-              <span *ngIf="!img.startsWith('data:')" class="badge-source badge-web" title="Enlace web externo">URL</span>
+            <div *ngFor="let img of productImagesList; let i = index" class="thumb-item" style="position: relative;">
+              <img [src]="img" class="thumb-image" alt="Foto producto {{ i + 1 }}">
+              <span *ngIf="i === 0" class="badge-source" style="background-color: #059669; color: #fff; left: 4px; right: auto;" title="Foto Principal">⭐ Principal</span>
+              <span *ngIf="i > 0" class="badge-source" style="background-color: #3b82f6; color: #fff; left: 4px; right: auto;" title="Foto Secundaria">Foto {{ i + 1 }}</span>
+              <span *ngIf="img.includes('cloudinary')" class="badge-source" style="background-color: #0284c7; color: #fff; right: 4px; left: auto;" title="Alojado en Cloudinary CDN">Cloudinary</span>
+              <span *ngIf="img.startsWith('data:')" class="badge-source badge-local" style="right: 4px; left: auto;" title="Leído del File System">Local</span>
               <button type="button" (click)="removeProductImage(i)" class="btn-remove-thumb" title="Eliminar imagen">✕</button>
             </div>
           </div>

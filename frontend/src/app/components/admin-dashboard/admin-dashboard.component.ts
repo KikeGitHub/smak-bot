@@ -1,6 +1,8 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 import { CHAT_WIDGET_REPOSITORY_PORT, ChatWidgetRepositoryPort } from '../../ports/chat-widget.repository.port';
 import {
   CampaignDTO,
@@ -97,6 +99,8 @@ export class AdminDashboardComponent implements OnInit {
   prodKeywordsText: string = '';
   prodImagesText: string = '';
   isDraggingFile: boolean = false;
+  isUploadingImages: boolean = false;
+  uploadStatusMessage: string = '';
 
   // MODAL: Regla
   isRuleModalOpen: boolean = false;
@@ -129,7 +133,8 @@ export class AdminDashboardComponent implements OnInit {
 
   constructor(
     @Inject(CHAT_WIDGET_REPOSITORY_PORT) private readonly chatRepo: ChatWidgetRepositoryPort,
-    public readonly authService: AuthService
+    public readonly authService: AuthService,
+    private readonly http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -338,23 +343,63 @@ export class AdminDashboardComponent implements OnInit {
       return;
     }
 
-    let loadedCount = 0;
     const currentUrls = [...this.productImagesList];
+    if (currentUrls.length >= 5) {
+      this.notify('Este producto ya cuenta con el máximo de 5 imágenes permitidas.');
+      return;
+    }
 
-    imageFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e: ProgressEvent<FileReader>) => {
-        const dataUrl = e.target?.result as string;
-        if (dataUrl) {
-          currentUrls.push(dataUrl);
-          this.prodImagesText = currentUrls.join('\n');
-          loadedCount++;
-          if (loadedCount === imageFiles.length) {
-            this.notify(`${imageFiles.length} imagen(es) leída(s) desde el sistema de archivos.`);
+    const availableSlots = 5 - currentUrls.length;
+    const filesToUpload = imageFiles.slice(0, availableSlots);
+    if (imageFiles.length > availableSlots) {
+      this.notify(`Solo se procesarán ${availableSlots} imagen(es) para respetar el límite de 5 fotos por producto.`);
+    }
+
+    this.isUploadingImages = true;
+    this.uploadStatusMessage = `Subiendo ${filesToUpload.length} imagen(es) a Cloudinary (/smak/products)...`;
+
+    const baseUrl = environment.apiBaseUrl || '';
+    const uploadEndpoint = `${baseUrl}/api/v1/images/upload`;
+
+    let completed = 0;
+    filesToUpload.forEach((file, idx) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sku', this.editingProduct.sku || 'prod');
+      formData.append('index', String(currentUrls.length + idx));
+      formData.append('folder', 'products');
+
+      this.http.post<any>(uploadEndpoint, formData).subscribe({
+        next: (res) => {
+          completed++;
+          if (res && res.url) {
+            currentUrls.push(res.url);
+            this.prodImagesText = currentUrls.join('\n');
           }
+          if (completed === filesToUpload.length) {
+            this.isUploadingImages = false;
+            this.uploadStatusMessage = '';
+            this.notify(`${filesToUpload.length} imagen(es) subida(s) a Cloudinary (/smak/products).`);
+          }
+        },
+        error: (err) => {
+          console.warn('Error al subir a Cloudinary, guardando como respaldo local:', err);
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            completed++;
+            if (e.target?.result) {
+              currentUrls.push(e.target.result as string);
+              this.prodImagesText = currentUrls.join('\n');
+            }
+            if (completed === filesToUpload.length) {
+              this.isUploadingImages = false;
+              this.uploadStatusMessage = '';
+              this.notify('Imagen(es) cargada(s) en modo contingencia local.');
+            }
+          };
+          reader.readAsDataURL(file);
         }
-      };
-      reader.readAsDataURL(file);
+      });
     });
   }
 

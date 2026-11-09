@@ -6,6 +6,10 @@ spring:
     name: smakbot-core
   profiles:
     default: dev
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 25MB
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/smakbot_db}
     username: ${DB_USER:postgres}
@@ -56,6 +60,14 @@ smakbot:
     model: ${OPENAI_MODEL:gpt-4o-mini}
     transcription-model: ${OPENAI_TRANSCRIPTION_MODEL:gpt-4o-mini-transcribe}
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}
+    folder: ${CLOUDINARY_FOLDER:smak}
+  uploads:
+    dir: ${UPLOAD_DIR:./uploads}
+    backend-url: ${BACKEND_URL:}
   redis:
     enabled: ${REDIS_ENABLED:true}
     session-ttl-minutes: ${REDIS_SESSION_TTL:45}
