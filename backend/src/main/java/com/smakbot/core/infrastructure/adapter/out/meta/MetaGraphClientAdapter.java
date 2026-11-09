@@ -320,6 +320,134 @@ public class MetaGraphClientAdapter implements NotificationSenderPort {
     }
 
     @Override
+    public boolean sendCarouselTemplate(
+            WhatsAppConfig config,
+            String to,
+            String templateName,
+            String languageCode,
+            String bodyText,
+            java.util.List<CarouselCard> cards) {
+        if (config == null || to == null || templateName == null || templateName.isBlank() || cards == null || cards.isEmpty()) {
+            log.warn("Parámetros incompletos para envío de plantilla carrusel a WhatsApp");
+            return false;
+        }
+
+        String recipient = normalizeRecipient(to);
+        String lang = (languageCode != null && !languageCode.isBlank()) ? languageCode : "es";
+
+        if (isSandboxOrInvalidConfig(config) || "16315551181".equals(recipient)) {
+            log.info("[SANDBOX META WA CAROUSEL] -> Para: {} (orig: {}) | PhoneID: {} | Template: {} ({}) | Tarjetas: {}",
+                    recipient, to, config.phoneNumberId(), templateName, lang, cards.size());
+            return true;
+        }
+
+        try {
+            String url = String.format("%s/%s/messages", graphBaseUrl, config.phoneNumberId());
+
+            java.util.List<Map<String, Object>> cardsPayload = new java.util.ArrayList<>();
+            for (CarouselCard card : cards) {
+                java.util.List<Map<String, Object>> cardComponents = new java.util.ArrayList<>();
+
+                // Header de imagen obligatorio por tarjeta
+                if (card.imageUrl() != null && !card.imageUrl().isBlank()) {
+                    cardComponents.add(Map.of(
+                            "type", "header",
+                            "parameters", java.util.List.of(
+                                    Map.of(
+                                            "type", "image",
+                                            "image", Map.of("link", card.imageUrl())
+                                    )
+                            )
+                    ));
+                }
+
+                // Body opcional con variables por tarjeta
+                if (card.bodyText() != null && !card.bodyText().isBlank()) {
+                    cardComponents.add(Map.of(
+                            "type", "body",
+                            "parameters", java.util.List.of(
+                                    Map.of(
+                                            "type", "text",
+                                            "text", card.bodyText()
+                                    )
+                            )
+                    ));
+                }
+
+                // Botón opcional por tarjeta
+                if (card.buttonPayload() != null && !card.buttonPayload().isBlank()) {
+                    cardComponents.add(Map.of(
+                            "type", "button",
+                            "sub_type", "quick_reply",
+                            "index", "0",
+                            "parameters", java.util.List.of(
+                                    Map.of(
+                                            "type", "payload",
+                                            "payload", card.buttonPayload()
+                                    )
+                            )
+                    ));
+                }
+
+                cardsPayload.add(Map.of(
+                        "card_index", card.cardIndex(),
+                        "components", cardComponents
+                ));
+            }
+
+            java.util.List<Map<String, Object>> templateComponents = new java.util.ArrayList<>();
+
+            // Si la plantilla padre requiere un parámetro body general
+            if (bodyText != null && !bodyText.isBlank()) {
+                templateComponents.add(Map.of(
+                        "type", "body",
+                        "parameters", java.util.List.of(
+                                Map.of(
+                                        "type", "text",
+                                        "text", formatForWhatsApp(bodyText)
+                                )
+                        )
+                ));
+            }
+
+            templateComponents.add(Map.of(
+                    "type", "carousel",
+                    "cards", cardsPayload
+            ));
+
+            Map<String, Object> templateObj = Map.of(
+                    "name", templateName,
+                    "language", Map.of("code", lang),
+                    "components", templateComponents
+            );
+
+            Map<String, Object> payload = Map.of(
+                    "messaging_product", "whatsapp",
+                    "recipient_type", "individual",
+                    "to", recipient,
+                    "type", "template",
+                    "template", templateObj
+            );
+
+            restClient.post()
+                    .uri(url)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + config.accessToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+
+            log.info("Plantilla carrusel [{}] con {} tarjetas enviada con éxito vía Meta a {} (orig: {})",
+                    templateName, cards.size(), recipient, to);
+            return true;
+        } catch (Exception ex) {
+            log.error("Error al enviar plantilla carrusel [{}] vía Meta Graph API a {} (orig: {}): {}",
+                    templateName, recipient, to, ex.getMessage());
+            return false;
+        }
+    }
+
+    @Override
     public byte[] downloadMedia(WhatsAppConfig config, String mediaId) {
         if (config == null || mediaId == null || mediaId.isBlank() || isSandboxOrInvalidConfig(config)) {
             return null;

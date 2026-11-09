@@ -47,6 +47,8 @@ smakbot:
     waba-id: ${META_WABA_ID:}
     access-token: ${META_ACCESS_TOKEN:}
     verify-token: ${META_VERIFY_TOKEN:}
+    carousel-template-name: ${META_CAROUSEL_TEMPLATE_NAME:}
+    carousel-template-lang: ${META_CAROUSEL_TEMPLATE_LANG:es}
   async:
     core-pool-size: 8
     max-pool-size: 32

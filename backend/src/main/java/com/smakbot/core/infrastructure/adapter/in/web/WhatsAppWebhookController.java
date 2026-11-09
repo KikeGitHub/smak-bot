@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
@@ -38,19 +39,25 @@ public class WhatsAppWebhookController {
     private final com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort;
     private final com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort;
     private final com.smakbot.core.infrastructure.service.redis.WhatsAppIdempotencyService idempotencyService;
+    private final String carouselTemplateName;
+    private final String carouselTemplateLang;
 
     public WhatsAppWebhookController(WhatsAppConfigRepositoryPort configRepositoryPort,
                                      ProcessMessageUseCase processMessageUseCase,
                                      NotificationSenderPort notificationSenderPort,
                                      com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort,
                                      com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort,
-                                     com.smakbot.core.infrastructure.service.redis.WhatsAppIdempotencyService idempotencyService) {
+                                     com.smakbot.core.infrastructure.service.redis.WhatsAppIdempotencyService idempotencyService,
+                                     @Value("${smakbot.meta.carousel-template-name:}") String carouselTemplateName,
+                                     @Value("${smakbot.meta.carousel-template-lang:es}") String carouselTemplateLang) {
         this.configRepositoryPort = configRepositoryPort;
         this.processMessageUseCase = processMessageUseCase;
         this.notificationSenderPort = notificationSenderPort;
         this.audioTranscriptionPort = audioTranscriptionPort;
         this.textToSpeechPort = textToSpeechPort;
         this.idempotencyService = idempotencyService;
+        this.carouselTemplateName = carouselTemplateName != null ? carouselTemplateName.trim() : "";
+        this.carouselTemplateLang = (carouselTemplateLang != null && !carouselTemplateLang.isBlank()) ? carouselTemplateLang.trim() : "es";
     }
 
     @GetMapping("/webhook")
@@ -223,22 +230,51 @@ public class WhatsAppWebhookController {
                 // Imagen individual: foto principal con el texto explicativo como pie de foto
                 notificationSenderPort.sendImage(config, from, images.get(0), reply.text());
             } else if (images.size() > 1) {
-                // Solicitud de galería completa: primero enviamos el mensaje de texto
+                // Solicitud de galería completa (2 a 5 fotos)
+                // 1. Enviar primero el texto explicativo de la respuesta
                 notificationSenderPort.sendText(config, from, reply.text());
-                // Despachar imágenes consecutivas sin pie de foto para que WhatsApp forme la cuadrícula (álbum nativo)
-                for (String extraImage : images) {
-                    if (extraImage != null && !extraImage.isBlank()) {
-                        try {
-                            Thread.sleep(120);
-                        } catch (InterruptedException ignored) {}
-                        notificationSenderPort.sendImage(config, from, extraImage, null);
+
+                // 2. Si hay plantilla de carrusel configurada en Meta, intentar despacho de tarjetas deslizables
+                boolean carouselDispatched = false;
+                if (!carouselTemplateName.isBlank()) {
+                    java.util.List<NotificationSenderPort.CarouselCard> cards = new java.util.ArrayList<>();
+                    for (int i = 0; i < Math.min(images.size(), 10); i++) {
+                        String imgUrl = images.get(i);
+                        if (imgUrl != null && !imgUrl.isBlank()) {
+                            cards.add(new NotificationSenderPort.CarouselCard(i, imgUrl));
+                        }
                     }
+                    if (cards.size() >= 2) {
+                        log.info("Despachando plantilla carrusel [{}] con {} tarjetas a {}", carouselTemplateName, cards.size(), from);
+                        carouselDispatched = notificationSenderPort.sendCarouselTemplate(
+                                config, from, carouselTemplateName, carouselTemplateLang, null, cards);
+                    }
+                }
+
+                // 3. Fallback de resiliencia: si no hay plantilla configurada o Meta la rechazó,
+                // despachar ráfaga consecutiva de imágenes sin pie para que WhatsApp arme el álbum nativo
+                if (!carouselDispatched) {
+                    if (!carouselTemplateName.isBlank()) {
+                        log.warn("Plantilla carrusel [{}] no pudo ser enviada. Ejecutando fallback a álbum nativo de WhatsApp.", carouselTemplateName);
+                    }
+                    sendNativeAlbum(config, from, images);
                 }
             } else {
                 notificationSenderPort.sendText(config, from, reply.text());
             }
         } catch (Exception ex) {
             log.error("Error al procesar mensaje WA de {}: {}", from, ex.getMessage(), ex);
+        }
+    }
+
+    private void sendNativeAlbum(WhatsAppConfig config, String to, java.util.List<String> images) {
+        for (String extraImage : images) {
+            if (extraImage != null && !extraImage.isBlank()) {
+                try {
+                    Thread.sleep(120);
+                } catch (InterruptedException ignored) {}
+                notificationSenderPort.sendImage(config, to, extraImage, null);
+            }
         }
     }
 }
