@@ -24,8 +24,18 @@ public class CloudinaryConfig {
     @Value("${smakbot.cloudinary.api-secret:}")
     private String apiSecret;
 
+    @Value("${smakbot.cloudinary.url:}")
+    private String cloudinaryUrl;
+
     @Bean
     public Cloudinary cloudinary() {
+        // 1. Soporte vía CLOUDINARY_URL completo (cloudinary://API_KEY:API_SECRET@CLOUD_NAME)
+        if (cloudinaryUrl != null && !cloudinaryUrl.isBlank() && cloudinaryUrl.startsWith("cloudinary://")) {
+            log.info("Inicializando cliente Cloudinary vía CLOUDINARY_URL");
+            return new Cloudinary(cloudinaryUrl.trim());
+        }
+
+        // 2. Soporte vía credenciales separadas
         if (cloudName != null && !cloudName.isBlank()
                 && apiKey != null && !apiKey.isBlank()
                 && apiSecret != null && !apiSecret.isBlank()) {
