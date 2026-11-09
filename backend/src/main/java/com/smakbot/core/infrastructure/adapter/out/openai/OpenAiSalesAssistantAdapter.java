@@ -47,7 +47,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             ObjectMapper objectMapper) {
         this.openAiApiKey = openAiApiKey != null ? openAiApiKey.trim() : "";
         this.openAiModel = (openAiModel != null && !openAiModel.isBlank()) ? openAiModel.trim() : "gpt-4o-mini";
-        this.openAiBaseUrl = (openAiBaseUrl != null && !openAiBaseUrl.isBlank()) ? openAiBaseUrl.trim() : "https://api.openai.com/v1";
+        this.openAiBaseUrl = (openAiBaseUrl != null && !openAiBaseUrl.isBlank()) ? openAiBaseUrl.trim()
+                : "https://api.openai.com/v1";
         this.objectMapper = objectMapper;
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
@@ -78,7 +79,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         }
 
         try {
-            String systemPrompt = buildSystemPrompt(tenant, catalog, rules, campaigns, customerOrders, session, incomingMessage);
+            String systemPrompt = buildSystemPrompt(tenant, catalog, rules, campaigns, customerOrders, session,
+                    incomingMessage);
             List<Map<String, String>> messages = new ArrayList<>();
             messages.add(Map.of("role", "system", "content", systemPrompt));
 
@@ -92,7 +94,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
 
             String userContent = incomingMessage.text() != null ? incomingMessage.text() : "";
             if (incomingMessage.location() != null && incomingMessage.location().lat() != null) {
-                userContent += "\n[UBICACIÓN GPS ADJUNTA POR EL CLIENTE: " + incomingMessage.location().resolvedAddress()
+                userContent += "\n[UBICACIÓN GPS ADJUNTA POR EL CLIENTE: "
+                        + incomingMessage.location().resolvedAddress()
                         + " | Mapa: " + incomingMessage.location().resolvedMapUrl() + "]";
             }
             messages.add(Map.of("role", "user", "content", userContent));
@@ -120,7 +123,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             }
             log.warn("Respuesta vacía o inesperada de OpenAI: {}", responseNode);
         } catch (Exception ex) {
-            log.error("Error al consultar OpenAI ({}): {}. Activando respaldo automático.", openAiModel, ex.getMessage());
+            log.error("Error al consultar OpenAI ({}): {}. Activando respaldo automático.", openAiModel,
+                    ex.getMessage());
         }
 
         return fallbackDecision(tenant, catalog, rules, customerOrders, session, incomingMessage);
@@ -141,7 +145,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 : "Venta en línea de productos";
         String persona = (tenant.botPersona() != null && !tenant.botPersona().isBlank())
                 ? tenant.botPersona()
-                : "Eres el asesor comercial oficial de " + tenant.name() + ". Trato cálido, claro, conciso y enfocado en ayudar al cliente.";
+                : "Eres el asesor comercial oficial de " + tenant.name()
+                        + ". Trato cálido, claro, conciso y enfocado en ayudar al cliente.";
         String scopePolicy = (tenant.scopePolicy() != null && !tenant.scopePolicy().isBlank())
                 ? tenant.scopePolicy()
                 : "Solo atiendes consultas relacionadas con el catálogo y servicios de " + tenant.name() + ".";
@@ -150,7 +155,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         sb.append("=== IDENTIDAD Y GIRO DEL NEGOCIO (TENANT: ").append(tenant.name()).append(") ===\n");
         sb.append("- Giro del negocio: ").append(businessType).append("\n");
         sb.append("- País: ").append(tenant.country() != null ? tenant.country() : "HN")
-          .append(" | Moneda: ").append(currency).append("\n");
+                .append(" | Moneda: ").append(currency).append("\n");
         sb.append("- Rol y Persona: ").append(persona).append("\n\n");
 
         sb.append("=== SCOPE Y POLÍTICAS OBLIGATORIAS DEL TENANT ===\n");
@@ -161,7 +166,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             for (RuleContext r : rules) {
                 if (r.response() != null && !r.response().isBlank()) {
                     sb.append("• [").append(r.category()).append(" - ").append(r.name()).append("]: ")
-                      .append(r.response().replace("\n", " ")).append("\n");
+                            .append(r.response().replace("\n", " ")).append("\n");
                 }
             }
             sb.append("\n");
@@ -171,15 +176,15 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         sb.append("PROHIBIDO inventar productos, precios, colores, medidas o stock que no estén en esta lista:\n");
         for (Product p : catalog) {
             sb.append("- SKU: ").append(p.sku())
-              .append(" | Nombre: ").append(p.name())
-              .append(" | Precio Oferta: ").append(currency).append(p.salePrice())
-              .append(p.regularPrice() != null ? " (Antes: " + currency + p.regularPrice() + ")" : "")
-              .append(" | Stock: ").append(p.stock() > 0 ? p.stock() + " disponibles" : "AGOTADO (0 uds)")
-              .append(" | Colores: ").append(p.colors() != null ? p.colors() : "Único")
-              .append(" | Medidas: ").append(p.dimensions() != null ? p.dimensions() : "Estándar")
-              .append(" | Soporte/Peso: ").append(p.weightLimit() != null ? p.weightLimit() : "N/A")
-              .append(" | Categoría: ").append(p.category() != null ? p.category() : "General")
-              .append("\n");
+                    .append(" | Nombre: ").append(p.name())
+                    .append(" | Precio Oferta: ").append(currency).append(p.salePrice())
+                    .append(p.regularPrice() != null ? " (Antes: " + currency + p.regularPrice() + ")" : "")
+                    .append(" | Stock: ").append(p.stock() > 0 ? p.stock() + " disponibles" : "AGOTADO (0 uds)")
+                    .append(" | Colores: ").append(p.colors() != null ? p.colors() : "Único")
+                    .append(" | Medidas: ").append(p.dimensions() != null ? p.dimensions() : "Estándar")
+                    .append(" | Soporte/Peso: ").append(p.weightLimit() != null ? p.weightLimit() : "N/A")
+                    .append(" | Categoría: ").append(p.category() != null ? p.category() : "General")
+                    .append("\n");
         }
         sb.append("\n");
 
@@ -187,7 +192,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             sb.append("=== CAMPAÑAS Y ANUNCIOS DE REDES SOCIALES ===\n");
             for (CampaignContext c : campaigns) {
                 sb.append("- URL: ").append(c.url()).append(" -> SKU: ").append(c.sku())
-                  .append(" (").append(c.headline()).append(")\n");
+                        .append(" (").append(c.headline()).append(")\n");
             }
             sb.append("\n");
         }
@@ -196,67 +201,78 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             sb.append("=== PEDIDOS RECIENTES ENCONTRADOS PARA ESTE CLIENTE ===\n");
             for (Order o : customerOrders) {
                 sb.append("- Orden: ").append(o.orderNumber())
-                  .append(" | Estado: ").append(o.status() != null ? o.status().label() : "En proceso")
-                  .append(" | Producto: ").append(o.quantity()).append("x ").append(o.productName())
-                  .append(" | Total: ").append(Money.lempiras(o.total()))
-                  .append(" | Cliente: ").append(o.customerName())
-                  .append(" | Dirección: ").append(o.deliveryAddress())
-                  .append(" | Guía: ").append(o.trackingNumber() != null ? o.trackingNumber() + " (" + o.trackingCarrier() + ")" : "En preparación para despacho")
-                  .append("\n");
+                        .append(" | Estado: ").append(o.status() != null ? o.status().label() : "En proceso")
+                        .append(" | Producto: ").append(o.quantity()).append("x ").append(o.productName())
+                        .append(" | Total: ").append(Money.lempiras(o.total()))
+                        .append(" | Cliente: ").append(o.customerName())
+                        .append(" | Dirección: ").append(o.deliveryAddress())
+                        .append(" | Guía: ")
+                        .append(o.trackingNumber() != null ? o.trackingNumber() + " (" + o.trackingCarrier() + ")"
+                                : "En preparación para despacho")
+                        .append("\n");
             }
             sb.append("\n");
         }
 
         sb.append("=== ESTADO ACTUAL DE LA SESIÓN ===\n");
-        sb.append("- Paso actual (step): ").append(session.getStep() != null ? session.getStep().name() : "IDLE").append("\n");
-        sb.append("- Último SKU en conversación (selectedSku): ").append(session.getSelectedSku() != null ? session.getSelectedSku() : "Ninguno").append("\n");
+        sb.append("- Paso actual (step): ").append(session.getStep() != null ? session.getStep().name() : "IDLE")
+                .append("\n");
+        sb.append("- Último SKU en conversación (selectedSku): ")
+                .append(session.getSelectedSku() != null ? session.getSelectedSku() : "Ninguno").append("\n");
         CheckoutDraft d = session.getCheckout();
         if (d != null) {
             sb.append("- Borrador de pedido activo:\n")
-              .append("  * SKU: ").append(d.productSku).append(" (").append(d.productName).append(")\n")
-              .append("  * Cantidad: ").append(d.quantity).append("\n")
-              .append("  * Nombre cliente: ").append(d.name != null && !d.name.isBlank() ? d.name : "PENDIENTE").append("\n")
-              .append("  * Dirección entrega: ").append(d.address != null && !d.address.isBlank() ? d.address : "PENDIENTE").append("\n")
-              .append("  * Teléfono para llamadas: ").append(d.phone != null && !d.phone.isBlank() ? d.phone : "PENDIENTE").append("\n")
-              .append("  * ¿Requiere factura RTN?: ").append(d.requiresInvoice ? "SÍ (RTN: " + d.rtn + ", Razón Social: " + d.businessName + ")" : "No / Pendiente").append("\n");
+                    .append("  * SKU: ").append(d.productSku).append(" (").append(d.productName).append(")\n")
+                    .append("  * Cantidad: ").append(d.quantity).append("\n")
+                    .append("  * Nombre cliente: ").append(d.name != null && !d.name.isBlank() ? d.name : "PENDIENTE")
+                    .append("\n")
+                    .append("  * Dirección entrega: ")
+                    .append(d.address != null && !d.address.isBlank() ? d.address : "PENDIENTE").append("\n")
+                    .append("  * Teléfono para llamadas: ")
+                    .append(d.phone != null && !d.phone.isBlank() ? d.phone : "PENDIENTE").append("\n")
+                    .append("  * ¿Requiere factura RTN?: ")
+                    .append(d.requiresInvoice ? "SÍ (RTN: " + d.rtn + ", Razón Social: " + d.businessName + ")"
+                            : "No / Pendiente")
+                    .append("\n");
         } else {
             sb.append("- Borrador de pedido activo: Ninguno\n");
         }
         sb.append("\n");
 
-        sb.append("""
-=== REGLAS SUPREMAS DE CONVERSACIÓN, TONO Y VENTAS ===
-1. TONO 100% HUMANO Y CERCANO (PROHIBIDO SONAR A BOT):
-   - Eres un asesor de ventas real atendiendo por WhatsApp, alegre, servicial y empático.
-   - PROHIBIDO usar frases robóticas, acartonadas o de bot como: "Lamentablemente...", "En SMAK nos enfocamos exclusivamente en...", "Como modelo de lenguaje...", "No tengo la capacidad...", "Disculpe las molestias...".
-   - Usa expresiones cálidas, amables y naturales: "¡Hola! Con muchísimo gusto te ayudo 😊", "Fíjate que...", "Te cuento que...", "Tenemos este modelo disponible...", "¡Excelente elección!", "Dime si te gustaría apartarlo".
-   - Sé conciso y directo, ideal para leer en la pantalla de un teléfono.
+        sb.append(
+                """
+                        === REGLAS SUPREMAS DE CONVERSACIÓN, TONO Y VENTAS ===
+                        1. TONO 100% HUMANO Y CERCANO (PROHIBIDO SONAR A BOT):
+                           - Eres un asesor de ventas real atendiendo por WhatsApp, alegre, servicial y empático.
+                           - PROHIBIDO usar frases robóticas, acartonadas o de bot como: "Lamentablemente...", "En SMAK nos enfocamos exclusivamente en...", "Como modelo de lenguaje...", "No tengo la capacidad...", "Disculpe las molestias...".
+                           - Usa expresiones cálidas, amables y naturales: "¡Hola! Con muchísimo gusto te ayudo 😊", "Fíjate que...", "Te cuento que...", "Tenemos este modelo disponible...", "¡Excelente elección!", "Dime si te gustaría apartarlo".
+                           - Sé conciso y directo, ideal para leer en la pantalla de un teléfono.
 
-2. CATÁLOGO REAL ES TU VERDAD ABSOLUTA (REVISA ANTES DE RESPONDER):
-   - Todo producto que aparezca en la lista "CATÁLOGO OFICIAL EN TIEMPO REAL" de arriba es un producto activo que SÍ vendes y que tienes para entrega inmediata con envío gratis a toda Honduras.
-   - Si el cliente pregunta por "bicicleta", "bici", "pileta", "lavabo", "estante", etc., revisa tu lista de catálogo: si ves un producto coincidente (como "Bicicleta Infantil Rosa Rin 14" SKU ZGS-534-RS), respóndele DE INMEDIATO con entusiasmo que SÍ lo tienes, dale el precio de oferta y unidades disponibles.
-   - NUNCA digas que no vendes un producto si dicho producto o algo equivalente está en tu catálogo.
-   - Solo si tras revisar detalladamente todo tu catálogo confirmas que NO existe, responde con calidez humana: "Fíjate que de momento no nos han entrado bicicletas para adulto, solo tenemos la Bicicleta Infantil Rosa Rin 14, o dime qué otro producto te gustaría cotizar 😊".
+                        2. CATÁLOGO REAL ES TU VERDAD ABSOLUTA (REVISA ANTES DE RESPONDER):
+                           - Todo producto que aparezca en la lista "CATÁLOGO OFICIAL EN TIEMPO REAL" de arriba es un producto activo que SÍ vendes y que tienes para entrega inmediata con envío gratis a toda Honduras.
+                           - Si el cliente pregunta por "bicicleta", "bici", "pileta", "lavabo", "estante", etc., revisa tu lista de catálogo: si ves un producto coincidente (como "Bicicleta Infantil Rosa Rin 14" SKU ZGS-534-RS), respóndele DE INMEDIATO con entusiasmo que SÍ lo tienes, dale el precio de oferta y unidades disponibles.
+                           - NUNCA digas que no vendes un producto si dicho producto o algo equivalente está en tu catálogo.
+                           - Solo si tras revisar detalladamente todo tu catálogo confirmas que NO existe, responde con calidez humana: "Fíjate que de momento no nos han entrado bicicletas para adulto, solo tenemos la Bicicleta Infantil Rosa Rin 14, o dime qué otro producto te gustaría cotizar 😊".
 
-3. FOTOS DEL PRODUCTO Y GALERÍA COMPLETA:
-   - Al presentar un producto o si el cliente pregunta por primera vez sobre él, pon `sendProductPhotos = true` y `sendAllPhotos = false`. El sistema enviará únicamente 1 foto principal para no llenar de notificaciones su chat.
-   - Si el cliente pide expresamente más fotos o la galería ("ver más fotos", "más fotos", "otras fotos", "mándame fotos", "galería", "enséñame fotos"), pon `sendAllPhotos = true` y `sendProductPhotos = true`.
-   - Si solo estás respondiendo una duda puntual (ej. "¿cuánto pesa?" o "¿viene en verde?") o pidiendo datos de envío, pon `sendProductPhotos = false` y `sendAllPhotos = false`.
+                        3. FOTOS DEL PRODUCTO Y GALERÍA COMPLETA:
+                           - Al presentar un producto o si el cliente pregunta por primera vez sobre él, pon `sendProductPhotos = true` y `sendAllPhotos = false`. El sistema enviará únicamente 1 foto principal para no llenar de notificaciones su chat.
+                           - Si el cliente pide expresamente más fotos o la galería ("ver más fotos", "más fotos", "otras fotos", "mándame fotos", "galería", "enséñame fotos"), pon `sendAllPhotos = true` y `sendProductPhotos = true`.
+                           - Si solo estás respondiendo una duda puntual (ej. "¿cuánto pesa?" o "¿viene en verde?") o pidiendo datos de envío, pon `sendProductPhotos = false` y `sendAllPhotos = false`.
 
-4. COHERENCIA CON EL HISTORIAL:
-   - Lee con atención el historial de mensajes. Si el cliente dice "ese", "el primero", "ese lo tienes en verde?", "cuánto mide?" o "mejor no, quiero otro modelo", responde SIEMPRE sobre el producto exacto del que están hablando actualmente.
-   - Si el cliente dice "mejor no", "quiero ver otro modelo" o cambia de producto, marca `cancelCheckout = true` y JAMÁS le sigas pidiendo datos del producto que ya descartó.
+                        4. COHERENCIA CON EL HISTORIAL:
+                           - Lee con atención el historial de mensajes. Si el cliente dice "ese", "el primero", "ese lo tienes en verde?", "cuánto mide?" o "mejor no, quiero otro modelo", responde SIEMPRE sobre el producto exacto del que están hablando actualmente.
+                           - Si el cliente dice "mejor no", "quiero ver otro modelo" o cambia de producto, marca `cancelCheckout = true` y JAMÁS le sigas pidiendo datos del producto que ya descartó.
 
-5. FLUJO DE TOMA DE PEDIDO (CHECKOUT NATURAL):
-   - Cuando el cliente exprese intención de comprar, recolecta de forma amable:
-     1) Nombre completo (`customerName`, paso `NAME`)
-     2) Cantidad de unidades (`quantity`, paso `QUANTITY`)
-     3) Dirección detallada en Honduras (ciudad, colonia, referencia o agencia Cargo Expreso) (`deliveryAddress`, paso `ADDRESS`)
-     4) Número de teléfono activo para llamadas de Cargo Expreso (`customerPhone`, mínimo 8 dígitos, paso `PHONE`)
-     5) ¿Requiere factura con RTN? (`requiresInvoice`, paso `REQUIRES_INVOICE`).
-   - Muestra el resumen y solo pon `confirmOrderNow = true` cuando el cliente confirme explícitamente ("Confirmar", "Sí confirmo", "Dale viaje", "Mándelo").
-   - Si pide humano/asesor, pon `nextStep = "HUMAN"`.
-""");
+                        5. FLUJO DE TOMA DE PEDIDO (CHECKOUT NATURAL):
+                           - Cuando el cliente exprese intención de comprar, recolecta de forma amable:
+                             1) Nombre completo (`customerName`, paso `NAME`)
+                             2) Cantidad de unidades (`quantity`, paso `QUANTITY`)
+                             3) Dirección detallada en Honduras (ciudad, colonia, referencia o agencia Cargo Expreso) (`deliveryAddress`, paso `ADDRESS`)
+                             4) Número de teléfono activo para llamadas de Cargo Expreso (`customerPhone`, mínimo 8 dígitos, paso `PHONE`)
+                             5) ¿Requiere factura con RTN? (`requiresInvoice`, paso `REQUIRES_INVOICE`).
+                           - Muestra el resumen y solo pon `confirmOrderNow = true` cuando el cliente confirme explícitamente ("Confirmar", "Sí confirmo", "Dale viaje", "Mándelo").
+                           - Si pide humano/asesor, pon `nextStep = "HUMAN"`.
+                        """);
 
         return sb.toString();
     }
@@ -283,8 +299,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         rootProperties.put("replyText", Map.of("type", "string"));
         rootProperties.put("nextStep", Map.of(
                 "type", "string",
-                "enum", List.of("IDLE", "NAME", "QUANTITY", "ADDRESS", "PHONE", "REQUIRES_INVOICE", "INVOICE_RTN", "INVOICE_BUSINESS_NAME", "CONFIRM", "HUMAN")
-        ));
+                "enum", List.of("IDLE", "NAME", "QUANTITY", "ADDRESS", "PHONE", "REQUIRES_INVOICE", "INVOICE_RTN",
+                        "INVOICE_BUSINESS_NAME", "CONFIRM", "HUMAN")));
         rootProperties.put("selectedSku", nullableString());
         rootProperties.put("sendProductPhotos", Map.of("type", "boolean"));
         rootProperties.put("sendAllPhotos", Map.of("type", "boolean"));
@@ -303,9 +319,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 "json_schema", Map.of(
                         "name", "sales_assistant_decision",
                         "strict", true,
-                        "schema", schema
-                )
-        );
+                        "schema", schema));
     }
 
     private Map<String, Object> nullableString() {
@@ -339,10 +353,10 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 d.path("customerPhone").isNull() ? null : d.path("customerPhone").asText(null),
                 d.path("requiresInvoice").isNull() ? null : d.path("requiresInvoice").asBoolean(),
                 d.path("rtn").isNull() ? null : d.path("rtn").asText(null),
-                d.path("businessName").isNull() ? null : d.path("businessName").asText(null)
-        );
+                d.path("businessName").isNull() ? null : d.path("businessName").asText(null));
 
-        return new AssistantDecision(replyText, nextStep, selectedSku, sendPhotos, sendAllPhotos, cancelCheckout, confirmOrderNow, draftUpdate);
+        return new AssistantDecision(replyText, nextStep, selectedSku, sendPhotos, sendAllPhotos, cancelCheckout,
+                confirmOrderNow, draftUpdate);
     }
 
     // =========================================================================
@@ -362,11 +376,13 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         // 1. Solicitud explícita de humano
         if (containsAny(norm, "asesor", "humano", "persona", "ejecutivo", "agente", "operador")) {
             String text = "Para brindarte una mejor atención, voy a transferir tu consulta directamente con un ejecutivo comercial de *"
-                    + tenant.name() + "* por este mismo chat. Un miembro del equipo te responderá en breve. ¡Gracias por tu paciencia! 🙌";
+                    + tenant.name()
+                    + "* por este mismo chat. Un miembro del equipo te responderá en breve. ¡Gracias por tu paciencia! 🙌";
             return new AssistantDecision(text, CheckoutStep.HUMAN, session.getSelectedSku(), false, false, false, null);
         }
 
-        // 2. Cancelación o cambio de opinión ("mejor no", "quiero otro modelo", "cancelar")
+        // 2. Cancelación o cambio de opinión ("mejor no", "quiero otro modelo",
+        // "cancelar")
         if (containsAny(norm, "mejor no", "cancelar", "cancela", "ya no quiero", "salir", "olvidalo")) {
             if (containsAny(norm, "otro modelo", "otra opcion", "otras opciones", "que mas tienen", "otros modelos")) {
                 Product alt = findAlternativeProduct(session, catalog);
@@ -384,12 +400,15 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                     CheckoutStep.IDLE, null, false, true, false, null);
         }
 
-        // 3. Detectar producto mencionado en el mensaje o mantener el actual de la sesión
+        // 3. Detectar producto mencionado en el mensaje o mantener el actual de la
+        // sesión
         Product matchedProduct = matchProductFromCatalog(norm, catalog).orElse(null);
-        Product activeProduct = matchedProduct != null ? matchedProduct : resolveBySku(session.getSelectedSku(), catalog);
+        Product activeProduct = matchedProduct != null ? matchedProduct
+                : resolveBySku(session.getSelectedSku(), catalog);
 
         // 4. Si el cliente pide "otro modelo" / "tienes más opciones"
-        if (containsAny(norm, "otro modelo", "otros modelos", "otra opcion", "otras opciones", "tienes mas", "tienen mas", "otras sillas")) {
+        if (containsAny(norm, "otro modelo", "otros modelos", "otra opcion", "otras opciones", "tienes mas",
+                "tienen mas", "otras sillas")) {
             Product alt = findAlternativeProduct(session, catalog);
             if (alt != null) {
                 String txt = "¡Claro con gusto! También tenemos este modelo disponible en tienda:\n\n"
@@ -420,7 +439,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                         + "• Producto: " + o.quantity() + "x " + o.productName() + "\n"
                         + "• Total contra entrega: *" + Money.lempiras(o.total()) + "*\n"
                         + guia;
-                return new AssistantDecision(reply, CheckoutStep.IDLE, session.getSelectedSku(), false, false, false, null);
+                return new AssistantDecision(reply, CheckoutStep.IDLE, session.getSelectedSku(), false, false, false,
+                        null);
             }
         }
 
@@ -437,53 +457,69 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         if (isPurchaseIntent(norm) && activeProduct != null) {
             if (!activeProduct.inStock()) {
                 return new AssistantDecision(
-                        "El modelo *" + activeProduct.name() + "* (SKU: " + activeProduct.sku() + ") se encuentra temporalmente *agotado* 📦. ¿Te gustaría ver otro modelo similar disponible?",
+                        "El modelo *" + activeProduct.name() + "* (SKU: " + activeProduct.sku()
+                                + ") se encuentra temporalmente *agotado* 📦. ¿Te gustaría ver otro modelo similar disponible?",
                         CheckoutStep.IDLE, activeProduct.sku(), false, false, false, null);
             }
             int qty = extractQuantity(norm, 1);
             DraftUpdate du = new DraftUpdate(activeProduct.sku(), qty, null, null, null, null, null, null, null);
-            String txt = "¡Excelente elección! Preparo tu pedido para *" + activeProduct.name() + "* (" + Money.lempiras(activeProduct.salePrice()) + " con envío gratis).\n\n¿A qué *nombre completo* registramos tu orden?";
+            String txt = "¡Excelente elección! Preparo tu pedido para *" + activeProduct.name() + "* ("
+                    + Money.lempiras(activeProduct.salePrice())
+                    + " con envío gratis).\n\n¿A qué *nombre completo* registramos tu orden?";
             return new AssistantDecision(txt, CheckoutStep.NAME, activeProduct.sku(), false, false, false, du);
         }
 
-        // 9. Consultas sobre el producto activo (colores, medidas, peso, precio, fotos, stock)
+        // 9. Consultas sobre el producto activo (colores, medidas, peso, precio, fotos,
+        // stock)
         if (activeProduct != null) {
             String resumeSuffix = session.inCheckout() ? "\n\n" + buildCheckoutResumePrompt(session) : "";
             CheckoutStep stepToKeep = session.inCheckout() ? session.getStep() : CheckoutStep.IDLE;
 
-            if (containsAny(norm, "color", "colores", "tono", "verde", "azul", "rojo", "negro", "blanco", "cafe", "marron", "gris", "rosa")) {
+            if (containsAny(norm, "color", "colores", "tono", "verde", "azul", "rojo", "negro", "blanco", "cafe",
+                    "marron", "gris", "rosa")) {
                 String colors = activeProduct.colors() != null ? activeProduct.colors() : "su presentación estándar";
-                String reply = "🎨 Para el modelo *" + activeProduct.name() + "*, lo tenemos disponible en color: *" + colors + "*.\n\n"
+                String reply = "🎨 Para el modelo *" + activeProduct.name() + "*, lo tenemos disponible en color: *"
+                        + colors + "*.\n\n"
                         + "🚚 ¡Incluye envío 100% gratis por Cargo Expreso y pagas al recibir!"
                         + (session.inCheckout() ? resumeSuffix : "\n¿Te gustaría ordenarlo?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
             }
             if (containsAny(norm, "medida", "medidas", "dimension", "dimensiones", "mide", "tamano", "alto", "ancho")) {
-                String dims = activeProduct.dimensions() != null ? activeProduct.dimensions() : "medidas estándar de fábrica";
+                String dims = activeProduct.dimensions() != null ? activeProduct.dimensions()
+                        : "medidas estándar de fábrica";
                 String reply = "📏 Las medidas exactas de *" + activeProduct.name() + "* son: *" + dims + "*."
-                        + (activeProduct.weightLimit() != null ? "\n• Capacidad de soporte: *" + activeProduct.weightLimit() + "*." : "")
-                        + (session.inCheckout() ? resumeSuffix : "\n\n¿Deseas que tomemos tus datos para enviártelo con flete gratis?");
+                        + (activeProduct.weightLimit() != null
+                                ? "\n• Capacidad de soporte: *" + activeProduct.weightLimit() + "*."
+                                : "")
+                        + (session.inCheckout() ? resumeSuffix
+                                : "\n\n¿Deseas que tomemos tus datos para enviártelo con flete gratis?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
             }
             if (containsAny(norm, "peso", "soporta", "aguanta", "resistencia", "kilos", "libras")) {
-                String weight = activeProduct.weightLimit() != null ? activeProduct.weightLimit() : "alta resistencia estructural";
+                String weight = activeProduct.weightLimit() != null ? activeProduct.weightLimit()
+                        : "alta resistencia estructural";
                 String reply = "💪 El modelo *" + activeProduct.name() + "* soporta hasta *" + weight + "*."
                         + (session.inCheckout() ? resumeSuffix : "\n\n¿Te gustaría hacer tu pedido?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
             }
             if (containsAny(norm, "mas fotos", "más fotos", "todas las fotos", "galeria", "galería", "otras fotos")) {
-                String reply = "📸 ¡Con mucho gusto! Aquí te comparto la galería completa con más ángulos y detalles de *" + activeProduct.name() + "*."
-                        + (session.inCheckout() ? resumeSuffix : "\n\n¿A qué ciudad o dirección te gustaría que te lo enviemos?");
+                String reply = "📸 ¡Con mucho gusto! Aquí te comparto la galería completa con más ángulos y detalles de *"
+                        + activeProduct.name() + "*."
+                        + (session.inCheckout() ? resumeSuffix
+                                : "\n\n¿A qué ciudad o dirección te gustaría que te lo enviemos?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), true, true, false, false, null);
             }
             if (containsAny(norm, "foto", "fotos", "imagen", "imagenes")) {
-                String reply = "📸 ¡Claro con gusto! Aquí tienes la foto de *" + activeProduct.name() + "* (*" + Money.lempiras(activeProduct.salePrice()) + "* con envío gratis)."
+                String reply = "📸 ¡Claro con gusto! Aquí tienes la foto de *" + activeProduct.name() + "* (*"
+                        + Money.lempiras(activeProduct.salePrice()) + "* con envío gratis)."
                         + (session.inCheckout() ? resumeSuffix : "\n\n¿Te gustaría pedirlo para entrega a domicilio?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), true, false, false, false, null);
             }
-            if (matchedProduct != null || containsAny(norm, "precio", "cuesta", "vale", "stock", "disponible", "tienen", "hay")) {
+            if (matchedProduct != null
+                    || containsAny(norm, "precio", "cuesta", "vale", "stock", "disponible", "tienen", "hay")) {
                 if (!activeProduct.inStock()) {
-                    String reply = "Por el momento el modelo *" + activeProduct.name() + "* (SKU: " + activeProduct.sku() + ") se encuentra *agotado* 📦.";
+                    String reply = "Por el momento el modelo *" + activeProduct.name() + "* (SKU: "
+                            + activeProduct.sku() + ") se encuentra *agotado* 📦.";
                     return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
                 }
                 String reply = "¡Sí, tenemos disponible! 🎉\n\n"
@@ -494,11 +530,13 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                         + (activeProduct.colors() != null ? "• Colores: " + activeProduct.colors() + "\n" : "")
                         + "\n🚚 *Envío 100% GRATIS* a todo el país vía Cargo Expreso y pagas en efectivo al recibir."
                         + (session.inCheckout() ? resumeSuffix : "\n\n¿Deseas hacer tu pedido ahora?");
-                return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), matchedProduct != null, false, false, null);
+                return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), matchedProduct != null, false,
+                        false, null);
             }
         }
 
-        // 10. Políticas comerciales comunes (islas, transferencia, tarjetas, envíos, ubicación)
+        // 10. Políticas comerciales comunes (islas, transferencia, tarjetas, envíos,
+        // ubicación)
         if (containsAny(norm, "roatan", "utila", "guanaja", "isla", "ceiba", "ferry")) {
             String reply = "🏝️ *Entregas en Roatán, Útila e Islas de la Bahía:*\n"
                     + "Para islas realizamos el envío con *transferencia bancaria previa*. Una vez confirmado el comprobante, despachamos sin costo hasta el *muelle de cabotaje de La Ceiba* para embarcar en el ferry que nos indiques (Utila Dream o Galaxy Wave). El costo del ferry corre por cuenta del cliente.";
@@ -517,19 +555,21 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                     + "• Banpaís (Cheques): 01-501-002345";
             return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
         }
-        if (containsAny(norm, "envio", "flete", "entrega", "cargo expreso", "forza", "domicilio", "tardan", "horario", "agencia", "sabado")) {
+        if (containsAny(norm, "envio", "flete", "entrega", "cargo expreso", "forza", "domicilio", "tardan", "horario",
+                "agencia", "sabado")) {
             String reply = "🚚 *Envíos y Entregas:*\n"
                     + "Realizamos envíos *100% GRATIS* a todo el país exclusivamente a través de *Cargo Expreso* (entrega de 1 a 2 días hábiles, Lunes a Viernes 8am-5pm y Sábados hasta las 12pm, o retiro en agencia Cargo Expreso). Pagas en efectivo al recibir.";
             return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
         }
 
         // 11. Catálogo general o saludo
-        if (containsAny(norm, "hola", "buenas", "buenos dias", "buenas tardes", "buenas noches", "catalogo", "productos", "muebles", "sillas", "que tienen", "que venden")) {
+        if (containsAny(norm, "hola", "buenas", "buenos dias", "buenas tardes", "buenas noches", "catalogo",
+                "productos", "muebles", "sillas", "que tienen", "que venden")) {
             StringBuilder list = new StringBuilder();
-            catalog.stream().filter(Product::inStock).limit(5).forEach(p ->
-                    list.append("• *").append(p.name()).append("* — *").append(Money.lempiras(p.salePrice())).append("*\n")
-            );
-            String reply = "¡Hola! 👋 Bienvenido a *" + tenant.name() + "*. Con gusto te comparto nuestros modelos disponibles:\n\n"
+            catalog.stream().filter(Product::inStock).limit(5).forEach(p -> list.append("• *").append(p.name())
+                    .append("* — *").append(Money.lempiras(p.salePrice())).append("*\n"));
+            String reply = "¡Hola! 👋 Bienvenido a *" + tenant.name()
+                    + "*. Con gusto te comparto nuestros modelos disponibles:\n\n"
                     + list
                     + "\n🚚 Todos con *envío 100% GRATIS* por Cargo Expreso y pago en *efectivo contra entrega*.\n"
                     + "¿De cuál modelo te gustaría ver fotos, medidas o hacer tu pedido?";
@@ -556,7 +596,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 DraftUpdate du = new DraftUpdate(c.productSku, null, raw, null, null, null, null, null, null);
                 if (c.quantity > 1) {
                     return new AssistantDecision(
-                            "¡Gracias, *" + raw + "*! Anotamos *" + c.quantity + " unidades*.\n\n🚚 ¿A qué *dirección exacta* (ciudad, colonia y referencia, o agencia Cargo Expreso) te lo enviamos?",
+                            "¡Gracias, *" + raw + "*! Anotamos *" + c.quantity
+                                    + " unidades*.\n\n🚚 ¿A qué *dirección exacta* (ciudad, colonia y referencia, o agencia Cargo Expreso) te lo enviamos?",
                             CheckoutStep.ADDRESS, c.productSku, false, false, false, du);
                 }
                 return new AssistantDecision(
@@ -567,12 +608,14 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 int q = extractQuantity(norm, 0);
                 if (q <= 0) {
                     return new AssistantDecision(
-                            "Por favor indícanos en número cuántas unidades de *" + c.productName + "* deseas ordenar (ejemplo: *1* o *2*):",
+                            "Por favor indícanos en número cuántas unidades de *" + c.productName
+                                    + "* deseas ordenar (ejemplo: *1* o *2*):",
                             CheckoutStep.QUANTITY, c.productSku, false, false, false, null);
                 }
                 DraftUpdate du = new DraftUpdate(c.productSku, q, null, null, null, null, null, null, null);
                 return new AssistantDecision(
-                        "¡Anotado! *" + q + (q == 1 ? " unidad*" : " unidades*.") + "\n\n🚚 ¿A qué *dirección completa* (ciudad, colonia y referencia de casa, o retiro en agencia de Cargo Expreso) te enviamos tu pedido?",
+                        "¡Anotado! *" + q + (q == 1 ? " unidad*" : " unidades*.")
+                                + "\n\n🚚 ¿A qué *dirección completa* (ciudad, colonia y referencia de casa, o retiro en agencia de Cargo Expreso) te enviamos tu pedido?",
                         CheckoutStep.ADDRESS, c.productSku, false, false, false, du);
             }
             case ADDRESS -> {
@@ -599,11 +642,13 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 }
                 DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, raw, null, null, null);
                 return new AssistantDecision(
-                        "Teléfono registrado: *" + raw + "* 📞.\n\n¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):",
+                        "Teléfono registrado: *" + raw
+                                + "* 📞.\n\n¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):",
                         CheckoutStep.REQUIRES_INVOICE, c.productSku, false, false, false, du);
             }
             case REQUIRES_INVOICE -> {
-                boolean wantsInvoice = containsAny(norm, "si", "factura", "rtn") && !containsAny(norm, "no", "consumidor final");
+                boolean wantsInvoice = containsAny(norm, "si", "factura", "rtn")
+                        && !containsAny(norm, "no", "consumidor final");
                 if (wantsInvoice) {
                     DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, null, true, null, null);
                     return new AssistantDecision(
@@ -645,63 +690,79 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             }
             case CONFIRM -> {
                 if (containsAny(norm, "confirmar", "confirmo", "si", "ok", "dale", "listo", "correcto", "mandelo")) {
-                    return new AssistantDecision("¡Pedido confirmado!", CheckoutStep.IDLE, c.productSku, false, false, true, null);
+                    return new AssistantDecision("¡Pedido confirmado!", CheckoutStep.IDLE, c.productSku, false, false,
+                            true, null);
                 }
                 if (containsAny(norm, "modificar", "cambiar direccion", "direccion")) {
-                    return new AssistantDecision("Por favor indícanos la nueva dirección completa de entrega:", CheckoutStep.ADDRESS, c.productSku, false, false, false, null);
+                    return new AssistantDecision("Por favor indícanos la nueva dirección completa de entrega:",
+                            CheckoutStep.ADDRESS, c.productSku, false, false, false, null);
                 }
                 return new AssistantDecision(
-                        "Tu pedido para *" + c.productName + "* sigue listo. Escribe *Confirmar* para despacharlo o *Cancelar* si deseas anularlo.",
+                        "Tu pedido para *" + c.productName
+                                + "* sigue listo. Escribe *Confirmar* para despacharlo o *Cancelar* si deseas anularlo.",
                         CheckoutStep.CONFIRM, c.productSku, false, false, false, null);
             }
             default -> {
-                return new AssistantDecision("¿En qué te podemos colaborar hoy?", CheckoutStep.IDLE, session.getSelectedSku(), false, false, false, null);
+                return new AssistantDecision("¿En qué te podemos colaborar hoy?", CheckoutStep.IDLE,
+                        session.getSelectedSku(), false, false, false, null);
             }
         }
     }
 
     private String buildCheckoutResumePrompt(ChatSession session) {
         CheckoutDraft c = session.getCheckout();
-        if (c == null) return "";
+        if (c == null)
+            return "";
         return switch (session.getStep()) {
             case NAME -> "Para continuar con tu pedido de *" + c.productName + "*, ¿a qué nombre lo registramos?";
-            case QUANTITY -> "Ya tenemos tu nombre (" + c.name + "). ¿Cuántas unidades de *" + c.productName + "* deseas ordenar?";
-            case ADDRESS -> "Solo nos falta tu *dirección exacta* (Ciudad, Colonia y referencia) para programar tu envío gratis con Cargo Expreso:";
+            case QUANTITY ->
+                "Ya tenemos tu nombre (" + c.name + "). ¿Cuántas unidades de *" + c.productName + "* deseas ordenar?";
+            case ADDRESS ->
+                "Solo nos falta tu *dirección exacta* (Ciudad, Colonia y referencia) para programar tu envío gratis con Cargo Expreso:";
             case PHONE -> "Solo nos falta tu *número telefónico* de 8 dígitos para llamadas de Cargo Expreso:";
             case REQUIRES_INVOICE -> "¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*):";
-            case CONFIRM -> "Escribe *Confirmar* cuando estés listo para finalizar tu pedido de *" + c.productName + "*.";
+            case CONFIRM ->
+                "Escribe *Confirmar* cuando estés listo para finalizar tu pedido de *" + c.productName + "*.";
             default -> "";
         };
     }
 
     private boolean isInformationalQuestion(String norm) {
-        return containsAny(norm, "precio", "cuesta", "vale", "color", "colores", "verde", "azul", "rojo", "medida", "medidas",
-                "mide", "dimension", "peso", "soporta", "aguanta", "foto", "fotos", "garantia", "tarjeta", "transferencia",
+        return containsAny(norm, "precio", "cuesta", "vale", "color", "colores", "verde", "azul", "rojo", "medida",
+                "medidas",
+                "mide", "dimension", "peso", "soporta", "aguanta", "foto", "fotos", "garantia", "tarjeta",
+                "transferencia",
                 "roatan", "utila", "isla", "forza");
     }
 
     private boolean isPurchaseIntent(String norm) {
-        if (containsAny(norm, "quiero saber", "quiero ver", "que productos", "catalogo")) return false;
+        if (containsAny(norm, "quiero saber", "quiero ver", "que productos", "catalogo"))
+            return false;
         return containsAny(norm, "comprar", "quiero pedir", "quiero ordenar", "hacer pedido", "lo quiero", "la quiero",
-                "me lo llevo", "me la llevo", "apartar", "quiero 1", "quiero 2", "quiero 3", "dame 1", "dame 2", "quiero una", "quiero uno");
+                "me lo llevo", "me la llevo", "apartar", "quiero 1", "quiero 2", "quiero 3", "dame 1", "dame 2",
+                "quiero una", "quiero uno");
     }
 
     private Optional<Product> matchProductFromCatalog(String norm, List<Product> catalog) {
-        if (norm.isBlank()) return Optional.empty();
+        if (norm.isBlank())
+            return Optional.empty();
         Product best = null;
         int bestScore = 0;
         for (Product p : catalog) {
             int score = 0;
             String pSku = normalize(p.sku());
             String pName = normalize(p.name());
-            if (!pSku.isBlank() && norm.contains(pSku)) score += 100;
+            if (!pSku.isBlank() && norm.contains(pSku))
+                score += 100;
             for (String token : pName.split("\\s+")) {
-                if (token.length() >= 4 && norm.contains(token)) score += 15;
+                if (token.length() >= 4 && norm.contains(token))
+                    score += 15;
             }
             if (p.keywords() != null) {
                 for (String kw : p.keywords()) {
                     String nkw = normalize(kw);
-                    if (!nkw.isBlank() && norm.contains(nkw)) score += 25;
+                    if (!nkw.isBlank() && norm.contains(nkw))
+                        score += 25;
                 }
             }
             if (score > bestScore) {
@@ -719,11 +780,13 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 return p;
             }
         }
-        return catalog.stream().filter(p -> p.inStock() && !p.sku().equalsIgnoreCase(currentSku)).findFirst().orElse(null);
+        return catalog.stream().filter(p -> p.inStock() && !p.sku().equalsIgnoreCase(currentSku)).findFirst()
+                .orElse(null);
     }
 
     private Product resolveBySku(String sku, List<Product> catalog) {
-        if (sku == null || sku.isBlank()) return null;
+        if (sku == null || sku.isBlank())
+            return null;
         return catalog.stream().filter(p -> sku.equalsIgnoreCase(p.sku())).findFirst().orElse(null);
     }
 
@@ -732,27 +795,34 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         if (matcher.find()) {
             try {
                 int v = Integer.parseInt(matcher.group(1));
-                if (v > 0 && v <= 100) return v;
-            } catch (NumberFormatException ignored) {}
+                if (v > 0 && v <= 100)
+                    return v;
+            } catch (NumberFormatException ignored) {
+            }
         }
-        if (containsAny(norm, "dos")) return 2;
-        if (containsAny(norm, "tres")) return 3;
-        if (containsAny(norm, "cuatro")) return 4;
-        if (containsAny(norm, "un", "uno", "una")) return 1;
+        if (containsAny(norm, "dos"))
+            return 2;
+        if (containsAny(norm, "tres"))
+            return 3;
+        if (containsAny(norm, "cuatro"))
+            return 4;
+        if (containsAny(norm, "un", "uno", "una"))
+            return 1;
         return defaultVal;
     }
 
     private static String normalize(String input) {
-        if (input == null) return "";
+        if (input == null)
+            return "";
         String n = Normalizer.normalize(input, Normalizer.Form.NFD).replaceAll("\\p{M}+", "");
         return n.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9\\s-]", " ").replaceAll("\\s+", " ").trim();
     }
 
     private static boolean containsAny(String text, String... terms) {
         for (String t : terms) {
-            if (text.contains(t)) return true;
+            if (text.contains(t))
+                return true;
         }
         return false;
     }
 }
-
