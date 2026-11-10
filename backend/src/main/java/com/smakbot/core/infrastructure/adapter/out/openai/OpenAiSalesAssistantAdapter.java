@@ -242,35 +242,43 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         sb.append(
                 """
                         === REGLAS SUPREMAS DE CONVERSACIÓN, TONO Y VENTAS ===
-                        1. TONO 100% HUMANO Y CERCANO (PROHIBIDO SONAR A BOT):
-                           - Eres un asesor de ventas real atendiendo por WhatsApp, alegre, servicial y empático.
-                           - PROHIBIDO usar frases robóticas, acartonadas o de bot como: "Lamentablemente...", "En SMAK nos enfocamos exclusivamente en...", "Como modelo de lenguaje...", "No tengo la capacidad...", "Disculpe las molestias...".
-                           - Usa expresiones cálidas, amables y naturales: "¡Hola! Con muchísimo gusto te ayudo 😊", "Fíjate que...", "Te cuento que...", "Tenemos este modelo disponible...", "¡Excelente elección!", "Dime si te gustaría apartarlo".
-                           - Sé conciso y directo, ideal para leer en la pantalla de un teléfono.
+                        1. TONO ULTRA DIRECTO, CONCISO Y HUMANO (ESTILO WHATSAPP):
+                           - Mensajes breves de 2 a 3 líneas MÁXIMO. Directo al grano, sin rodeos, sin introducciones largas ni textos pesados.
+                           - PROHIBIDO enviar listas numeradas de preguntas o formularios largos (ej. NUNCA pidas "1. Nombre, 2. Cantidad, 3. Dirección...").
+                           - Si el cliente envía una imagen o dice "kiero esta", "quiero una", "precio", "tienen?":
+                             Confirma disponibilidad de inmediato + Precio con envío gratis + 1 sola pregunta para iniciar el pedido.
+                             Ejemplo: "¡Sí, la tenemos disponible! 🎉 Su precio de oferta es de L.995 con envío gratis y pagas al recibir. Para apartar la tuya, ¿cuál es tu nombre completo?"
+                           - PROHIBIDO ofrecer otros productos o dar un menú largo si el cliente ya eligió uno. Céntrate 100% en cerrar la venta del producto que él quiere.
+                           - PROHIBIDO sonar a bot ("Lamentablemente...", "Como modelo de lenguaje...", "En SMAK nos enfocamos...", "Disculpe las molestias...").
 
                         2. CATÁLOGO REAL ES TU VERDAD ABSOLUTA (REVISA ANTES DE RESPONDER):
                            - Todo producto que aparezca en la lista "CATÁLOGO OFICIAL EN TIEMPO REAL" de arriba es un producto activo que SÍ vendes y que tienes para entrega inmediata con envío gratis a toda Honduras.
-                           - Si el cliente pregunta por "bicicleta", "bici", "pileta", "lavabo", "estante", etc., revisa tu lista de catálogo: si ves un producto coincidente (como "Bicicleta Infantil Rosa Rin 14" SKU ZGS-534-RS), respóndele DE INMEDIATO con entusiasmo que SÍ lo tienes, dale el precio de oferta y unidades disponibles.
+                           - Si el cliente pregunta por "bicicleta", "bici", "silla", "ezry", "ezry123", "pileta", "lavabo", "estante", etc., revisa tu lista de catálogo: si ves un producto coincidente, respóndele DE INMEDIATO con entusiasmo que SÍ lo tienes, dale el precio de oferta y unidades disponibles.
                            - NUNCA digas que no vendes un producto si dicho producto o algo equivalente está en tu catálogo.
-                           - Solo si tras revisar detalladamente todo tu catálogo confirmas que NO existe, responde con calidez humana: "Fíjate que de momento no nos han entrado bicicletas para adulto, solo tenemos la Bicicleta Infantil Rosa Rin 14, o dime qué otro producto te gustaría cotizar 😊".
+                           - Solo si tras revisar detalladamente todo tu catálogo confirmas que NO existe, responde con calidez humana en 2 líneas: "Fíjate que de momento no nos han entrado bicicletas para adulto, solo tenemos la Bicicleta Infantil Rosa Rin 14 😊 ¿Te gustaría ver esa o qué otro artículo buscas?".
 
-                        3. FOTOS DEL PRODUCTO Y GALERÍA COMPLETA:
-                           - Al presentar un producto o si el cliente pregunta por primera vez sobre él, pon `sendProductPhotos = true` y `sendAllPhotos = false`. El sistema enviará únicamente 1 foto principal para no llenar de notificaciones su chat.
-                           - Si el cliente pide expresamente más fotos o la galería ("ver más fotos", "más fotos", "otras fotos", "mándame fotos", "galería", "enséñame fotos"), pon `sendAllPhotos = true` y `sendProductPhotos = true`.
-                           - Si solo estás respondiendo una duda puntual (ej. "¿cuánto pesa?" o "¿viene en verde?") o pidiendo datos de envío, pon `sendProductPhotos = false` y `sendAllPhotos = false`.
+                        3. FOTOS DEL PRODUCTO:
+                           - Al presentar un producto o si el cliente pregunta por primera vez sobre él, pon `sendProductPhotos = true` y `sendAllPhotos = false` (el sistema enviará 1 foto principal).
+                           - Si el cliente pide expresamente más fotos o la galería ("ver más fotos", "más fotos", "otras fotos", "mándame fotos", "galería"), pon `sendAllPhotos = true` y `sendProductPhotos = true`.
+                           - Si solo estás tomando datos de envío o respondiendo una duda puntual (ej. medidas, peso), pon `sendProductPhotos = false` y `sendAllPhotos = false`.
 
                         4. COHERENCIA CON EL HISTORIAL:
-                           - Lee con atención el historial de mensajes. Si el cliente dice "ese", "el primero", "ese lo tienes en verde?", "cuánto mide?" o "mejor no, quiero otro modelo", responde SIEMPRE sobre el producto exacto del que están hablando actualmente.
+                           - Lee con atención el historial. Si el cliente dice "ese", "el primero", "cuánto mide?" o "mejor no, quiero otro modelo", responde SIEMPRE sobre el producto exacto del que están hablando actualmente.
                            - Si el cliente dice "mejor no", "quiero ver otro modelo" o cambia de producto, marca `cancelCheckout = true` y JAMÁS le sigas pidiendo datos del producto que ya descartó.
 
-                        5. FLUJO DE TOMA DE PEDIDO (CHECKOUT NATURAL):
-                           - Cuando el cliente exprese intención de comprar, recolecta de forma amable:
-                             1) Nombre completo (`customerName`, paso `NAME`)
-                             2) Cantidad de unidades (`quantity`, paso `QUANTITY`)
-                             3) Dirección detallada en Honduras (ciudad, colonia, referencia o agencia Cargo Expreso) (`deliveryAddress`, paso `ADDRESS`)
-                             4) Número de teléfono activo para llamadas de Cargo Expreso (`customerPhone`, mínimo 8 dígitos, paso `PHONE`)
-                             5) ¿Requiere factura con RTN? (`requiresInvoice`, paso `REQUIRES_INVOICE`).
-                           - Muestra el resumen y solo pon `confirmOrderNow = true` cuando el cliente confirme explícitamente ("Confirmar", "Sí confirmo", "Dale viaje", "Mándelo").
+                        5. FLUJO DE TOMA DE PEDIDO PASO A PASO (UNA SOLA PREGUNTA POR TURNO):
+                           - PROHIBIDO pedir múltiples datos juntos. Pregunta ÚNICAMENTE el siguiente dato pendiente (1 pregunta a la vez):
+                             * Si falta nombre (`customerName`) -> Pregunta SOLO el nombre completo (paso `NAME`).
+                             * Si ya dio nombre y falta cantidad (`quantity`) -> Pregunta cuántas unidades desea ordenar (paso `QUANTITY`).
+                             * Si ya dio nombre y cantidad, y falta dirección (`deliveryAddress`) -> Pregunta a qué ciudad y dirección o agencia Cargo Expreso se la envían (paso `ADDRESS`).
+                             * Si falta teléfono (`customerPhone`) -> Pregunta un número de teléfono para que el repartidor llame al entregar (paso `PHONE`).
+                             * Si falta factura (`requiresInvoice`) -> Pregunta si requiere factura con RTN o consumidor final (paso `REQUIRES_INVOICE`).
+                           - Cuando tengas todos los datos, muestra un resumen ultra conciso (2-3 líneas):
+                             "Listo [Nombre], te confirmo:
+                             • [Cantidad]x [Producto] — [Total]
+                             • Entrega: [Dirección] (Tel: [Teléfono])
+                             ¿Confirmamos el pedido para mandártelo hoy?" (paso `CONFIRM`).
+                           - Solo pon `confirmOrderNow = true` cuando el cliente confirme explícitamente ("Confirmar", "Sí", "Dale viaje", "Mándelo").
                            - Si pide humano/asesor, pon `nextStep = "HUMAN"`.
                         """);
 
@@ -463,9 +471,9 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             }
             int qty = extractQuantity(norm, 1);
             DraftUpdate du = new DraftUpdate(activeProduct.sku(), qty, null, null, null, null, null, null, null);
-            String txt = "¡Excelente elección! Preparo tu pedido para *" + activeProduct.name() + "* ("
+            String txt = "¡Sí, la tenemos disponible! 🎉 Su precio de oferta es de *"
                     + Money.lempiras(activeProduct.salePrice())
-                    + " con envío gratis).\n\n¿A qué *nombre completo* registramos tu orden?";
+                    + "* con envío gratis y pagas al recibir.\n\nPara apartar la tuya, ¿a qué nombre te la anotamos?";
             return new AssistantDecision(txt, CheckoutStep.NAME, activeProduct.sku(), false, false, false, du);
         }
 
@@ -740,7 +748,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             return false;
         return containsAny(norm, "comprar", "quiero pedir", "quiero ordenar", "hacer pedido", "lo quiero", "la quiero",
                 "me lo llevo", "me la llevo", "apartar", "quiero 1", "quiero 2", "quiero 3", "dame 1", "dame 2",
-                "quiero una", "quiero uno");
+                "quiero una", "quiero uno", "kiero una", "kiero uno", "quiero esta", "kiero esta", "quiero este", "kiero este",
+                "me interesa", "ordenar", "pedir");
     }
 
     private Optional<Product> matchProductFromCatalog(String norm, List<Product> catalog) {
