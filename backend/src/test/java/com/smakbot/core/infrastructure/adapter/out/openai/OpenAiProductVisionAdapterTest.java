@@ -34,3 +34,4 @@ class OpenAiProductVisionAdapterTest {
         assertTrue(resWithoutSku.hasProduct());
     }
 }
+

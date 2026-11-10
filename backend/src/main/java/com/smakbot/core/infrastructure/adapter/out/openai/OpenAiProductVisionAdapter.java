@@ -141,3 +141,4 @@ public class OpenAiProductVisionAdapter implements ProductVisionPort {
         return new ProductVisionResult(null, null, null, caption);
     }
 }
+

@@ -53,3 +53,4 @@ INSERT INTO products (
 UPDATE products
 SET keywords = keywords || '["ezry123","ezry","ezri123","silla 995"]'::jsonb
 WHERE sku = 'SKM-935-NE';
+
