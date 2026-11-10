@@ -7,6 +7,7 @@ import com.smakbot.core.domain.model.IncomingMessage;
 import com.smakbot.core.domain.model.WhatsAppConfig;
 import com.smakbot.core.domain.ports.in.ProcessMessageUseCase;
 import com.smakbot.core.domain.ports.out.NotificationSenderPort;
+import com.smakbot.core.domain.ports.out.ProductVisionPort;
 import com.smakbot.core.domain.ports.out.WhatsAppConfigRepositoryPort;
 import com.smakbot.core.infrastructure.adapter.in.web.dto.WhatsAppWebhookPayload;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,7 @@ public class WhatsAppWebhookController {
     private final NotificationSenderPort notificationSenderPort;
     private final com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort;
     private final com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort;
+    private final ProductVisionPort productVisionPort;
     private final com.smakbot.core.infrastructure.service.redis.WhatsAppIdempotencyService idempotencyService;
     private final String carouselTemplateName;
     private final String carouselTemplateLang;
@@ -47,6 +49,7 @@ public class WhatsAppWebhookController {
                                      NotificationSenderPort notificationSenderPort,
                                      com.smakbot.core.domain.ports.out.AudioTranscriptionPort audioTranscriptionPort,
                                      com.smakbot.core.domain.ports.out.TextToSpeechPort textToSpeechPort,
+                                     ProductVisionPort productVisionPort,
                                      com.smakbot.core.infrastructure.service.redis.WhatsAppIdempotencyService idempotencyService,
                                      @Value("${smakbot.meta.carousel-template-name:}") String carouselTemplateName,
                                      @Value("${smakbot.meta.carousel-template-lang:es}") String carouselTemplateLang) {
@@ -55,6 +58,7 @@ public class WhatsAppWebhookController {
         this.notificationSenderPort = notificationSenderPort;
         this.audioTranscriptionPort = audioTranscriptionPort;
         this.textToSpeechPort = textToSpeechPort;
+        this.productVisionPort = productVisionPort;
         this.idempotencyService = idempotencyService;
         this.carouselTemplateName = carouselTemplateName != null ? carouselTemplateName.trim() : "";
         this.carouselTemplateLang = (carouselTemplateLang != null && !carouselTemplateLang.isBlank()) ? carouselTemplateLang.trim() : "es";
@@ -181,6 +185,35 @@ public class WhatsAppWebhookController {
                 messageText = audioTranscriptionPort.transcribe(new byte[0], mimeType, "whatsapp_audio_" + mediaId + ".ogg");
             }
             log.info("Texto transcrito de nota de voz WA: '{}'", messageText);
+        }
+
+        boolean isImageInput = "image".equalsIgnoreCase(msg.getType()) && msg.getImage() != null;
+        if (isImageInput) {
+            String mediaId = msg.getImage().getId();
+            String mimeType = msg.getImage().getMimeType() != null ? msg.getImage().getMimeType() : "image/jpeg";
+            String userCaption = msg.getImage().getCaption();
+            log.info("Imagen de producto recibida de WhatsApp con MediaId: {}, descargando archivo de Meta...", mediaId);
+            byte[] imageBytes = notificationSenderPort.downloadMedia(config, mediaId);
+            if (imageBytes != null && imageBytes.length > 0) {
+                log.info("Imagen descargada con éxito de Meta ({} bytes). Analizando con GPT-4o-mini Vision...", imageBytes.length);
+                ProductVisionPort.ProductVisionResult vision = productVisionPort.analyzeImage(imageBytes, mimeType, userCaption);
+                if (vision != null && vision.hasSku()) {
+                    log.info("SKU detectado en imagen: [{}] (Producto: {}, Precio: {})", vision.sku(), vision.productName(), vision.detectedPrice());
+                    messageText = "Quiero el producto con SKU " + vision.sku()
+                            + (vision.productName() != null ? " (" + vision.productName() + ")" : "")
+                            + (userCaption != null && !userCaption.isBlank() ? ". Mensaje del cliente: " + userCaption : "");
+                } else if (vision != null && vision.hasProduct()) {
+                    log.info("Producto detectado por visión: [{}] (Precio: {})", vision.productName(), vision.detectedPrice());
+                    messageText = "Quiero comprar " + vision.productName()
+                            + (vision.detectedPrice() != null ? " de L." + vision.detectedPrice() : "")
+                            + (userCaption != null && !userCaption.isBlank() ? ". Mensaje del cliente: " + userCaption : "");
+                } else {
+                    messageText = (userCaption != null && !userCaption.isBlank()) ? userCaption : "Hola, me interesa este producto";
+                }
+            } else {
+                messageText = (userCaption != null && !userCaption.isBlank()) ? userCaption : "Hola, me interesa este producto";
+            }
+            log.info("Texto interpretado para el motor comercial a partir de imagen WA: '{}'", messageText);
         }
 
         log.info("Mensaje WA entrante de [{}] para tenant [{}]: '{}'", from, config.tenantId(), messageText);

@@ -98,6 +98,7 @@ public class WhatsAppWebhookPayload {
         private Interactive interactive;
 
         private Audio audio;
+        private WhatsAppImage image;
 
         public String getFrom() { return from; }
         public void setFrom(String from) { this.from = from; }
@@ -115,6 +116,26 @@ public class WhatsAppWebhookPayload {
         public void setInteractive(Interactive interactive) { this.interactive = interactive; }
         public Audio getAudio() { return audio; }
         public void setAudio(Audio audio) { this.audio = audio; }
+        public WhatsAppImage getImage() { return image; }
+        public void setImage(WhatsAppImage image) { this.image = image; }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class WhatsAppImage {
+        private String id;
+        @JsonProperty("mime_type")
+        private String mimeType;
+        private String sha256;
+        private String caption;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getMimeType() { return mimeType; }
+        public void setMimeType(String mimeType) { this.mimeType = mimeType; }
+        public String getSha256() { return sha256; }
+        public void setSha256(String sha256) { this.sha256 = sha256; }
+        public String getCaption() { return caption; }
+        public void setCaption(String caption) { this.caption = caption; }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
