@@ -73,6 +73,16 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             ChatSession session,
             IncomingMessage incomingMessage) {
 
+        String raw = incomingMessage.text() != null ? incomingMessage.text() : "";
+        String norm = normalize(raw);
+
+        // Guardrail determinista: rechazar temas claramente ajenos al negocio (programación, tareas, etc.)
+        if (isOutOfScopeQuery(norm)) {
+            String reply = "¡Hola! Con mucho gusto te atiendo, pero soy el asesor virtual de " + tenant.name()
+                    + " y únicamente puedo ayudarte con consultas sobre nuestro catálogo de muebles, productos para el hogar y pedidos en Honduras 😊 ¿Te gustaría ver nuestros modelos disponibles o cotizar algún producto?";
+            return new AssistantDecision(reply, session.getStep(), null, false, false, false, null);
+        }
+
         if (!isConfigured()) {
             log.debug("OPENAI_API_KEY no configurada; utilizando motor conversacional integrado de respaldo.");
             return fallbackDecision(tenant, catalog, rules, customerOrders, session, incomingMessage);
@@ -242,6 +252,19 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         sb.append(
                 """
                         === REGLAS SUPREMAS DE CONVERSACIÓN, TONO Y VENTAS ===
+                        0. LÍMITE ESTRICTO DE NEGOCIO Y GUARDRAIL (TOTALMENTE PROHIBIDO SALIRSE DEL GIRO):
+                           - Eres EXCLUSIVAMENTE el asesor de ventas y atención al cliente de SMAK en Honduras.
+                           - Tu ÚNICO propósito es atender consultas sobre nuestro catálogo de muebles, productos para el hogar/oficina, envíos por Cargo Expreso, formas de pago y pedidos.
+                           - ESTÁ TOTALMENTE PROHIBIDO responder preguntas de:
+                             * Programación, software o tecnología general (ej. "¿Qué es Python?", Java, código, bugs, etc.).
+                             * Tareas escolares, matemáticas, ciencia, historia, geografía o cultura general ajena al negocio.
+                             * Política, religión, noticias, chistes, recetas de cocina externas o temas personales.
+                           - SI EL CLIENTE PREGUNTA CUALQUIER TEMA FUERA DEL NEGOCIO (ej. "definición de Python", "qué es Python", "quién descubrió América", "ayuda con mi tarea", "hazme un poema", etc.):
+                             * NUNCA respondas a su pregunta ni expliques el tema ajeno. NUNCA des definiciones ni código.
+                             * Declina amablemente en 1 o 2 líneas y reconduce al catálogo de SMAK:
+                               "¡Hola! Con mucho gusto te atiendo, pero soy el asesor virtual de SMAK y únicamente puedo ayudarte con nuestro catálogo de muebles, artículos para el hogar y pedidos en Honduras 😊 ¿Te gustaría ver nuestros modelos disponibles o cotizar algún producto?"
+                             * `nextStep` = "IDLE", `selectedSku` = null, `sendProductPhotos` = false, `sendAllPhotos` = false.
+
                         1. TONO ULTRA DIRECTO, CONCISO Y HUMANO (ESTILO WHATSAPP):
                            - Mensajes breves de 2 a 3 líneas MÁXIMO. Directo al grano, sin rodeos, sin introducciones largas ni textos pesados.
                            - PROHIBIDO enviar listas numeradas de preguntas o formularios largos (ej. NUNCA pidas "1. Nombre, 2. Cantidad, 3. Dirección...").
@@ -733,6 +756,27 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 "Escribe *Confirmar* cuando estés listo para finalizar tu pedido de *" + c.productName + "*.";
             default -> "";
         };
+    }
+
+    private boolean isOutOfScopeQuery(String norm) {
+        if (norm == null || norm.isBlank()) {
+            return false;
+        }
+        // Si contiene términos clave del negocio, catálogo o logística de SMAK, no es fuera de ámbito
+        if (containsAny(norm, "silla", "sillon", "banco", "taburete", "mesa", "escritorio", "mueble", "fregadero",
+                "pileta", "lavatrastos", "grifo", "llave", "monocomando", "closet", "perchero", "escalera",
+                "hamaca", "carro", "diablo", "bici", "bicicleta", "ruedas", "precio", "cuanto vale", "envio",
+                "cargo expreso", "pago", "contra entrega", "transferencia", "roatan", "guia", "pedido", "orden",
+                "comprar", "apartar", "catalogo", "smak", "garantia", "cuanto mide", "dimension", "colores", "foto")) {
+            return false;
+        }
+        // Temas obvios fuera de dominio: programación, tareas, cultura general, etc.
+        return containsAny(norm,
+                "python", "javascript", "typescript", "c++", "java spring", "html", "css", "sql injection",
+                "programacion", "programar", "codigo fuente", "software", "framework", "algoritmo",
+                "definicion de", "que significa", "que es un ", "que es una ", "quien fue", "quien es el",
+                "tarea de", "matematicas", "ecuacion", "raiz cuadrada", "hazme un poema", "cuentame un chiste",
+                "receta de", "pronostico del tiempo", "clima en", "chatgpt", "openai");
     }
 
     private boolean isInformationalQuestion(String norm) {
