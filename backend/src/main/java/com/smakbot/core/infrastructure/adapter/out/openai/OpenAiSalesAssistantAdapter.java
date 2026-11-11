@@ -303,6 +303,17 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                              ¿Confirmamos el pedido para mandártelo hoy?" (paso `CONFIRM`).
                            - Solo pon `confirmOrderNow = true` cuando el cliente confirme explícitamente ("Confirmar", "Sí", "Dale viaje", "Mándelo").
                            - Si pide humano/asesor, pon `nextStep = "HUMAN"`.
+
+                        6. VALIDACIÓN ESTRICTA DE INVENTARIO Y CANTIDAD (PROHIBIDO VENDER SIN STOCK):
+                           - Revisa SIEMPRE el `Stock: X disponibles` del producto seleccionado en la lista "CATÁLOGO OFICIAL EN TIEMPO REAL".
+                           - Si el producto tiene `Stock: AGOTADO (0 uds)`:
+                             * PROHIBIDO iniciar toma de pedido o pedir datos de envío. Informa de inmediato que está temporalmente agotado y ofrece una alternativa disponible.
+                           - Si el cliente solicita MÁS unidades de las disponibles en catálogo (por ejemplo: solicita 3 unidades pero en catálogo solo hay 2 disponibles):
+                             * ESTÁ TERMINANTEMENTE PROHIBIDO aceptar esa cantidad o avanzar a pedir dirección / confirmar orden.
+                             * NUNCA pongas `confirmOrderNow = true`.
+                             * Informa de inmediato en 2 líneas el stock real disponible y pregunta si desea apartar las unidades que quedan:
+                               "Fíjate que de momento solo nos quedan [X] unidades disponibles de este modelo 📦 ¿Te apartamos las [X] o prefieres ver otro modelo?"
+                             * Mantén `nextStep = "QUANTITY"`. En `draftUpdate.quantity` asigna el stock disponible o déjalo en espera de confirmación.
                         """);
 
         return sb.toString();
@@ -493,6 +504,15 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                         CheckoutStep.IDLE, activeProduct.sku(), false, false, false, null);
             }
             int qty = extractQuantity(norm, 1);
+            if (qty > activeProduct.stock()) {
+                DraftUpdate du = new DraftUpdate(activeProduct.sku(), activeProduct.stock(), null, null, null, null, null, null, null);
+                String txt = "Fíjate que de momento solo nos quedan *" + activeProduct.stock()
+                        + (activeProduct.stock() == 1 ? " unidad disponible*" : " unidades disponibles*")
+                        + " de *" + activeProduct.name() + "* (oferta *" + Money.lempiras(activeProduct.salePrice())
+                        + "* con envío gratis) 📦.\n\n¿Te apartamos las *" + activeProduct.stock()
+                        + "* disponibles? Si es así, ¿a qué nombre completo te la anotamos?";
+                return new AssistantDecision(txt, CheckoutStep.NAME, activeProduct.sku(), false, false, false, du);
+            }
             DraftUpdate du = new DraftUpdate(activeProduct.sku(), qty, null, null, null, null, null, null, null);
             String txt = "¡Sí, la tenemos disponible! 🎉 Su precio de oferta es de *"
                     + Money.lempiras(activeProduct.salePrice())
@@ -642,6 +662,20 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                             "Por favor indícanos en número cuántas unidades de *" + c.productName
                                     + "* deseas ordenar (ejemplo: *1* o *2*):",
                             CheckoutStep.QUANTITY, c.productSku, false, false, false, null);
+                }
+                if (activeProduct != null && q > activeProduct.stock()) {
+                    if (activeProduct.stock() <= 0) {
+                        return new AssistantDecision(
+                                "El modelo *" + activeProduct.name() + "* se encuentra temporalmente *agotado* 📦. ¿Te gustaría ver otro modelo similar disponible?",
+                                CheckoutStep.IDLE, activeProduct.sku(), false, true, false, null);
+                    }
+                    DraftUpdate du = new DraftUpdate(c.productSku, activeProduct.stock(), null, null, null, null, null, null, null);
+                    return new AssistantDecision(
+                            "Fíjate que de momento solo nos quedan *" + activeProduct.stock()
+                                    + (activeProduct.stock() == 1 ? " unidad disponible*" : " unidades disponibles*")
+                                    + " de *" + activeProduct.name() + "* 📦.\n\n¿Te apartamos las *" + activeProduct.stock()
+                                    + "* disponibles?",
+                            CheckoutStep.QUANTITY, c.productSku, false, false, false, du);
                 }
                 DraftUpdate du = new DraftUpdate(c.productSku, q, null, null, null, null, null, null, null);
                 return new AssistantDecision(

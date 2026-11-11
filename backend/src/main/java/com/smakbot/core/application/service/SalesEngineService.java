@@ -11,6 +11,7 @@ import com.smakbot.core.domain.ports.out.AiSalesAssistantPort.DraftUpdate;
 import com.smakbot.core.domain.ports.out.AiSalesAssistantPort.RuleContext;
 import com.smakbot.core.infrastructure.persistence.repository.SpringDataBotRuleRepository;
 import com.smakbot.core.infrastructure.persistence.repository.SpringDataCampaignRepository;
+import com.smakbot.core.infrastructure.persistence.repository.SpringDataSynonymRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -42,6 +44,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
     private final AiSalesAssistantPort aiAssistant;
     private final SpringDataBotRuleRepository botRuleRepo;
     private final SpringDataCampaignRepository campaignRepo;
+    private final SpringDataSynonymRepository synonymRepo;
 
     @Autowired
     public SalesEngineService(
@@ -51,7 +54,8 @@ public class SalesEngineService implements ProcessMessageUseCase {
             ChatSessionRepositoryPort sessionRepo,
             AiSalesAssistantPort aiAssistant,
             SpringDataBotRuleRepository botRuleRepo,
-            SpringDataCampaignRepository campaignRepo
+            SpringDataCampaignRepository campaignRepo,
+            SpringDataSynonymRepository synonymRepo
     ) {
         this.tenantRepo = tenantRepo;
         this.productRepo = productRepo;
@@ -60,6 +64,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         this.aiAssistant = aiAssistant;
         this.botRuleRepo = botRuleRepo;
         this.campaignRepo = campaignRepo;
+        this.synonymRepo = synonymRepo;
     }
 
     /**
@@ -72,7 +77,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
             ChatSessionRepositoryPort sessionRepo,
             AiSalesAssistantPort aiAssistant
     ) {
-        this(tenantRepo, productRepo, orderRepo, sessionRepo, aiAssistant, null, null);
+        this(tenantRepo, productRepo, orderRepo, sessionRepo, aiAssistant, null, null, null);
     }
 
     @Override
@@ -174,24 +179,76 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         String replyText = decision.replyText() != null ? decision.replyText() : "";
 
-        // 8. Confirmación formal de pedido en Base de Datos
+        // Blindaje estricto de inventario en tiempo real: validar que la cantidad no supere el stock disponible
+        if (selectedProduct != null && session.inCheckout()) {
+            int currentStock = selectedProduct.stock();
+            CheckoutDraft draft = session.getCheckout();
+            if (draft != null && draft.quantity > currentStock) {
+                if (currentStock <= 0) {
+                    replyText = "Fíjate que el modelo *" + selectedProduct.name()
+                            + "* se encuentra temporalmente *agotado* 📦. ¿Te gustaría que te muestre otro modelo similar disponible?";
+                    session.setStep(CheckoutStep.IDLE);
+                    session.setCheckout(null);
+                    nextStep = CheckoutStep.IDLE;
+                } else {
+                    replyText = "Fíjate que de momento solo nos quedan *" + currentStock
+                            + (currentStock == 1 ? " unidad disponible*" : " unidades disponibles*")
+                            + " de *" + selectedProduct.name() + "* 📦.\n\n¿Te apartamos las *" + currentStock
+                            + "* disponibles o prefieres ver otro modelo?";
+                    draft.quantity = currentStock;
+                    draft.quantityLabel = currentStock + (currentStock == 1 ? " unidad" : " unidades");
+                    draft.recalculate();
+                    session.setStep(CheckoutStep.QUANTITY);
+                    nextStep = CheckoutStep.QUANTITY;
+                }
+            }
+        }
+
+        // 8. Confirmación formal de pedido en Base de Datos con validación y descuento de inventario
         Order confirmedOrder = null;
         if (decision.confirmOrderNow()) {
             CheckoutDraft draft = ensureDraftForConfirmation(session, decision.draftUpdate(), selectedProduct, catalog, tenant);
             if (draft != null && draft.productSku != null) {
-                if (draft.orderNumber == null || draft.orderNumber.isBlank() || orderRepo.existsByOrderNumber(draft.orderNumber)) {
-                    draft.orderNumber = generateOrderNumber(tenant);
-                }
-                Order orderToSave = Order.fromDraft(tenantId, draft);
-                confirmedOrder = orderRepo.save(orderToSave);
-                session.completeCheckout(confirmedOrder.orderNumber());
-                nextStep = CheckoutStep.IDLE;
+                Product currentProd = resolveProductBySku(draft.productSku, catalog).orElse(selectedProduct);
+                if (currentProd != null && currentProd.stock() <= 0) {
+                    replyText = "Lo sentimos mucho. El modelo *" + currentProd.name()
+                            + "* se encuentra temporalmente agotado 📦. ¿Te gustaría ver otro modelo similar?";
+                    session.setStep(CheckoutStep.IDLE);
+                    session.setCheckout(null);
+                    nextStep = CheckoutStep.IDLE;
+                } else if (currentProd != null && draft.quantity > currentProd.stock()) {
+                    replyText = "Fíjate que de momento solo nos quedan *" + currentProd.stock()
+                            + (currentProd.stock() == 1 ? " unidad disponible*" : " unidades disponibles*")
+                            + " de *" + currentProd.name() + "* 📦.\n\n¿Confirmamos tu orden por las *" + currentProd.stock()
+                            + "* unidades disponibles?";
+                    draft.quantity = currentProd.stock();
+                    draft.quantityLabel = currentProd.stock() + (currentProd.stock() == 1 ? " unidad" : " unidades");
+                    draft.recalculate();
+                    session.setStep(CheckoutStep.CONFIRM);
+                    nextStep = CheckoutStep.CONFIRM;
+                } else {
+                    if (draft.orderNumber == null || draft.orderNumber.isBlank() || orderRepo.existsByOrderNumber(draft.orderNumber)) {
+                        draft.orderNumber = generateOrderNumber(tenant);
+                    }
+                    Order orderToSave = Order.fromDraft(tenantId, draft);
+                    confirmedOrder = orderRepo.save(orderToSave);
 
-                if (!replyText.contains(confirmedOrder.orderNumber())) {
-                    replyText = "¡Muchas gracias, *" + draft.effectiveRecipient() + "*! 🎉 Tu pedido *" + confirmedOrder.orderNumber()
-                            + "* (" + draft.effectiveQuantityLabel() + " de *" + draft.productName + "* — Total: *"
-                            + Money.lempiras(confirmedOrder.total()) + "*) ha quedado formalmente registrado en *" + tenant.name() + "*.\n\n"
-                            + "🚚 *Próximos pasos:* Estamos preparando tu paquete para despacho vía *Cargo Expreso* (1 a 2 días hábiles, envío 100% GRATIS). El repartidor se contactará antes de llegar para coordinar la entrega en tu puerta. ¡Gracias por tu confianza!";
+                    // Descontar inventario en tiempo real en la Base de Datos
+                    if (currentProd != null) {
+                        int remainingStock = Math.max(0, currentProd.stock() - draft.quantity);
+                        Product updatedProd = currentProd.withStock(remainingStock);
+                        productRepo.save(updatedProd);
+                    }
+
+                    session.completeCheckout(confirmedOrder.orderNumber());
+                    nextStep = CheckoutStep.IDLE;
+
+                    if (!replyText.contains(confirmedOrder.orderNumber())) {
+                        replyText = "¡Muchas gracias, *" + draft.effectiveRecipient() + "*! 🎉 Tu pedido *" + confirmedOrder.orderNumber()
+                                + "* (" + draft.effectiveQuantityLabel() + " de *" + draft.productName + "* — Total: *"
+                                + Money.lempiras(confirmedOrder.total()) + "*) ha quedado formalmente registrado en *" + tenant.name() + "*.\n\n"
+                                + "🚚 *Próximos pasos:* Estamos preparando tu paquete para despacho vía *Cargo Expreso* (1 a 2 días hábiles, envío 100% GRATIS). El repartidor se contactará antes de llegar para coordinar la entrega en tu puerta. ¡Gracias por tu confianza!";
+                    }
                 }
             }
         }
@@ -365,17 +422,40 @@ public class SalesEngineService implements ProcessMessageUseCase {
     }
 
     private List<RuleContext> loadActiveRules(String tenantId) {
-        if (botRuleRepo == null) {
-            return Collections.emptyList();
+        List<RuleContext> result = new ArrayList<>();
+        if (botRuleRepo != null) {
+            try {
+                botRuleRepo.findByTenantIdOrderByCreatedAtAsc(tenantId).stream()
+                        .filter(r -> Boolean.TRUE.equals(r.getEnabled()))
+                        .forEach(r -> {
+                            String resp = r.getResponse();
+                            if (resp == null || resp.isBlank()) {
+                                resp = r.getResponseInStock();
+                            }
+                            if (resp != null && !resp.isBlank()) {
+                                result.add(new RuleContext(r.getName(), r.getCategory(), resp));
+                            }
+                        });
+            } catch (Exception e) {
+                // ignore
+            }
         }
-        try {
-            return botRuleRepo.findByTenantIdOrderByCreatedAtAsc(tenantId).stream()
-                    .filter(r -> Boolean.TRUE.equals(r.getEnabled()))
-                    .map(r -> new RuleContext(r.getName(), r.getCategory(), r.getResponse()))
-                    .toList();
-        } catch (Exception e) {
-            return Collections.emptyList();
+        if (synonymRepo != null) {
+            try {
+                synonymRepo.findByTenantIdOrderByConceptAsc(tenantId).forEach(s -> {
+                    if (s.getWords() != null && !s.getWords().isEmpty()) {
+                        result.add(new RuleContext(
+                                s.getConcept(),
+                                "Sinónimos y Términos Equivalentes",
+                                "Términos o sinónimos usados por clientes: " + String.join(", ", s.getWords())
+                        ));
+                    }
+                });
+            } catch (Exception e) {
+                // ignore
+            }
         }
+        return result;
     }
 
     private List<CampaignContext> loadActiveCampaigns(String tenantId) {

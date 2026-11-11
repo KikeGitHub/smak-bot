@@ -50,4 +50,9 @@ public record Product(
     public List<String> firstImages(int n) {
         return images.subList(0, Math.min(n, images.size()));
     }
+
+    public Product withStock(int newStock) {
+        return new Product(id, tenantId, sku, name, description, regularPrice, salePrice,
+                Math.max(0, newStock), dimensions, weightLimit, colors, category, keywords, images, active);
+    }
 }
