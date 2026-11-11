@@ -416,8 +416,16 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (sku == null || sku.isBlank()) {
             return Optional.empty();
         }
+        String cleanSku = sku.trim();
+        Optional<Product> exact = catalog.stream()
+                .filter(p -> p.sku().equalsIgnoreCase(cleanSku))
+                .findFirst();
+        if (exact.isPresent()) {
+            return exact;
+        }
         return catalog.stream()
-                .filter(p -> p.sku().equalsIgnoreCase(sku.trim()))
+                .filter(p -> p.keywords() != null && p.keywords().stream()
+                        .anyMatch(kw -> kw != null && kw.equalsIgnoreCase(cleanSku)))
                 .findFirst();
     }
 

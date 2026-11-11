@@ -269,16 +269,16 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                            - Mensajes breves de 2 a 3 líneas MÁXIMO. Directo al grano, sin rodeos, sin introducciones largas ni textos pesados.
                            - PROHIBIDO enviar listas numeradas de preguntas o formularios largos (ej. NUNCA pidas "1. Nombre, 2. Cantidad, 3. Dirección...").
                            - Si el cliente envía una imagen o dice "kiero esta", "quiero una", "precio", "tienen?":
-                             Confirma disponibilidad de inmediato + Precio con envío gratis + 1 sola pregunta para iniciar el pedido.
-                             Ejemplo: "¡Sí, la tenemos disponible! 🎉 Su precio de oferta es de L.995 con envío gratis y pagas al recibir. Para apartar la tuya, ¿cuál es tu nombre completo?"
+                             Confirma disponibilidad de inmediato + Precio real del catálogo con envío gratis + 1 sola pregunta para iniciar el pedido.
+                             Ejemplo: "¡Sí, la tenemos disponible! 🎉 Su precio de oferta es de [Precio real del catálogo] con envío gratis y pagas al recibir. Para apartar la tuya, ¿cuál es tu nombre completo?"
                            - PROHIBIDO ofrecer otros productos o dar un menú largo si el cliente ya eligió uno. Céntrate 100% en cerrar la venta del producto que él quiere.
                            - PROHIBIDO sonar a bot ("Lamentablemente...", "Como modelo de lenguaje...", "En SMAK nos enfocamos...", "Disculpe las molestias...").
 
                         2. CATÁLOGO REAL ES TU VERDAD ABSOLUTA (REVISA ANTES DE RESPONDER):
                            - Todo producto que aparezca en la lista "CATÁLOGO OFICIAL EN TIEMPO REAL" de arriba es un producto activo que SÍ vendes y que tienes para entrega inmediata con envío gratis a toda Honduras.
-                           - Si el cliente pregunta por "bicicleta", "bici", "silla", "ezry", "ezry123", "pileta", "lavabo", "estante", etc., revisa tu lista de catálogo: si ves un producto coincidente, respóndele DE INMEDIATO con entusiasmo que SÍ lo tienes, dale el precio de oferta y unidades disponibles.
+                           - Si el cliente pregunta por "silla", "ezry", "ezry123", "pileta", "fregadero", "lavatrastos", "escritorio", "mesa", "taburete", "grifo", etc., revisa tu lista de catálogo y sinónimos: si ves un producto coincidente, respóndele DE INMEDIATO con entusiasmo que SÍ lo tienes, dale el precio real de oferta y unidades disponibles.
                            - NUNCA digas que no vendes un producto si dicho producto o algo equivalente está en tu catálogo.
-                           - Solo si tras revisar detalladamente todo tu catálogo confirmas que NO existe, responde con calidez humana en 2 líneas: "Fíjate que de momento no nos han entrado bicicletas para adulto, solo tenemos la Bicicleta Infantil Rosa Rin 14 😊 ¿Te gustaría ver esa o qué otro artículo buscas?".
+                           - Solo si tras revisar detalladamente todo tu catálogo confirmas que NO existe un producto que coincida (por ejemplo bicicletas, sofás grandes u otros artículos no listados), responde con calidez humana en 2 líneas que de momento no manejamos ese producto y pregúntale qué otro artículo del catálogo busca.
 
                         3. FOTOS DEL PRODUCTO:
                            - Al presentar un producto o si el cliente pregunta por primera vez sobre él, pon `sendProductPhotos = true` y `sendAllPhotos = false` (el sistema enviará 1 foto principal).
@@ -874,7 +874,15 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
     private Product resolveBySku(String sku, List<Product> catalog) {
         if (sku == null || sku.isBlank())
             return null;
-        return catalog.stream().filter(p -> sku.equalsIgnoreCase(p.sku())).findFirst().orElse(null);
+        String cleanSku = sku.trim();
+        return catalog.stream()
+                .filter(p -> cleanSku.equalsIgnoreCase(p.sku()))
+                .findFirst()
+                .orElseGet(() -> catalog.stream()
+                        .filter(p -> p.keywords() != null && p.keywords().stream()
+                                .anyMatch(kw -> kw != null && kw.equalsIgnoreCase(cleanSku)))
+                        .findFirst()
+                        .orElse(null));
     }
 
     private int extractQuantity(String norm, int defaultVal) {

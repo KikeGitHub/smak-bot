@@ -359,4 +359,39 @@ class SalesEngineServiceTest {
         assertTrue(r3.text().contains("Bienvenido") || r3.text().contains("modelos"),
                 "Debe mostrar el menú de bienvenida al escribir menu");
     }
+
+    @Test
+    @DisplayName("Debe resolver SKU promocional/variante mediante keywords (ej. EZRY123 -> SKM-935-NE)")
+    void testAliasSkuResolutionThroughKeywords() {
+        Product ezriChair = new Product(
+                UUID.randomUUID(),
+                "tenant-hn-muebles",
+                "SKM-935-NE",
+                "Silla Ejecutiva Ezri Smak Office",
+                "Silla ejecutiva de malla transpirable",
+                new BigDecimal("2100.00"),
+                new BigDecimal("1790.00"),
+                80,
+                "47 × 92 cm",
+                "120 kg",
+                "Negro",
+                "Sillas y Bancos",
+                List.of("silla", "ezri", "ezry123", "skm-935-ne"),
+                List.of("https://static.wixstatic.com/media/f6ccd1_e2137f01d32144a9bb12852795b7166c~mv2.png"),
+                true
+        );
+        when(productRepo.findActiveByTenant("tenant-hn-muebles")).thenReturn(List.of(ezriChair));
+
+        BotReply reply = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles",
+                Channel.WHATSAPP,
+                "sess-alias-ezry-" + UUID.randomUUID(),
+                "Quiero esta EZRY123",
+                null
+        ));
+
+        assertNotNull(reply.product());
+        assertEquals("SKM-935-NE", reply.product().sku());
+        assertEquals(CheckoutStep.NAME, reply.step());
+    }
 }

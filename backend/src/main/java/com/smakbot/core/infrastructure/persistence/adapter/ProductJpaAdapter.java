@@ -9,12 +9,15 @@ import com.smakbot.core.infrastructure.persistence.repository.SpringDataProductR
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -37,6 +40,19 @@ public class ProductJpaAdapter implements ProductRepositoryPort {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.catalogTtl = Duration.ofMinutes(catalogTtlMinutes);
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void evictCatalogCacheOnStartup() {
+        try {
+            Set<String> keys = redisTemplate.keys(KEY_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.info("Caché Redis de catálogos limpiada al iniciar ({} claves)", keys.size());
+            }
+        } catch (Exception ex) {
+            log.warn("No se pudo limpiar caché de catálogos al iniciar: {}", ex.getMessage());
+        }
     }
 
     @Override
