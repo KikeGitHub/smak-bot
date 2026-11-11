@@ -405,8 +405,10 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         String raw = incomingMessage.text() != null ? incomingMessage.text().trim() : "";
         String norm = normalize(raw);
 
-        // 1. Solicitud explícita de humano
-        if (containsAny(norm, "asesor", "humano", "persona", "ejecutivo", "agente", "operador")) {
+        // 1. Solicitud explícita de humano (evitar colisión con "Sillón/Escritorio Ejecutivo")
+        if (containsAny(norm, "asesor", "asesora", "humano", "humana", "hablar con alguien",
+                "con una persona", "persona real", "un ejecutivo", "ejecutivo de ventas", "ejecutivo comercial",
+                "agente humano", "operador")) {
             String text = "Para brindarte una mejor atención, voy a transferir tu consulta directamente con un ejecutivo comercial de *"
                     + tenant.name()
                     + "* por este mismo chat. Un miembro del equipo te responderá en breve. ¡Gracias por tu paciencia! 🙌";

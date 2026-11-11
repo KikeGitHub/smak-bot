@@ -303,7 +303,7 @@ class SalesEngineServiceTest {
                 "tenant-hn-muebles", Channel.WHATSAPP, customerId, "mejor no , quiero otro modelo", null
         ));
         assertEquals(CheckoutStep.IDLE, rSwitch.step(), "Debe cancelar el checkout anterior");
-        assertNotNull(rSwitch.product(), "rSwitch.product was null! replyText=" + rSwitch.text());
+        assertNotNull(rSwitch.product(), "Debe proponer el nuevo producto alternativo");
         assertNotEquals("SKM-959-CA-NE", rSwitch.product().sku(), "Debe cambiar el producto activo a otro modelo");
         String newProductName = rSwitch.product().name();
 
