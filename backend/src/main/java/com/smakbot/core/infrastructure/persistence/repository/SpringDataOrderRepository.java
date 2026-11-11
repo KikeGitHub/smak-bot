@@ -19,4 +19,20 @@ public interface SpringDataOrderRepository extends JpaRepository<OrderEntity, UU
 
     @Query("SELECT o FROM OrderEntity o WHERE o.tenantId = :tenantId AND (UPPER(o.orderNumber) = UPPER(:code) OR UPPER(o.trackingNumber) = UPPER(:code))")
     Optional<OrderEntity> findByTenantIdAndNumberOrTracking(@Param("tenantId") String tenantId, @Param("code") String code);
+
+    @Query("""
+           SELECT o FROM OrderEntity o
+           WHERE o.tenantId = :tenantId
+             AND (
+                 (:sourceSessionId <> '' AND o.sourceSessionId = :sourceSessionId)
+                 OR (:phoneSuffix <> '' AND LENGTH(:phoneSuffix) >= 8
+                     AND REPLACE(REPLACE(REPLACE(COALESCE(o.customerPhone, ''), '-', ''), ' ', ''), '+', '') LIKE CONCAT('%', :phoneSuffix))
+             )
+           ORDER BY o.createdAt DESC
+           """)
+    List<OrderEntity> findRecentForCustomer(
+            @Param("tenantId") String tenantId,
+            @Param("sourceSessionId") String sourceSessionId,
+            @Param("phoneSuffix") String phoneSuffix
+    );
 }

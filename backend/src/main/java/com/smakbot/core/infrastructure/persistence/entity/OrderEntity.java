@@ -1,8 +1,14 @@
 package com.smakbot.core.infrastructure.persistence.entity;
 
+import com.smakbot.core.domain.model.OrderAuditEvent;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -70,6 +76,28 @@ public class OrderEntity {
     @Column(name = "tracking_carrier", length = 80)
     private String trackingCarrier = "Cargo Expreso";
 
+    @Column(name = "source_channel", length = 30)
+    private String sourceChannel = "WEB";
+
+    @Column(name = "source_session_id", length = 150)
+    private String sourceSessionId;
+
+    @Column(name = "client_ip", length = 80)
+    private String clientIp;
+
+    @Column(name = "cancellation_reason", columnDefinition = "TEXT")
+    private String cancellationReason;
+
+    @Column(name = "cancelled_by", length = 50)
+    private String cancelledBy;
+
+    @Column(name = "cancelled_at")
+    private OffsetDateTime cancelledAt;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "audit_history", columnDefinition = "jsonb")
+    private List<OrderAuditEvent> auditHistory = new ArrayList<>();
+
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
@@ -127,6 +155,20 @@ public class OrderEntity {
     public void setTrackingNumber(String trackingNumber) { this.trackingNumber = trackingNumber; }
     public String getTrackingCarrier() { return trackingCarrier; }
     public void setTrackingCarrier(String trackingCarrier) { this.trackingCarrier = trackingCarrier; }
+    public String getSourceChannel() { return sourceChannel; }
+    public void setSourceChannel(String sourceChannel) { this.sourceChannel = sourceChannel; }
+    public String getSourceSessionId() { return sourceSessionId; }
+    public void setSourceSessionId(String sourceSessionId) { this.sourceSessionId = sourceSessionId; }
+    public String getClientIp() { return clientIp; }
+    public void setClientIp(String clientIp) { this.clientIp = clientIp; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+    public String getCancelledBy() { return cancelledBy; }
+    public void setCancelledBy(String cancelledBy) { this.cancelledBy = cancelledBy; }
+    public OffsetDateTime getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(OffsetDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+    public List<OrderAuditEvent> getAuditHistory() { return auditHistory; }
+    public void setAuditHistory(List<OrderAuditEvent> auditHistory) { this.auditHistory = auditHistory; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }

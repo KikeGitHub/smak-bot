@@ -33,7 +33,7 @@ public class AdminOrderController {
 
     @GetMapping
     @Operation(summary = "Listar pedidos del tenant",
-               description = "Obtiene los pedidos registrados para el tablero Kanban administrativo")
+               description = "Obtiene los pedidos registrados en PostgreSQL para el panel administrativo")
     public ResponseEntity<List<AdminOrderDto>> listOrders(
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "tenant-hn-muebles") String tenantId) {
 
@@ -43,8 +43,8 @@ public class AdminOrderController {
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "Actualizar estado y guía de envío de pedido",
-               description = "Permite cambiar el estado de la orden y asignar el número de guía de Cargo Expreso")
+    @Operation(summary = "Actualizar estado, guía o cancelación de pedido",
+               description = "Permite cambiar el estado de la orden, asignar número de guía CAEX o registrar cancelación con motivo")
     public ResponseEntity<AdminOrderDto> updateStatus(
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "tenant-hn-muebles") String tenantId,
             @PathVariable("id") UUID id,
@@ -64,7 +64,8 @@ public class AdminOrderController {
                 id,
                 newStatus,
                 request.getTrackingNumber(),
-                request.getTrackingCarrier()
+                request.getTrackingCarrier(),
+                request.getCancellationReason()
         );
 
         return ResponseEntity.ok(mapToDto(updated));
@@ -92,7 +93,23 @@ public class AdminOrderController {
         dto.setBusinessName(o.businessName());
         dto.setTrackingNumber(o.trackingNumber());
         dto.setTrackingCarrier(o.trackingCarrier());
+        dto.setSourceChannel(o.sourceChannel());
+        dto.setSourceSessionId(o.sourceSessionId());
+        dto.setClientIp(o.clientIp());
+        dto.setCancellationReason(o.cancellationReason());
+        dto.setCancelledBy(o.cancelledBy());
+        dto.setCancelledAt(o.cancelledAt() != null ? o.cancelledAt().toInstant() : null);
         dto.setCreatedAt(o.createdAt() != null ? o.createdAt().toInstant() : null);
+
+        String sourceLabel = (o.sourceChannel() != null ? o.sourceChannel() : "WEB")
+                + (o.sourceSessionId() != null && !o.sourceSessionId().isBlank() ? " (" + o.sourceSessionId() + ")" : "");
+        dto.setAudit(new AdminOrderDto.AuditDto(
+                o.clientIp() != null ? o.clientIp() : "No registrada",
+                o.sourceSessionId(),
+                sourceLabel,
+                o.createdAt() != null ? o.createdAt().toInstant() : null,
+                o.auditHistory()
+        ));
         return dto;
     }
 }

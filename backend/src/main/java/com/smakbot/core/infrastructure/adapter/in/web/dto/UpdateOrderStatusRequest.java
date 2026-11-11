@@ -8,6 +8,7 @@ public class UpdateOrderStatusRequest {
     private String status;
     private String trackingNumber;
     private String trackingCarrier;
+    private String cancellationReason;
 
     public UpdateOrderStatusRequest() {}
 
@@ -17,4 +18,6 @@ public class UpdateOrderStatusRequest {
     public void setTrackingNumber(String trackingNumber) { this.trackingNumber = trackingNumber; }
     public String getTrackingCarrier() { return trackingCarrier; }
     public void setTrackingCarrier(String trackingCarrier) { this.trackingCarrier = trackingCarrier; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
 }

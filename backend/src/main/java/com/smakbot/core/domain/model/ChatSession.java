@@ -18,6 +18,7 @@ public class ChatSession {
     private CheckoutStep step = CheckoutStep.IDLE;
     private String selectedSku;
     private String lastOrderNumber;
+    private String pendingCancelOrderNumber;
     private CheckoutDraft checkout;
     private OffsetDateTime lastInteraction;
     private String activeCategory;
@@ -53,6 +54,7 @@ public class ChatSession {
     public void reset() {
         this.step = CheckoutStep.IDLE;
         this.selectedSku = null;
+        this.pendingCancelOrderNumber = null;
         this.checkout = null;
         this.activeCategory = null;
         this.offeredSkus.clear();
@@ -99,6 +101,8 @@ public class ChatSession {
     public void setSelectedSku(String selectedSku) { this.selectedSku = selectedSku; }
     public String getLastOrderNumber() { return lastOrderNumber; }
     public void setLastOrderNumber(String lastOrderNumber) { this.lastOrderNumber = lastOrderNumber; }
+    public String getPendingCancelOrderNumber() { return pendingCancelOrderNumber; }
+    public void setPendingCancelOrderNumber(String pendingCancelOrderNumber) { this.pendingCancelOrderNumber = pendingCancelOrderNumber; }
     public CheckoutDraft getCheckout() { return checkout; }
     public void setCheckout(CheckoutDraft checkout) { this.checkout = checkout; }
     public OffsetDateTime getLastInteraction() { return lastInteraction; }

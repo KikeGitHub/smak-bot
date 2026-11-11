@@ -228,7 +228,8 @@ public class WhatsAppWebhookController {
                 Channel.WHATSAPP,
                 from,
                 messageText,
-                location
+                location,
+                "Meta WhatsApp Cloud API"
         );
 
         try {

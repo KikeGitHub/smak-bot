@@ -20,6 +20,8 @@ public class OrderTrackingResponse {
     private String trackingNumber;
     private String trackingCarrier;
     private String gpsMapUrl;
+    private String cancellationReason;
+    private Instant cancelledAt;
     private Instant createdAt;
 
     public OrderTrackingResponse() {
@@ -63,6 +65,12 @@ public class OrderTrackingResponse {
 
     public String getGpsMapUrl() { return gpsMapUrl; }
     public void setGpsMapUrl(String gpsMapUrl) { this.gpsMapUrl = gpsMapUrl; }
+
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+
+    public Instant getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(Instant cancelledAt) { this.cancelledAt = cancelledAt; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

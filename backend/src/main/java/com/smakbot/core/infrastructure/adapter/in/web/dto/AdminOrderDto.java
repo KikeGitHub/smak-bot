@@ -1,8 +1,11 @@
 package com.smakbot.core.infrastructure.adapter.in.web.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.smakbot.core.domain.model.OrderAuditEvent;
+
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -28,9 +31,46 @@ public class AdminOrderDto {
     private String businessName;
     private String trackingNumber;
     private String trackingCarrier;
+    private String sourceChannel;
+    private String sourceSessionId;
+    private String clientIp;
+    private String cancellationReason;
+    private String cancelledBy;
+    private Instant cancelledAt;
+    private AuditDto audit;
     private Instant createdAt;
 
     public AdminOrderDto() {}
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class AuditDto {
+        private String ip;
+        private String userAgent;
+        private String source;
+        private Instant createdAt;
+        private List<OrderAuditEvent> history;
+
+        public AuditDto() {}
+
+        public AuditDto(String ip, String userAgent, String source, Instant createdAt, List<OrderAuditEvent> history) {
+            this.ip = ip;
+            this.userAgent = userAgent;
+            this.source = source;
+            this.createdAt = createdAt;
+            this.history = history;
+        }
+
+        public String getIp() { return ip; }
+        public void setIp(String ip) { this.ip = ip; }
+        public String getUserAgent() { return userAgent; }
+        public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
+        public String getSource() { return source; }
+        public void setSource(String source) { this.source = source; }
+        public Instant getCreatedAt() { return createdAt; }
+        public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+        public List<OrderAuditEvent> getHistory() { return history; }
+        public void setHistory(List<OrderAuditEvent> history) { this.history = history; }
+    }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -72,6 +112,20 @@ public class AdminOrderDto {
     public void setTrackingNumber(String trackingNumber) { this.trackingNumber = trackingNumber; }
     public String getTrackingCarrier() { return trackingCarrier; }
     public void setTrackingCarrier(String trackingCarrier) { this.trackingCarrier = trackingCarrier; }
+    public String getSourceChannel() { return sourceChannel; }
+    public void setSourceChannel(String sourceChannel) { this.sourceChannel = sourceChannel; }
+    public String getSourceSessionId() { return sourceSessionId; }
+    public void setSourceSessionId(String sourceSessionId) { this.sourceSessionId = sourceSessionId; }
+    public String getClientIp() { return clientIp; }
+    public void setClientIp(String clientIp) { this.clientIp = clientIp; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+    public String getCancelledBy() { return cancelledBy; }
+    public void setCancelledBy(String cancelledBy) { this.cancelledBy = cancelledBy; }
+    public Instant getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(Instant cancelledAt) { this.cancelledAt = cancelledAt; }
+    public AuditDto getAudit() { return audit; }
+    public void setAudit(AuditDto audit) { this.audit = audit; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

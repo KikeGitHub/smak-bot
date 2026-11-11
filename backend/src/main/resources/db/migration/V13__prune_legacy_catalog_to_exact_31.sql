@@ -93,3 +93,4 @@ WHERE tenant_id IN ('smak', 'tenant-hn-muebles')
   AND sku NOT IN (
     SELECT sku FROM products WHERE tenant_id = campaigns.tenant_id
   );
+

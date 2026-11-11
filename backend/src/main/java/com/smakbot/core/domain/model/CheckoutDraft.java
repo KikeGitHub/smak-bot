@@ -1,18 +1,21 @@
 package com.smakbot.core.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.math.BigDecimal;
 
 /**
  * Borrador de pedido mientras el cliente recorre el checkout conversacional.
- * Es un contenedor de estado mutable (equivalente a {@code this.checkout} del Oráculo) que se
- * serializa como JSON dentro de {@code chat_sessions.session_data}.
+ * Se serializa como JSON dentro de {@code chat_sessions.session_data} y Redis.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CheckoutDraft {
     public String orderNumber;
     public String productSku;
     public String productName;
     public BigDecimal unitPrice = BigDecimal.ZERO;
     public int quantity = 1;
+    public boolean quantityConfirmed = false;
     public String quantityLabel = "";
     public BigDecimal total = BigDecimal.ZERO;
     public String name = "";
@@ -22,16 +25,25 @@ public class CheckoutDraft {
     public String phone = "";
     public String postalCode;
     public GeoLocation location;
+    public boolean invoiceAnswered = false;
     public boolean requiresInvoice;
     public String rtn;
     public String businessName;
     public String pendingAlternativeProductSku;
 
     public static CheckoutDraft start(Product product, int quantity, String orderNumber) {
+        return start(product, quantity, orderNumber, quantity > 1);
+    }
+
+    public static CheckoutDraft start(Product product, int quantity, String orderNumber, boolean quantityExplicit) {
         CheckoutDraft d = new CheckoutDraft();
         d.orderNumber = orderNumber;
         d.applyProduct(product);
         d.quantity = Math.max(1, quantity);
+        d.quantityConfirmed = quantityExplicit;
+        if (quantityExplicit) {
+            d.quantityLabel = d.quantity + (d.quantity == 1 ? " unidad" : " unidades");
+        }
         d.recalculate();
         return d;
     }

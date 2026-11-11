@@ -749,6 +749,7 @@
                 <option value="PENDIENTE">🕒 Pendientes</option>
                 <option value="EN_CAMINO">🚚 En camino</option>
                 <option value="ENTREGADO">✓ Entregados</option>
+                <option value="CANCELADO">❌ Cancelados</option>
               </select>
             </div>
           </div>
@@ -785,9 +786,12 @@
                   <td class="td-order-code">
                     <div class="order-code">{{ o.orderNumber }}</div>
                     <div class="mt-1">
-                      <span class="badge" [ngClass]="{'badge-in-stock': o.status === 'ENTREGADO', 'badge-blue': o.status === 'EN_CAMINO', 'badge-amber': o.status === 'PENDIENTE'}">
-                        {{ o.status === 'EN_CAMINO' ? '🚚 En camino' : (o.status === 'ENTREGADO' ? '✓ Entregado' : '🕒 Pendiente') }}
+                      <span class="badge" [ngClass]="{'badge-in-stock': o.status === 'ENTREGADO', 'badge-blue': o.status === 'EN_CAMINO', 'badge-amber': o.status === 'PENDIENTE', 'badge-out-stock': o.status === 'CANCELADO'}">
+                        {{ o.status === 'EN_CAMINO' ? '🚚 En camino' : (o.status === 'ENTREGADO' ? '✓ Entregado' : (o.status === 'CANCELADO' ? '❌ Cancelado' : '🕒 Pendiente')) }}
                       </span>
+                    </div>
+                    <div *ngIf="o.cancellationReason" class="text-[11px] text-rose-700 mt-1 leading-tight">
+                      <strong>Motivo:</strong> {{ o.cancellationReason }}
                     </div>
                     <div class="order-date" *ngIf="o.createdAt">{{ o.createdAt | date:'short' }}</div>
                   </td>
@@ -805,10 +809,11 @@
                       {{ o.requiresInvoice ? '🧾 Sí (RTN)' : 'No' }}
                     </span>
                     <div *ngIf="o.rtn" class="rtn-label">RTN: {{ o.rtn }}</div>
+                    <div *ngIf="o.businessName" class="text-[11px] text-slate-600">{{ o.businessName }}</div>
                   </td>
                   <td class="td-address">
                     <div class="delivery-address-label">{{ o.deliveryAddress }}</div>
-                    <a *ngIf="o.location && o.location.mapUrl" [href]="o.location.mapUrl" target="_blank" class="gps-link">
+                    <a *ngIf="o.gpsMapUrl || (o.location && o.location.mapUrl)" [href]="o.gpsMapUrl || o.location?.mapUrl" target="_blank" class="gps-link">
                       📍 Ver GPS en Google Maps
                     </a>
                   </td>
@@ -1256,13 +1261,13 @@
   </div>
 </div>
 
-<!-- ==================== MODAL: DESPACHO CAEX ==================== -->
+<!-- ==================== MODAL: DESPACHO / ESTADO DE PEDIDO ==================== -->
 <div class="modal-backdrop" *ngIf="isDispatchModalOpen">
   <div class="modal-card">
     <div class="modal-header">
       <div>
-        <h3 class="modal-title">🚚 Guía de Rastreo y Despacho</h3>
-        <p class="modal-sub">Asigna la guía de envío y notifica automáticamente al cliente por WhatsApp.</p>
+        <h3 class="modal-title">🚚 Guía de Rastreo y Estado del Pedido</h3>
+        <p class="modal-sub">Actualiza manualmente la guía de envío, estatus o cancela el pedido con motivo registrado en BD.</p>
       </div>
       <button (click)="closeDispatchModal()" class="btn-close">✕</button>
     </div>
@@ -1279,10 +1284,20 @@
         <div><b>Dirección:</b> {{ selectedOrder.deliveryAddress }}</div>
       </div>
 
-      <div class="grid-2">
+      <label class="field">
+        <span class="field-label">Estado del Pedido <span class="required">*</span></span>
+        <select [(ngModel)]="newStatus" name="ordStatus" class="control font-semibold">
+          <option value="PENDIENTE">🕒 Pendiente de despacho</option>
+          <option value="EN_CAMINO">🚚 En camino (Con guía de rastreo)</option>
+          <option value="ENTREGADO">✓ Entregado con éxito</option>
+          <option value="CANCELADO">❌ Cancelado (Requiere motivo)</option>
+        </select>
+      </label>
+
+      <div class="grid-2" *ngIf="newStatus !== 'CANCELADO'">
         <label class="field">
-          <span class="field-label">Número de Guía / Tracking <span class="required">*</span></span>
-          <input [(ngModel)]="newTrackingNumber" name="trkNumber" required class="control font-mono font-bold uppercase text-indigo-700">
+          <span class="field-label">Número de Guía / Tracking</span>
+          <input [(ngModel)]="newTrackingNumber" name="trkNumber" class="control font-mono font-bold uppercase text-indigo-700">
         </label>
 
         <label class="field">
@@ -1296,15 +1311,22 @@
         </label>
       </div>
 
-      <label class="field">
-        <span class="field-label">Vista Previa del Mensaje para WhatsApp:</span>
+      <label class="field" *ngIf="newStatus === 'CANCELADO'">
+        <span class="field-label text-rose-700">Motivo de Cancelación <span class="required">*</span></span>
+        <textarea [(ngModel)]="newCancellationReason" name="cancelReason" rows="3" required
+                  placeholder="Ej: Cliente solicitó cancelación por cambio de modelo / Teléfono no contestó / Sin confirmación..."
+                  class="control text-xs"></textarea>
+      </label>
+
+      <label class="field" *ngIf="newStatus !== 'CANCELADO'">
+        <span class="field-label">Vista Previa del Mensaje para Cliente:</span>
         <textarea [value]="dispatchPreviewMessage" readonly rows="3" class="control bg-slate-50 text-xs resize-none"></textarea>
       </label>
 
       <div class="modal-actions">
-        <button (click)="closeDispatchModal()" type="button" class="btn-cancel">Cancelar</button>
-        <button type="submit" class="btn-primary btn-emerald">
-          <span>📲 Guardar y Notificar WhatsApp</span>
+        <button (click)="closeDispatchModal()" type="button" class="btn-cancel">Cerrar</button>
+        <button type="submit" class="btn-primary" [ngClass]="newStatus === 'CANCELADO' ? 'btn-danger' : 'btn-emerald'">
+          <span>{{ newStatus === 'CANCELADO' ? '❌ Confirmar Cancelación en BD' : '💾 Guardar Estado y Guía en BD' }}</span>
         </button>
       </div>
     </form>
@@ -1317,7 +1339,7 @@
     <div class="modal-header">
       <div>
         <h3 class="modal-title">🔍 Registro de Auditoría y Trazabilidad</h3>
-        <p class="modal-sub">Historial completo de eventos, origen y facturación del pedido.</p>
+        <p class="modal-sub">Datos reales persistidos en PostgreSQL (teléfono, origen, cancelación y eventos).</p>
       </div>
       <button (click)="closeAuditModal()" class="btn-close">✕</button>
     </div>
@@ -1326,12 +1348,19 @@
       <div class="audit-info-grid">
         <div><b>N° Orden:</b> {{ selectedAuditOrder.orderNumber }}</div>
         <div><b>Fecha:</b> {{ selectedAuditOrder.createdAt | date:'medium' }}</div>
-        <div><b>IP Cliente:</b> {{ selectedAuditOrder.audit?.ip || '190.92.112.45 (Tegucigalpa)' }}</div>
-        <div><b>Canal:</b> {{ selectedAuditOrder.audit?.source || 'whatsapp_bot' }}</div>
+        <div><b>Teléfono Cliente:</b> <span class="font-mono">{{ selectedAuditOrder.customerPhone }}</span></div>
+        <div><b>Canal:</b> {{ selectedAuditOrder.audit?.source || selectedAuditOrder.sourceChannel || 'WEB' }}</div>
+        <div><b>IP / Origen API:</b> {{ selectedAuditOrder.audit?.ip || selectedAuditOrder.clientIp || 'No registrada' }}</div>
+        <div><b>Estatus Actual:</b> {{ selectedAuditOrder.status }}</div>
+      </div>
+
+      <div *ngIf="selectedAuditOrder.status === 'CANCELADO' || selectedAuditOrder.cancellationReason" class="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs mt-3">
+        <div><b>❌ Pedido Cancelado</b> <span *ngIf="selectedAuditOrder.cancelledBy">por {{ selectedAuditOrder.cancelledBy }}</span> <span *ngIf="selectedAuditOrder.cancelledAt">({{ selectedAuditOrder.cancelledAt | date:'short' }})</span></div>
+        <div class="mt-1"><b>Motivo de Cancelación:</b> {{ selectedAuditOrder.cancellationReason || 'Sin motivo especificado' }}</div>
       </div>
 
       <div class="history-section mt-4">
-        <h4 class="history-title">Historial de Transición de Estados:</h4>
+        <h4 class="history-title">Historial Real de Auditoría y Transición de Estados:</h4>
         <div class="history-list">
           <div *ngFor="let h of selectedAuditOrder.audit?.history || []" class="history-item">
             <div class="history-bullet"></div>
@@ -1346,7 +1375,7 @@
             <div class="history-text">
               <span class="history-status">{{ selectedAuditOrder.status }}</span>
               <span class="history-date">{{ selectedAuditOrder.createdAt | date:'short' }}</span>
-              <p class="history-note">Pedido registrado con éxito.</p>
+              <p class="history-note">Pedido registrado en BD (Tel: {{ selectedAuditOrder.customerPhone }}).</p>
             </div>
           </div>
         </div>

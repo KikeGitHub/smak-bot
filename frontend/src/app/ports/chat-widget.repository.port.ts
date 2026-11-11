@@ -66,8 +66,8 @@ export interface ChatWidgetRepositoryPort {
   /** Listar pedidos registrados */
   listAdminOrders(tenantId: string): Observable<OrderDTO[]>;
 
-  /** Actualizar estado y asignar guía CAEX */
-  updateOrderStatus(tenantId: string, orderId: string, status: string, trackingNumber?: string, carrier?: string): Observable<OrderDTO>;
+  /** Actualizar estado, guía CAEX o motivo de cancelación */
+  updateOrderStatus(tenantId: string, orderId: string, status: string, trackingNumber?: string, carrier?: string, cancellationReason?: string): Observable<OrderDTO>;
 
   /** Cargar pedidos demo de prueba */
   seedDemoOrders(tenantId: string): Observable<OrderDTO[]>;

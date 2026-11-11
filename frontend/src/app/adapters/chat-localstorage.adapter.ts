@@ -456,7 +456,7 @@ export class ChatLocalStorageAdapter implements ChatWidgetRepositoryPort {
     return of([...orders]).pipe(delay(150));
   }
 
-  updateOrderStatus(tenantId: string, orderId: string, status: string, trackingNumber?: string, carrier?: string): Observable<OrderDTO> {
+  updateOrderStatus(tenantId: string, orderId: string, status: string, trackingNumber?: string, carrier?: string, cancellationReason?: string): Observable<OrderDTO> {
     const state = this.readStorage();
     const order = state.orders.find(o => o.id === orderId || o.orderNumber === orderId);
     if (!order) {
@@ -466,6 +466,11 @@ export class ChatLocalStorageAdapter implements ChatWidgetRepositoryPort {
     order.status = status;
     if (trackingNumber) order.trackingNumber = trackingNumber;
     if (carrier) order.trackingCarrier = carrier;
+    if (cancellationReason) {
+      order.cancellationReason = cancellationReason;
+      order.cancelledBy = 'ADMIN';
+      order.cancelledAt = new Date().toISOString();
+    }
 
     if (!order.audit) {
       order.audit = { history: [] };
@@ -474,10 +479,12 @@ export class ChatLocalStorageAdapter implements ChatWidgetRepositoryPort {
       order.audit.history = [];
     }
     order.audit.history.push({
-      action: 'actualizacion_estado',
+      action: status === 'CANCELADO' ? 'CANCELLED' : 'STATUS_UPDATED',
       status: status,
       timestamp: new Date().toISOString(),
-      note: `Estado cambiado a ${status}. Guía: ${trackingNumber || 'Sin guía'}`
+      note: status === 'CANCELADO'
+        ? `Pedido cancelado. Motivo: ${cancellationReason || 'Sin motivo'}`
+        : `Estado cambiado a ${status}. Guía: ${trackingNumber || 'Sin guía'}`
     });
 
     this.writeStorage(state);

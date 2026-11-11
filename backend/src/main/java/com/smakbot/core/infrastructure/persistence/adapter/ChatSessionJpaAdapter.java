@@ -46,6 +46,7 @@ public class ChatSessionJpaAdapter implements ChatSessionRepositoryPort {
         Map<String, Object> data = new HashMap<>();
         if (session.getSelectedSku() != null) data.put("selectedSku", session.getSelectedSku());
         if (session.getLastOrderNumber() != null) data.put("lastOrderNumber", session.getLastOrderNumber());
+        if (session.getPendingCancelOrderNumber() != null) data.put("pendingCancelOrderNumber", session.getPendingCancelOrderNumber());
         if (session.getActiveCategory() != null) data.put("activeCategory", session.getActiveCategory());
         if (session.getOfferedSkus() != null && !session.getOfferedSkus().isEmpty()) {
             data.put("offeredSkus", session.getOfferedSkus());
@@ -88,6 +89,7 @@ public class ChatSessionJpaAdapter implements ChatSessionRepositoryPort {
         if (data != null) {
             if (data.get("selectedSku") instanceof String sku) s.setSelectedSku(sku);
             if (data.get("lastOrderNumber") instanceof String lon) s.setLastOrderNumber(lon);
+            if (data.get("pendingCancelOrderNumber") instanceof String pco) s.setPendingCancelOrderNumber(pco);
             if (data.get("activeCategory") instanceof String cat) s.setActiveCategory(cat);
             if (data.get("fallbackCount") instanceof Number fc) s.setFallbackCount(fc.intValue());
             if (data.get("offeredSkus") instanceof List<?> list) {

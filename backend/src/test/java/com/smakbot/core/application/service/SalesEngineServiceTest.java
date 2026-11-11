@@ -303,7 +303,7 @@ class SalesEngineServiceTest {
                 "tenant-hn-muebles", Channel.WHATSAPP, customerId, "mejor no , quiero otro modelo", null
         ));
         assertEquals(CheckoutStep.IDLE, rSwitch.step(), "Debe cancelar el checkout anterior");
-        assertNotNull(rSwitch.product());
+        assertNotNull(rSwitch.product(), "rSwitch.product was null! replyText=" + rSwitch.text());
         assertNotEquals("SKM-959-CA-NE", rSwitch.product().sku(), "Debe cambiar el producto activo a otro modelo");
         String newProductName = rSwitch.product().name();
 
@@ -393,5 +393,220 @@ class SalesEngineServiceTest {
         assertNotNull(reply.product());
         assertEquals("SKM-935-NE", reply.product().sku());
         assertEquals(CheckoutStep.NAME, reply.step());
+    }
+
+    @Test
+    @DisplayName("Coherencia de categoría: si piden otros modelos de silla, JAMÁS debe mostrar una hamaca")
+    void testAlternativeChairModelsNeverShowsHammock() {
+        Product hammock = new Product(
+                UUID.randomUUID(),
+                "tenant-hn-muebles",
+                "ZGB-210-NE",
+                "Hamaca de Jardín con Toldo Smak | Soporta hasta 260 kg",
+                "Hamaca exterior",
+                new BigDecimal("4200.00"),
+                new BigDecimal("3650.00"),
+                15,
+                "170 × 110 × 153 cm",
+                "260 kg",
+                "Negro",
+                "Jardín y Exterior",
+                List.of("hamaca", "jardin", "toldo"),
+                List.of("https://static.wixstatic.com/media/f6ccd1_342210b9a8cc491dbf83f06c20a5de8d~mv2.webp"),
+                true
+        );
+        Product ezriChair = new Product(
+                UUID.randomUUID(),
+                "tenant-hn-muebles",
+                "SKM-935-NE",
+                "Silla Ejecutiva Ezri Smak Office",
+                "Silla ejecutiva de malla",
+                new BigDecimal("2100.00"),
+                new BigDecimal("1790.00"),
+                1,
+                "47 × 92 cm",
+                "120 kg",
+                "Negro",
+                "Sillas y Bancos",
+                List.of("silla", "ezri", "ezry123"),
+                List.of("https://static.wixstatic.com/media/f6ccd1_e2137f01d32144a9bb12852795b7166c~mv2.png"),
+                true
+        );
+        // Hammock colocada primero en el catálogo a propósito para reproducir el bug
+        when(productRepo.findActiveByTenant("tenant-hn-muebles"))
+                .thenReturn(List.of(hammock, ezriChair, wynnChair));
+
+        String cid = "client-sillas-" + UUID.randomUUID();
+        salesEngine.process(new IncomingMessage("tenant-hn-muebles", Channel.WHATSAPP, cid, "Quiero 2 sillas Ezri EZRY123", null));
+
+        BotReply reply = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "que otros modelos de silla tienes", null
+        ));
+
+        assertFalse(reply.text().toLowerCase().contains("hamaca"),
+                "Jamás debe mostrar una hamaca cuando piden otros modelos de silla: " + reply.text());
+        assertTrue(reply.text().contains("Wynn") || reply.text().toLowerCase().contains("silla"),
+                "Debe ofrecer modelos reales de sillas");
+    }
+
+    @Test
+    @DisplayName("Validación estricta Honduras: rechaza nombre sin apellido, dirección vaga, teléfono inválido y RTN no numérico")
+    void testStrictHondurasValidationAndPhoneNeverSkipped() {
+        String cid = "client-hn-val-" + UUID.randomUUID();
+
+        // 1. Iniciar compra
+        BotReply r1 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Quiero comprar la silla Wynn", null
+        ));
+        assertEquals(CheckoutStep.NAME, r1.step());
+
+        // 2. Nombre sin apellido ("Enrique") -> debe rechazar y permanecer en NAME
+        BotReply rNameBad = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Enrique", null
+        ));
+        assertEquals(CheckoutStep.NAME, rNameBad.step(), "Debe exigir nombre y al menos un apellido");
+
+        // 3. Nombre completo válido
+        BotReply rNameOk = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Carlos Mendoza", null
+        ));
+        assertEquals(CheckoutStep.QUANTITY, rNameOk.step());
+
+        // 4. Cantidad válida
+        BotReply rQtyOk = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "1", null
+        ));
+        assertEquals(CheckoutStep.ADDRESS, rQtyOk.step());
+
+        // 5. Dirección vaga ("Tegucigalpa") -> debe rechazar y permanecer en ADDRESS
+        BotReply rAddrBad = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Tegucigalpa", null
+        ));
+        assertEquals(CheckoutStep.ADDRESS, rAddrBad.step(), "Debe rechazar dirección incompleta sin colonia ni referencia");
+
+        // 6. Dirección Honduras completa
+        BotReply rAddrOk = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Col. Miramontes, calle principal casa 15, Tegucigalpa", null
+        ));
+        assertEquals(CheckoutStep.PHONE, rAddrOk.step());
+
+        // 7. Teléfono inválido (12 dígitos) -> debe quedarse en PHONE y NO saltar a factura
+        BotReply rPhoneBad = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "678678887787", null
+        ));
+        assertEquals(CheckoutStep.PHONE, rPhoneBad.step(), "Debe rechazar teléfono inválido en Honduras");
+
+        // 8. Teléfono válido de 8 dígitos Honduras
+        BotReply rPhoneOk = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "9988-7766", null
+        ));
+        assertEquals(CheckoutStep.REQUIRES_INVOICE, rPhoneOk.step());
+
+        // 9. Solicita factura -> debe pedir RTN de 14 dígitos
+        BotReply rInvYes = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Sí quiero factura", null
+        ));
+        assertEquals(CheckoutStep.INVOICE_RTN, rInvYes.step());
+
+        // 10. RTN con letras basura ("987hksjfh98hj") -> debe rechazar
+        BotReply rRtnBad = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "987hksjfh98hj", null
+        ));
+        assertEquals(CheckoutStep.INVOICE_RTN, rRtnBad.step(), "Debe exigir RTN numérico de 14 dígitos");
+
+        // 11. RTN válido de 14 dígitos
+        BotReply rRtnOk = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "0801-1990-123456", null
+        ));
+        assertEquals(CheckoutStep.INVOICE_BUSINESS_NAME, rRtnOk.step());
+
+        // 12. Razón social válida -> CONFIRM
+        BotReply rBizOk = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Electroventas Honduras S.A.", null
+        ));
+        assertEquals(CheckoutStep.CONFIRM, rBizOk.step());
+
+        // 13. Confirmar -> persiste orden completa con teléfono, RTN y auditoría
+        BotReply rConf = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Confirmar", null
+        ));
+        assertEquals(CheckoutStep.IDLE, rConf.step());
+        assertNotNull(rConf.confirmedOrder());
+        assertEquals("9988-7766", rConf.confirmedOrder().customerPhone());
+        assertEquals("08011990123456", rConf.confirmedOrder().rtn());
+        assertFalse(rConf.confirmedOrder().auditHistory().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Guardrail backend: bloquea al LLM si intenta saltar el teléfono o confirmar pedido incompleto")
+    void testGuardrailBlocksLlmFromSkippingPhoneStep() {
+        AiSalesAssistantPort rogueAi = (tenant, catalog, rules, campaigns, orders, session, msg) -> {
+            // Simula un LLM intentando confirmar o saltar a factura sin tener teléfono
+            return new AiSalesAssistantPort.AssistantDecision(
+                    "¿Requieres factura con RTN?",
+                    CheckoutStep.REQUIRES_INVOICE,
+                    "SKM-956-CA-NE",
+                    false, false, true,
+                    new AiSalesAssistantPort.DraftUpdate("SKM-956-CA-NE", 2, "Carlos Mendoza",
+                            "Col. Palmira, calle 4 casa 12, Tegucigalpa", false, null, false, null, null)
+            );
+        };
+        SalesEngineService strictEngine = new SalesEngineService(tenantRepo, productRepo, orderRepo, sessionRepo, rogueAi);
+
+        String cid = "client-guard-" + UUID.randomUUID();
+        ChatSession s = new ChatSession(
+                ChatSession.buildId("tenant-hn-muebles", Channel.WHATSAPP, cid),
+                "tenant-hn-muebles", Channel.WHATSAPP
+        );
+        CheckoutDraft d = CheckoutDraft.start(wynnChair, 2, "SMAK-ORD-9999", true);
+        d.name = "Carlos Mendoza";
+        d.address = "Col. Palmira, calle 4 casa 12, Tegucigalpa";
+        s.setCheckout(d);
+        s.setStep(CheckoutStep.ADDRESS);
+        sessionStore.put(s.getId(), s);
+
+        BotReply reply = strictEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Col. Palmira, calle 4 casa 12, Tegucigalpa", null
+        ));
+
+        assertEquals(CheckoutStep.PHONE, reply.step(), "El guardrail debe frenar el salto a factura/confirmación y exigir PHONE");
+        assertNull(reply.confirmedOrder(), "No debe crear ninguna orden sin teléfono válido");
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Cancelación de pedido por cliente: solicita motivo, guarda CANCELADO con motivo en BD y repone stock")
+    void testCustomerOrderCancellationSavesReasonAndRestoresStock() {
+        Order existingOrder = new Order(
+                UUID.randomUUID(), "tenant-hn-muebles", "SMAK-ORD-1005",
+                "Carlos Mendoza", "9988-7766", "Col. Palmira, Tegucigalpa",
+                null, null, null,
+                "SKM-956-CA-NE", wynnChair.name(), 2,
+                wynnChair.salePrice(), wynnChair.salePrice().multiply(new BigDecimal("2")),
+                OrderStatus.PENDIENTE, false, "Consumidor Final (Sin RTN)", null,
+                null, "Cargo Expreso", java.time.OffsetDateTime.now(),
+                "WHATSAPP", "50499887766", "Meta WhatsApp Cloud API",
+                null, null, null, List.of()
+        );
+        when(orderRepo.findByNumberOrTracking("tenant-hn-muebles", "SMAK-ORD-1005"))
+                .thenReturn(Optional.of(existingOrder));
+        when(productRepo.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        String cid = "client-cancel-" + UUID.randomUUID();
+        BotReply r1 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Quiero cancelar mi pedido SMAK-ORD-1005", null
+        ));
+        assertEquals(CheckoutStep.CANCEL_REASON, r1.step(), "Debe pedir el motivo de cancelación");
+
+        BotReply r2 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Me equivoqué de modelo de silla", null
+        ));
+        assertEquals(CheckoutStep.IDLE, r2.step());
+        assertNotNull(r2.confirmedOrder());
+        assertEquals(OrderStatus.CANCELADO, r2.confirmedOrder().status());
+        assertEquals("Me equivoqué de modelo de silla", r2.confirmedOrder().cancellationReason());
+        assertFalse(r2.confirmedOrder().auditHistory().isEmpty());
+
+        verify(productRepo, times(1)).save(argThat(p -> "SKM-956-CA-NE".equals(p.sku()) && p.stock() == 20));
     }
 }

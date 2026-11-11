@@ -65,6 +65,12 @@ export interface OrderDTO {
   businessName?: string;
   trackingNumber?: string;
   trackingCarrier?: string;
+  sourceChannel?: string;
+  sourceSessionId?: string;
+  clientIp?: string;
+  cancellationReason?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
   recipientName?: string;
   location?: LocationPayload;
   audit?: OrderAuditDTO;

@@ -16,6 +16,7 @@ import com.smakbot.core.infrastructure.adapter.in.web.dto.ResetSessionRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -56,7 +57,8 @@ public class WebChatController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "tenant-hn-muebles") String tenantId,
             @Parameter(description = "Identificador persistente de la sesión del visitante")
             @RequestHeader(value = "X-Session-ID", required = false) String sessionId,
-            @RequestBody ChatMessageRequest request) {
+            @RequestBody ChatMessageRequest request,
+            HttpServletRequest httpRequest) {
 
         String effectiveTenantId = (request.getTenantId() != null && !request.getTenantId().isBlank())
                 ? request.getTenantId()
@@ -75,12 +77,14 @@ public class WebChatController {
             );
         }
 
+        String clientIp = extractClientIp(httpRequest);
         IncomingMessage incoming = new IncomingMessage(
                 effectiveTenantId,
                 Channel.WEB,
                 effectiveSessionId,
                 request.getMessage() != null ? request.getMessage() : "",
-                location
+                location,
+                clientIp
         );
 
         BotReply reply = processMessageUseCase.process(incoming);
@@ -183,7 +187,22 @@ public class WebChatController {
         dto.setTrackingNumber(order.trackingNumber());
         dto.setTrackingCarrier(order.trackingCarrier());
         dto.setGpsMapUrl(order.gpsMapUrl());
+        dto.setCancellationReason(order.cancellationReason());
+        dto.setCancelledAt(order.cancelledAt() != null ? order.cancelledAt().toInstant() : null);
         dto.setCreatedAt(order.createdAt() != null ? order.createdAt().toInstant() : null);
         return dto;
+    }
+
+    private String extractClientIp(HttpServletRequest req) {
+        if (req == null) return null;
+        String xff = req.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        String realIp = req.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+        return req.getRemoteAddr();
     }
 }

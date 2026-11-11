@@ -123,6 +123,7 @@ export class AdminDashboardComponent implements OnInit {
   newTrackingNumber: string = '';
   newCarrier: string = 'Cargo Expreso';
   newStatus: string = 'EN_CAMINO';
+  newCancellationReason: string = '';
   dispatchPreviewMessage: string = '';
 
   // MODAL: Auditoría
@@ -844,7 +845,8 @@ export class AdminDashboardComponent implements OnInit {
     this.selectedOrder = order;
     this.newTrackingNumber = order.trackingNumber || `CAEX-HN-${Math.floor(100000 + Math.random() * 900000)}`;
     this.newCarrier = order.trackingCarrier || 'Cargo Expreso';
-    this.newStatus = 'EN_CAMINO';
+    this.newStatus = order.status && order.status !== 'PENDIENTE' ? order.status : 'EN_CAMINO';
+    this.newCancellationReason = order.cancellationReason || '';
     this.dispatchPreviewMessage = `¡Hola ${order.customerName}! 🚚 Tu pedido ${order.orderNumber} ha sido despachado por ${this.newCarrier}.\nNúmero de guía oficial: ${this.newTrackingNumber}.\nPuedes rastrearlo o consultar conmigo en cualquier momento.`;
     this.isDispatchModalOpen = true;
   }
@@ -852,22 +854,35 @@ export class AdminDashboardComponent implements OnInit {
   closeDispatchModal(): void {
     this.isDispatchModalOpen = false;
     this.selectedOrder = null;
+    this.newCancellationReason = '';
   }
 
   saveDispatch(): void {
     if (!this.selectedOrder || !this.selectedOrder.id) return;
 
+    if (this.newStatus === 'CANCELADO' && (!this.newCancellationReason || this.newCancellationReason.trim().length < 4)) {
+      this.notify('Debes indicar el motivo de cancelación (mínimo 4 caracteres).');
+      return;
+    }
+
     this.chatRepo.updateOrderStatus(
       this.tenantId,
       this.selectedOrder.id,
       this.newStatus,
-      this.newTrackingNumber,
-      this.newCarrier
+      this.newStatus === 'CANCELADO' ? undefined : this.newTrackingNumber,
+      this.newCarrier,
+      this.newStatus === 'CANCELADO' ? this.newCancellationReason.trim() : undefined
     ).subscribe({
       next: () => {
+        const msg = this.newStatus === 'CANCELADO'
+          ? 'Pedido cancelado y motivo guardado en BD.'
+          : 'Guía y estatus del pedido actualizados en BD.';
         this.closeDispatchModal();
         this.loadAllData();
-        this.notify('Guía CAEX asignada y pedido actualizado.');
+        this.notify(msg);
+      },
+      error: (err) => {
+        this.notify(err?.error?.message || 'No se pudo actualizar el pedido.');
       }
     });
   }
@@ -908,7 +923,9 @@ export class AdminDashboardComponent implements OnInit {
         (o.customerPhone && o.customerPhone.toLowerCase().includes(q)) ||
         (o.productSku && o.productSku.toLowerCase().includes(q)) ||
         (o.productName && o.productName.toLowerCase().includes(q)) ||
-        (o.deliveryAddress && o.deliveryAddress.toLowerCase().includes(q))
+        (o.deliveryAddress && o.deliveryAddress.toLowerCase().includes(q)) ||
+        (o.cancellationReason && o.cancellationReason.toLowerCase().includes(q)) ||
+        (o.trackingNumber && o.trackingNumber.toLowerCase().includes(q))
       );
     }
     return list;

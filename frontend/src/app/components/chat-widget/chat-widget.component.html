@@ -230,6 +230,9 @@
             <div *ngIf="trackedOrder.trackingNumber">
               <strong>Guía:</strong> <span class="tracking-pill">{{ trackedOrder.trackingNumber }} ({{ trackedOrder.trackingCarrier }})</span>
             </div>
+            <div *ngIf="trackedOrder.cancellationReason" class="text-rose-700 mt-1">
+              <strong>Motivo cancelación:</strong> {{ trackedOrder.cancellationReason }}
+            </div>
           </div>
         </div>
       </div>

@@ -15,7 +15,19 @@ import java.util.List;
  */
 public interface AiSalesAssistantPort {
 
-    record RuleContext(String name, String category, String response) {}
+    record RuleContext(
+            String name,
+            String category,
+            List<String> trainingPhrases,
+            String response,
+            String responseInStock,
+            String responseOutOfStock,
+            String responseNotFound
+    ) {
+        public RuleContext(String name, String category, String response) {
+            this(name, category, List.of(), response, null, null, null);
+        }
+    }
 
     record CampaignContext(String platform, String url, String headline, String sku) {}
 

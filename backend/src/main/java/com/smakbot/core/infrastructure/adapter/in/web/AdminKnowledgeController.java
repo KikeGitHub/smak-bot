@@ -49,8 +49,24 @@ public class AdminKnowledgeController {
     }
 
     // ==========================================
-    // TENANT SCOPE (/api/v1/admin/tenant-config)
+    // TENANT LIST & SCOPE (/api/v1/admin/tenants & /tenant-config)
     // ==========================================
+    @GetMapping("/tenants")
+    @Operation(summary = "Listar comercios/tenants activos desde BD")
+    public ResponseEntity<List<Map<String, Object>>> listTenants() {
+        List<Map<String, Object>> result = tenantRepository.findAll().stream()
+                .filter(TenantEntity::isActive)
+                .map(t -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", t.getId());
+                    row.put("name", t.getName());
+                    row.put("category", t.getBusinessType() != null && !t.getBusinessType().isBlank() ? t.getBusinessType() : "Comercio");
+                    return row;
+                })
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/tenant-config")
     @Operation(summary = "Obtener configuración de giro de negocio y scope del tenant")
     public ResponseEntity<TenantEntity> getTenantConfig(

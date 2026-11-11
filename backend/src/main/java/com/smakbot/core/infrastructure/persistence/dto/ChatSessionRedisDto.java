@@ -21,6 +21,7 @@ public class ChatSessionRedisDto {
     private String step;
     private String selectedSku;
     private String lastOrderNumber;
+    private String pendingCancelOrderNumber;
     private CheckoutDraft checkout;
     private OffsetDateTime lastInteraction;
     private String activeCategory;
@@ -40,6 +41,7 @@ public class ChatSessionRedisDto {
         dto.setStep(session.getStep() != null ? session.getStep().name() : CheckoutStep.IDLE.name());
         dto.setSelectedSku(session.getSelectedSku());
         dto.setLastOrderNumber(session.getLastOrderNumber());
+        dto.setPendingCancelOrderNumber(session.getPendingCancelOrderNumber());
         dto.setCheckout(session.getCheckout());
         dto.setLastInteraction(session.getLastInteraction());
         dto.setActiveCategory(session.getActiveCategory());
@@ -61,6 +63,7 @@ public class ChatSessionRedisDto {
         }
         session.setSelectedSku(selectedSku);
         session.setLastOrderNumber(lastOrderNumber);
+        session.setPendingCancelOrderNumber(pendingCancelOrderNumber);
         session.setCheckout(checkout);
         session.setLastInteraction(lastInteraction);
         session.setActiveCategory(activeCategory);
@@ -87,6 +90,9 @@ public class ChatSessionRedisDto {
 
     public String getLastOrderNumber() { return lastOrderNumber; }
     public void setLastOrderNumber(String lastOrderNumber) { this.lastOrderNumber = lastOrderNumber; }
+
+    public String getPendingCancelOrderNumber() { return pendingCancelOrderNumber; }
+    public void setPendingCancelOrderNumber(String pendingCancelOrderNumber) { this.pendingCancelOrderNumber = pendingCancelOrderNumber; }
 
     public CheckoutDraft getCheckout() { return checkout; }
     public void setCheckout(CheckoutDraft checkout) { this.checkout = checkout; }

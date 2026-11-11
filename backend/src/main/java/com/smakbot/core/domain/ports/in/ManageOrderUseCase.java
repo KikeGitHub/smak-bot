@@ -15,4 +15,6 @@ public interface ManageOrderUseCase {
     Optional<Order> findByNumberOrTracking(String tenantId, String code);
 
     Order updateStatus(String tenantId, UUID orderId, OrderStatus status, String trackingNumber, String carrier);
+
+    Order updateStatus(String tenantId, UUID orderId, OrderStatus status, String trackingNumber, String carrier, String cancellationReason);
 }
