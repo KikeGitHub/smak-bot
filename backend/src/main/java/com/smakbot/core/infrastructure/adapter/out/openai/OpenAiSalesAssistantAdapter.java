@@ -280,7 +280,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
 
                         3. FOTOS DEL PRODUCTO:
                            - Al presentar por primera vez un producto específico o si el cliente elige uno nuevo, pon `sendProductPhotos = true` y `sendAllPhotos = false`.
-                           - Si pide expresamente más fotos/galería, pon `sendAllPhotos = true` y `sendProductPhotos = true`.
+                           - Si el cliente pide expresamente más fotos o galería por su cuenta, pon `sendAllPhotos = true` y `sendProductPhotos = true`.
+                           - PROHIBIDO ofrecer, mencionar o avisar cuántas fotos adicionales hay o pedirle al cliente que diga "más fotos". Si desea ver más fotos, el cliente las pedirá por iniciativa propia.
                            - Al listar varios modelos a elegir o pedir datos de envío (`NAME`, `ADDRESS`, `PHONE`, etc.), pon `sendProductPhotos = false` y `sendAllPhotos = false`.
 
                         4. FLUJO ESTRICTO DATO POR DATO PARA HONDURAS (PROHIBIDO SALTAR PASOS):

@@ -609,4 +609,45 @@ class SalesEngineServiceTest {
 
         verify(productRepo, times(1)).save(argThat(p -> "SKM-956-CA-NE".equals(p.sku()) && p.stock() == 20));
     }
+
+    @Test
+    @DisplayName("Imágenes: no mostrar aviso automático de 'Tenemos X fotos más'; enviar galería solo si el cliente pide más fotos")
+    void testNoUnsolicitedMorePhotosHintSent() {
+        Product multiImgChair = new Product(
+                UUID.randomUUID(),
+                "tenant-hn-muebles",
+                "SKM-935-NE",
+                "Silla Ejecutiva Ezri Smak Office",
+                "Silla ergonómica ejecutiva en color negro",
+                new BigDecimal("2200.00"),
+                new BigDecimal("1790.00"),
+                10,
+                "100 x 55 cm",
+                "130 kg",
+                "Negro",
+                "Sillas y Bancos",
+                List.of("silla", "ezry", "ezri", "skm-935-ne"),
+                List.of(
+                        "https://img.example.com/ezri-1.jpg",
+                        "https://img.example.com/ezri-2.jpg",
+                        "https://img.example.com/ezri-3.jpg"
+                ),
+                true
+        );
+        when(productRepo.findActiveByTenant("tenant-hn-muebles")).thenReturn(List.of(multiImgChair));
+
+        String cid = "client-photos-" + UUID.randomUUID();
+        BotReply r1 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "Precio de la silla Ezri", null
+        ));
+
+        assertEquals(1, r1.images().size(), "Debe enviar la foto principal del producto");
+        assertFalse(r1.text().toLowerCase().contains("fotos más"), "No debe mostrar aviso automático de fotos extra");
+        assertFalse(r1.text().toLowerCase().contains("solo dime"), "No debe pedir que escriba 'más fotos'");
+
+        BotReply r2 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cid, "más fotos", null
+        ));
+        assertEquals(3, r2.images().size(), "Solo cuando el cliente pide explícitamente más fotos debe enviar la galería");
+    }
 }

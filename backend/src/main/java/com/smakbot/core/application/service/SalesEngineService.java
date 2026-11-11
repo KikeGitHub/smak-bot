@@ -356,12 +356,6 @@ public class SalesEngineService implements ProcessMessageUseCase {
                 imagesToSend = selectedProduct.firstImages(5);
             } else if (decision.sendProductPhotos()) {
                 imagesToSend = selectedProduct.firstImages(1);
-                int totalImages = selectedProduct.images().size();
-                if (totalImages > 1 && !replyText.toLowerCase().contains("más fotos") && !replyText.toLowerCase().contains("mas fotos")) {
-                    int extra = totalImages - 1;
-                    replyText += "\n\n📸 *(Tenemos " + extra + (extra == 1 ? " foto más" : " fotos más")
-                            + " con más detalles de este modelo. Si deseas verlas, solo dime *más fotos*)*";
-                }
             }
         }
 
