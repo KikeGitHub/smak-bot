@@ -155,6 +155,28 @@ public final class HondurasOrderValidator {
         return Optional.empty();
     }
 
+    /**
+     * Detecta si el cliente solicitó explícitamente factura con RTN por iniciativa propia.
+     * Si la niega ("sin factura", "consumidor final"), retorna false.
+     */
+    public static boolean explicitInvoiceRequested(String raw) {
+        if (raw == null || raw.isBlank()) return false;
+        String norm = normalize(raw);
+        if (norm.isBlank()) return false;
+        if (norm.contains("sin factura")
+                || norm.contains("no quiero factura")
+                || norm.contains("no necesito factura")
+                || norm.contains("no ocupo factura")
+                || norm.contains("no requiero factura")
+                || norm.contains("consumidor final")) {
+            return false;
+        }
+        return norm.contains("factura")
+                || norm.contains("rtn")
+                || norm.contains("credito fiscal")
+                || norm.contains("comprobante fiscal");
+    }
+
     public static Optional<String> normalizeAndValidateRtn(String raw) {
         if (raw == null || raw.isBlank()) return Optional.empty();
         String stripped = raw.replaceAll("[\\s-]", "").trim();

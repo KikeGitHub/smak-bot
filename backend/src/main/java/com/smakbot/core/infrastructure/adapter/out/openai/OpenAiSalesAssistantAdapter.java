@@ -2,6 +2,7 @@ package com.smakbot.core.infrastructure.adapter.out.openai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smakbot.core.application.engine.HondurasDeliveryPolicy;
 import com.smakbot.core.application.engine.HondurasOrderValidator;
 import com.smakbot.core.application.engine.Money;
 import com.smakbot.core.domain.model.ChatSession;
@@ -80,8 +81,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
 
         // Guardrail determinista: rechazar temas claramente ajenos al negocio (programación, tareas, etc.)
         if (!session.inCheckout() && isOutOfScopeQuery(norm)) {
-            String reply = "¡Hola! Con mucho gusto te atiendo, pero soy el asesor virtual de " + tenant.name()
-                    + " y únicamente puedo ayudarte con consultas sobre nuestro catálogo de muebles, productos para el hogar y pedidos en Honduras 😊 ¿Te gustaría ver nuestros modelos disponibles o cotizar algún producto?";
+            String reply = "Hola, con mucho gusto te atiendo, pero soy el asesor de " + tenant.name()
+                    + " y únicamente puedo ayudarte con consultas sobre nuestro catálogo de muebles, artículos para el hogar y pedidos en Honduras. ¿Te gustaría ver nuestros modelos disponibles o cotizar algún producto?";
             return new AssistantDecision(reply, session.getStep(), null, false, false, false, null);
         }
 
@@ -176,21 +177,22 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             for (RuleContext r : rules) {
                 String resp = r.response();
                 if (resp != null && !resp.isBlank()) {
-                    sb.append("• [").append(r.category()).append(" - ").append(r.name()).append("]: ")
-                            .append(resp.replace("\n", " ")).append("\n");
+                    sb.append("- [").append(r.category()).append(" - ").append(r.name()).append("]: ")
+                            .append(HondurasDeliveryPolicy.sanitizeCustomerReply(resp).replace("\n", " ")).append("\n");
                 }
             }
             sb.append("\n");
         }
 
         sb.append("=== CATÁLOGO OFICIAL EN TIEMPO REAL DESDE BD (ÚNICA FUENTE DE VERDAD) ===\n");
-        sb.append("PROHIBIDO inventar productos, precios, colores, medidas o stock que no estén en esta lista:\n");
+        sb.append("PROHIBIDO inventar productos, precios, colores, medidas o stock. PROHIBIDO mencionar el código SKU interno o precios anteriores al cliente:\n");
         for (Product p : catalog) {
-            sb.append("- SKU: ").append(p.sku())
+            boolean setLine = HondurasDeliveryPolicy.isSetOrDualIndividualProduct(p, catalog);
+            sb.append("- [ID_INTERNO_NO_MOSTRAR_AL_CLIENTE: ").append(p.sku()).append("]")
                     .append(" | Nombre: ").append(p.name())
-                    .append(" | Precio Oferta: ").append(currency).append(p.salePrice())
-                    .append(p.regularPrice() != null ? " (Antes: " + currency + p.regularPrice() + ")" : "")
+                    .append(" | Precio Actual Fijo: ").append(currency).append(p.salePrice())
                     .append(" | Stock: ").append(p.stock() > 0 ? p.stock() + " disponibles" : "AGOTADO (0 uds)")
+                    .append(" | Límite traslado asesor: ").append(setLine ? "5 o más unidades (línea Set/Tolix)" : "más de 2 unidades (3 o más)")
                     .append(" | Colores: ").append(p.colors() != null ? p.colors() : "Único")
                     .append(" | Medidas: ").append(p.dimensions() != null ? p.dimensions() : "Estándar")
                     .append(" | Soporte/Peso: ").append(p.weightLimit() != null ? p.weightLimit() : "N/A")
@@ -264,18 +266,19 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                            - ESTÁ TOTALMENTE PROHIBIDO responder preguntas de programación, software, tareas escolares, historia, política, clima o temas personales.
                            - Si preguntan algo ajeno, declina amablemente en 1-2 líneas y reconduce al catálogo (`nextStep` = "IDLE", `selectedSku` = null).
 
-                        1. TONO ULTRA DIRECTO, CONCISO Y HUMANO (ESTILO WHATSAPP):
-                           - Mensajes breves y claros (2 a 4 líneas máximo). Directo al grano, amable, sin rodeos ni párrafos pesados.
-                           - PROHIBIDO enviar listas numeradas pidiendo varios datos de golpe. Pide ÚNICAMENTE 1 dato por turno.
-                           - Si el cliente envía una imagen o pregunta por un producto disponible ("kiero esta", "quiero una", "precio"):
-                             Confirma disponibilidad de inmediato + Precio real del catálogo con envío gratis + pregunta su nombre completo para iniciar el pedido.
-                           - PROHIBIDO sonar a robot ("Lamentablemente...", "Como modelo de lenguaje...", "Disculpe las molestias...").
+                        1. TONO DIRECTO, AMABLE, PLANO (PROHIBIDO EMOJIS, NEGRITAS, "FÍJATE QUE" Y SKU):
+                           - Escribe en texto plano limpio: PROHIBIDO usar emojis de cualquier tipo y PROHIBIDO usar asteriscos/negritas (*texto* o **texto**).
+                           - PROHIBIDO usar la frase "Fíjate que" y PROHIBIDO mostrar el código SKU al cliente (úsalos solo en el campo JSON selectedSku/productSku).
+                           - Solo muestra el precio actual fijo. NUNCA menciones precios anteriores ("Antes: ...") ni ofrezcas rebajas o descuentos: los precios no se bajan.
+                           - Mensajes breves y directos (2 a 4 líneas). PROHIBIDO pedir varios datos a la vez: pide ÚNICAMENTE 1 dato por turno.
+                           - Si el cliente envía una imagen o pregunta por un producto disponible ("kiero esta", "sí la quiero", "precio"):
+                             Confirma disponibilidad con amabilidad + precio actual con envío gratis + pide su nombre completo para apartar el pedido.
 
                         2. CATÁLOGO REAL Y COHERENCIA ESTRICTA DE CATEGORÍA (MUY IMPORTANTE):
                            - Todo producto, precio, horario, pago y FAQ debe salir EXCLUSIVAMENTE de la información de BD proporcionada arriba.
                            - COHERENCIA ESTRICTA DE TIPO DE PRODUCTO: Si el cliente pide "qué otros modelos de silla tienes", "otras sillas", "otros escritorios", "otras mesas", etc., FILTRA Y SUGIERE ÚNICAMENTE productos en stock de ESE MISMO TIPO o categoría (por ejemplo, si pidió SILLAS, muestra solo SILLAS disponibles en catálogo).
                            - TERMINANTEMENTE PROHIBIDO sugerir una hamaca, escalera, grifo o carrito si el cliente preguntó por sillas (o viceversa).
-                           - Cuando pida "otros modelos de [tipo]" en plural, enumera de forma concisa 3 o 4 opciones disponibles de ese mismo tipo con su precio en Lempiras y pregúntale cuál le interesa ver (pon `cancelCheckout = true`, `nextStep = "IDLE"` y `selectedSku = null`).
+                           - Cuando pida "otros modelos de [tipo]" en plural, enumera de forma concisa 3 o 4 opciones disponibles de ese mismo tipo con su precio actual en Lempiras (sin SKU) y pregúntale cuál le interesa ver (pon `cancelCheckout = true`, `nextStep = "IDLE"` y `selectedSku = null`).
                            - Si un producto no existe en el catálogo real de BD (por ejemplo bicicletas o sofás), indícalo con calidez en 2 líneas y pregunta qué artículo del catálogo busca.
 
                         3. FOTOS DEL PRODUCTO:
@@ -284,27 +287,32 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                            - PROHIBIDO ofrecer, mencionar o avisar cuántas fotos adicionales hay o pedirle al cliente que diga "más fotos". Si desea ver más fotos, el cliente las pedirá por iniciativa propia.
                            - Al listar varios modelos a elegir o pedir datos de envío (`NAME`, `ADDRESS`, `PHONE`, etc.), pon `sendProductPhotos = false` y `sendAllPhotos = false`.
 
-                        4. FLUJO ESTRICTO DATO POR DATO PARA HONDURAS (PROHIBIDO SALTAR PASOS):
+                        4. FLUJO ESTRICTO DATO POR DATO PARA HONDURAS (SIN OFRECER FACTURA PROACTIVAMENTE):
                            Recopila y valida OBLIGATORIAMENTE en este orden exacto, 1 dato por turno:
-                           1) `NAME`: Nombre completo (**nombre y al menos un apellido**, ej. "Carlos Mendoza"). Si solo da un nombre, vuelve a pedirlo con apellido.
-                           2) `QUANTITY`: Cantidad de unidades (si no la confirmó explícitamente). Validar siempre contra el stock real.
+                           1) `NAME`: Nombre completo (nombre y al menos un apellido, ej. "Carlos Mendoza"). Si solo da un nombre, vuelve a pedirlo con apellido.
+                           2) `QUANTITY`: Cantidad de unidades (si no la confirmó explícitamente). Validar siempre contra stock y límites de traslado a asesor.
                            3) `ADDRESS`: Dirección completa en Honduras:
-                              • Ciudad / Municipio
-                              • Colonia, barrio o residencial
-                              • Calle, casa y referencia (o Agencia Cargo Expreso con ciudad, o ubicación GPS 📍).
+                              - Ciudad / Municipio
+                              - Colonia, barrio o residencial
+                              - Calle, casa y referencia (o Agencia Cargo Expreso con ciudad, o ubicación GPS).
                               Si solo dice una ciudad sin detalles, pide los datos faltantes.
-                           4) `PHONE`: **Número de teléfono en Honduras de 8 dígitos (que reciba llamadas directas de Cargo Expreso)**, ej. 9800-8559. PROHIBIDO saltar este paso o asumir el número del chat.
-                           5) `REQUIRES_INVOICE`: Pregunta directa de **Sí o No**: "¿Requieres factura con RTN para tu pedido? (Responde *Sí* o *No*)".
-                           6) Si responde **Sí**:
-                              • `INVOICE_RTN`: Pedir **RTN de Honduras (14 dígitos numéricos**, ej. 08011990123456).
-                              • `INVOICE_BUSINESS_NAME`: Pedir **Nombre o Razón Social** de la empresa.
-                           7) `CONFIRM`: Solo cuando TODOS los datos anteriores estén validados, muestra resumen breve y pide confirmar (*"Confirmar"*).
+                           4) `PHONE`: Número de teléfono en Honduras de 8 dígitos que reciba llamadas directas de Cargo Expreso, ej. 9800-8559. PROHIBIDO saltar este paso.
+                           5) FACTURA / RTN: PROHIBIDO preguntar si quiere factura o RTN. Pasa directo de `PHONE` a `CONFIRM`. ÚNICAMENTE si el cliente solicita factura o RTN por iniciativa propia, pide `INVOICE_RTN` (14 dígitos numéricos) y luego `INVOICE_BUSINESS_NAME`.
+                           6) `CONFIRM`: Solo cuando los datos obligatorios estén validados, muestra resumen claro en texto plano (sin emojis ni negritas) y pide confirmar ("Confirmar"). En la confirmación final sé amable y sin ambigüedades, indicando el tiempo estimado ("lo más seguro") según la ciudad.
 
-                        5. VALIDACIÓN ESTRICTA DE INVENTARIO:
-                           - Nunca confirmes un pedido ni avances con una cantidad mayor al stock disponible en catálogo o si el stock es 0.
+                        5. VALIDACIÓN DE INVENTARIO Y TRASLADO A ASESOR HUMANO POR CANTIDAD:
+                           - Nunca confirmes ni avances con una cantidad mayor al stock disponible en catálogo o si el stock es 0.
+                           - Productos en general: si el cliente quiere pedir más de 2 unidades (3 o más), traslada la conversación a un asesor humano (`nextStep = "HUMAN"`).
+                           - Productos vendidos en formato Set e Individual (línea Tolix y sets): traslada a asesor humano a partir de 5 unidades.
 
-                        6. RASTREO DE PEDIDOS Y CONSULTAS DESDE BD:
-                           - Si pregunta por su pedido o guía de rastreo, consulta los datos de "PEDIDOS Y RASTREO EN BD PERTENECIENTES A ESTE CLIENTE" e informa el estado exacto, guía CAEX (si ya fue asignada manualmente) o motivo de cancelación.
+                        6. TIEMPOS DE ENTREGA, FECHAS ESPECÍFICAS Y SÁBADOS (CARGO EXPRESO):
+                           - Tiempo de entrega general en Honduras: decir siempre "entre 2 y 3 días hábiles, lo más seguro".
+                           - ÚNICAS 6 ciudades donde puedes decir "entre 1 y 2 días hábiles, lo más seguro": El Progreso (Yoro), San Pedro Sula (Cortés), Santa Rosa de Copán, Tegucigalpa (Francisco Morazán), La Ceiba (Atlántida) y Choloma (Cortés).
+                           - Fechas específicas: si el cliente pide entrega para un día o fecha concreta, aclara siempre que no podemos comprometernos en un 100% a entregar exactamente ese día porque depende de Cargo Expreso y nosotros solo manejamos fechas aproximadas.
+                           - Entregas en sábado: si piden entrega en sábado, explica que Cargo Expreso trabaja solo por un rato ese día, por lo que no se puede asegurar que llegue en esa fecha exacta. Si lo necesita exclusivamente para sábado, ofrece enviarlo a una agencia de Cargo Expreso para retiro (aclarando que no en todos los lugares hay agencias, sino en ciudades específicas). Además, pregúntale con amabilidad si tiene pareja o vive con alguien conocido que esté en casa para recibir y pagar contra entrega otro día.
+
+                        7. RASTREO DE PEDIDOS Y CONSULTAS DESDE BD:
+                           - Si pregunta por su pedido o guía de rastreo, consulta los datos de "PEDIDOS Y RASTREO EN BD PERTENECIENTES A ESTE CLIENTE" e informa en texto plano el estado exacto, guía CAEX (si ya fue asignada manualmente) o motivo de cancelación.
                         """);
 
         return sb.toString();
@@ -410,9 +418,9 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         if (containsAny(norm, "asesor", "asesora", "humano", "humana", "hablar con alguien",
                 "con una persona", "persona real", "un ejecutivo", "ejecutivo de ventas", "ejecutivo comercial",
                 "agente humano", "operador")) {
-            String text = "Para brindarte una mejor atención, voy a transferir tu consulta directamente con un ejecutivo comercial de *"
+            String text = "Para brindarte una mejor atención, voy a transferir tu consulta directamente con un asesor de "
                     + tenant.name()
-                    + "* por este mismo chat. Un miembro del equipo te responderá en breve. ¡Gracias por tu paciencia! 🙌";
+                    + " por este mismo chat. Un miembro del equipo te responderá en breve.";
             return new AssistantDecision(text, CheckoutStep.HUMAN, session.getSelectedSku(), false, false, false, null);
         }
 
@@ -429,12 +437,12 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         // 4. Cancelación durante checkout ("mejor no", "cancelar", "ya no quiero")
         if (containsAny(norm, "mejor no", "cancelar", "cancela", "ya no quiero", "salir", "olvidalo")) {
             return new AssistantDecision(
-                    "Entendido, he cancelado la orden actual. 😊 Si deseas consultar cualquier otro modelo o ver nuestro catálogo, dime con confianza.",
+                    "Entendido, he cancelado la orden actual. Si deseas consultar cualquier otro modelo o ver nuestro catálogo, dime con confianza.",
                     CheckoutStep.IDLE, null, false, true, false, null);
         }
 
         // 5. Si está en medio del checkout y no hace una pregunta informativa ni consulta de FAQ en BD
-        if (session.inCheckout() && !isInformationalOrFaqQuestion(norm, rules)) {
+        if (session.inCheckout() && !isInformationalOrFaqQuestion(norm, rules, session, incomingMessage)) {
             return handleFallbackCheckoutStep(session, raw, norm, incomingMessage, activeProduct, rules, catalog);
         }
 
@@ -444,22 +452,22 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 Order o = customerOrders.get(0);
                 String status = o.status() != null ? o.status().label() : "En proceso";
                 String guia = (o.trackingNumber() != null && !o.trackingNumber().isBlank())
-                        ? "• Guía de rastreo: *" + o.trackingNumber() + "* (" + o.trackingCarrier() + ")"
-                        : "• Guía: *En preparación para despacho en bodega*";
+                        ? "- Guía de rastreo: " + o.trackingNumber() + " (" + o.trackingCarrier() + ")"
+                        : "- Guía: En preparación para despacho en bodega";
                 String cancelNote = (o.status() == OrderStatus.CANCELADO && o.cancellationReason() != null)
-                        ? "\n• Motivo cancelación: _" + o.cancellationReason() + "_"
+                        ? "\n- Motivo cancelación: " + o.cancellationReason()
                         : "";
-                String reply = "📦 *Estatus de tu Pedido (" + o.orderNumber() + ")*:\n\n"
-                        + "• Estado: *" + status + "*\n"
-                        + "• Cliente: " + o.customerName() + " (Tel: " + o.customerPhone() + ")\n"
-                        + "• Producto: " + o.quantity() + "x " + o.productName() + "\n"
-                        + "• Total contra entrega: *" + Money.lempiras(o.total()) + "*\n"
+                String reply = "Estatus de tu Pedido (" + o.orderNumber() + "):\n\n"
+                        + "- Estado: " + status + "\n"
+                        + "- Cliente: " + o.customerName() + " (Tel: " + o.customerPhone() + ")\n"
+                        + "- Producto: " + o.quantity() + "x " + o.productName() + "\n"
+                        + "- Total contra entrega: " + Money.lempiras(o.total()) + "\n"
                         + guia + cancelNote;
                 CheckoutStep stepKeep = session.inCheckout() ? session.getStep() : CheckoutStep.IDLE;
                 return new AssistantDecision(reply, stepKeep, session.getSelectedSku(), false, false, false, null);
             }
             return new AssistantDecision(
-                    "No encontré ningún pedido con ese código en nuestra base de datos. 😊 Compárteme tu *número de pedido* (ej. *SMAK-ORD-1005*) o *guía Cargo Expreso* para consultarlo de inmediato.",
+                    "No encontré ningún pedido con ese código en nuestra base de datos. Compárteme tu número de pedido (ej. SMAK-ORD-1005) o guía Cargo Expreso para consultarlo de inmediato.",
                     session.inCheckout() ? session.getStep() : CheckoutStep.IDLE,
                     session.getSelectedSku(), false, false, false, null);
         }
@@ -467,34 +475,80 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         // 7. Ubicación GPS fuera de checkout
         if (incomingMessage.location() != null && incomingMessage.location().lat() != null) {
             String locName = incomingMessage.location().resolvedAddress();
-            String reply = "¡Ubicación detectada! 📍 Veo que te encuentras en *" + locName + "*.\n\n"
-                    + "🚚 ¡Sí tenemos cobertura a domicilio en esa zona vía Cargo Expreso con envío GRATIS y pago al recibir! ¿Qué producto te gustaría ordenar?";
+            String window = HondurasDeliveryPolicy.estimateDeliveryWindow(locName);
+            String reply = "Ubicación detectada en " + locName + ".\n\n"
+                    + "Sí tenemos cobertura a domicilio en esa zona vía Cargo Expreso con envío gratis (" + window
+                    + ") y pago contra entrega. ¿Qué producto te gustaría ordenar?";
             return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
         }
 
-        // 8. Intención de compra directa
+        // 8. Intención de compra directa (validando stock real y umbral de traslado a asesor)
         if (isPurchaseIntent(norm) && activeProduct != null) {
             if (!activeProduct.inStock()) {
                 return new AssistantDecision(
-                        "El modelo *" + activeProduct.name() + "* (SKU: " + activeProduct.sku()
-                                + ") se encuentra temporalmente *agotado* 📦. ¿Te gustaría ver otro modelo similar disponible?",
+                        "El modelo " + activeProduct.name()
+                                + " se encuentra temporalmente agotado. ¿Te gustaría ver otro modelo similar disponible?",
                         CheckoutStep.IDLE, activeProduct.sku(), false, false, false, null);
             }
             int qty = extractQuantity(norm, 1);
+            int handoverLimit = HondurasDeliveryPolicy.humanHandoverThreshold(activeProduct, catalog);
             if (qty > activeProduct.stock()) {
                 DraftUpdate du = new DraftUpdate(activeProduct.sku(), activeProduct.stock(), null, null, null, null, null, null, null);
-                String txt = "Fíjate que de momento solo nos quedan *" + activeProduct.stock()
-                        + (activeProduct.stock() == 1 ? " unidad disponible*" : " unidades disponibles*")
-                        + " de *" + activeProduct.name() + "* (oferta *" + Money.lempiras(activeProduct.salePrice())
-                        + "* con envío gratis) 📦.\n\n¿Te apartamos las *" + activeProduct.stock()
-                        + "* disponibles? Si es así, compárteme tu *nombre completo* (con apellido):";
+                String txt = "De momento solo nos quedan " + activeProduct.stock()
+                        + (activeProduct.stock() == 1 ? " unidad disponible" : " unidades disponibles")
+                        + " de " + activeProduct.name() + " (" + Money.lempiras(activeProduct.salePrice())
+                        + " con envío gratis).\n\n¿Te apartamos "
+                        + (activeProduct.stock() == 1 ? "esa unidad" : "las " + activeProduct.stock() + " disponibles")
+                        + "? Si es así, compárteme tu nombre completo (con apellido):";
                 return new AssistantDecision(txt, CheckoutStep.NAME, activeProduct.sku(), false, false, false, du);
             }
+            if (qty >= handoverLimit) {
+                return new AssistantDecision(
+                        HondurasDeliveryPolicy.buildHumanHandoverForQuantityReply(activeProduct, qty),
+                        CheckoutStep.HUMAN, activeProduct.sku(), false, false, false, null);
+            }
             DraftUpdate du = new DraftUpdate(activeProduct.sku(), qty, null, null, null, null, null, null, null);
-            String txt = "¡Sí, la tenemos disponible! 🎉 Su precio de oferta es de *"
+            String txt = "Con gusto, sí tenemos disponible " + activeProduct.name() + " a "
                     + Money.lempiras(activeProduct.salePrice())
-                    + "* con envío gratis y pagas al recibir.\n\nPara apartar la tuya, ¿cuál es tu *nombre completo* (nombre y apellido)?";
+                    + " con envío gratis y pago contra entrega.\n\nPara apartar tu pedido, ¿cuál es tu nombre completo (nombre y apellido)?";
             return new AssistantDecision(txt, CheckoutStep.NAME, activeProduct.sku(), false, false, false, du);
+        }
+
+        // 8b. Reglas específicas de entrega (sábado, fechas concretas, ciudades 1-2 vs 2-3, precios fijos)
+        String addrCtx = (session.getCheckout() != null && session.getCheckout().address != null && !session.getCheckout().address.isBlank())
+                ? session.getCheckout().address + " " + raw
+                : raw;
+        if (HondurasDeliveryPolicy.mentionsSaturday(norm)) {
+            String reply = HondurasDeliveryPolicy.buildSaturdayReply(addrCtx);
+            if (session.inCheckout()) {
+                reply += "\n\n" + buildCheckoutResumePrompt(session);
+            }
+            return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
+        }
+        if (HondurasDeliveryPolicy.mentionsSpecificDate(norm)) {
+            String reply = HondurasDeliveryPolicy.buildSpecificDateReply(addrCtx);
+            if (session.inCheckout()) {
+                reply += "\n\n" + buildCheckoutResumePrompt(session);
+            }
+            return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
+        }
+        if (containsAny(norm, "descuento", "rebaja", "mejor precio", "por mayor", "mayoreo", "lo menos", "ultimo precio")) {
+            String reply = "Los precios publicados en nuestro catálogo son fijos y finales; no realizamos rebajas ni descuentos adicionales. Todos incluyen envío gratis en Honduras.";
+            if (session.inCheckout()) {
+                reply += "\n\n" + buildCheckoutResumePrompt(session);
+            }
+            return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
+        }
+        if (containsAny(norm, "cuanto tarda", "cuando llega", "dias habiles", "tiempo de entrega", "hacen envios", "envian a")
+                && !containsAny(norm, "roatan", "utila", "guanaja", "isla")) {
+            String window = HondurasDeliveryPolicy.estimateDeliveryWindow(addrCtx);
+            String reply = "Realizamos envíos gratis a domicilio vía Cargo Expreso con pago contra entrega. "
+                    + "El tiempo estimado en tu zona es " + window
+                    + " (ten en cuenta que son fechas aproximadas sujetas a ruta de Cargo Expreso, por lo que no se garantiza un día exacto).";
+            if (session.inCheckout()) {
+                reply += "\n\n" + buildCheckoutResumePrompt(session);
+            }
+            return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
         }
 
         // 9. Consultas sobre el producto activo (colores, medidas, peso, precio, fotos, stock)
@@ -505,17 +559,17 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             if (containsAny(norm, "color", "colores", "tono", "verde", "azul", "rojo", "negro", "blanco", "cafe",
                     "marron", "gris", "rosa")) {
                 String colors = activeProduct.colors() != null ? activeProduct.colors() : "su presentación estándar";
-                String reply = "🎨 El modelo *" + activeProduct.name() + "* lo tenemos disponible en color: *"
-                        + colors + "*. 🚚 Envío gratis por Cargo Expreso y pagas al recibir."
+                String reply = "El modelo " + activeProduct.name() + " lo tenemos disponible en color: "
+                        + colors + ". Envío gratis por Cargo Expreso y pagas al recibir."
                         + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría ordenarlo?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
             }
             if (containsAny(norm, "medida", "medidas", "dimension", "dimensiones", "mide", "tamano", "alto", "ancho")) {
                 String dims = activeProduct.dimensions() != null ? activeProduct.dimensions()
                         : "medidas estándar de fábrica";
-                String reply = "📏 Las medidas exactas de *" + activeProduct.name() + "* son: *" + dims + "*."
+                String reply = "Las medidas exactas de " + activeProduct.name() + " son: " + dims + "."
                         + (activeProduct.weightLimit() != null
-                                ? " Soporte: *" + activeProduct.weightLimit() + "*."
+                                ? " Soporte: " + activeProduct.weightLimit() + "."
                                 : "")
                         + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría hacer tu pedido?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
@@ -523,31 +577,30 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             if (containsAny(norm, "peso", "soporta", "aguanta", "resistencia", "kilos", "libras")) {
                 String weight = activeProduct.weightLimit() != null ? activeProduct.weightLimit()
                         : "alta resistencia estructural";
-                String reply = "💪 El modelo *" + activeProduct.name() + "* soporta hasta *" + weight + "*."
+                String reply = "El modelo " + activeProduct.name() + " soporta hasta " + weight + "."
                         + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría ordenarlo?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
             }
             if (containsAny(norm, "mas fotos", "más fotos", "todas las fotos", "galeria", "galería", "otras fotos")) {
-                String reply = "📸 ¡Con mucho gusto! Aquí tienes la galería con más fotos de *"
-                        + activeProduct.name() + "*."
+                String reply = "Con mucho gusto, aquí tienes las fotos de " + activeProduct.name() + "."
                         + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría ordenarlo?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), true, true, false, false, null);
             }
             if (containsAny(norm, "foto", "fotos", "imagen", "imagenes")) {
-                String reply = "📸 Aquí tienes la foto de *" + activeProduct.name() + "* (*"
-                        + Money.lempiras(activeProduct.salePrice()) + "* con envío gratis)."
+                String reply = "Aquí tienes la foto de " + activeProduct.name() + " ("
+                        + Money.lempiras(activeProduct.salePrice()) + " con envío gratis)."
                         + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría ordenarlo?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), true, false, false, false, null);
             }
             if (matchedProduct != null
                     || containsAny(norm, "precio", "cuesta", "vale", "stock", "disponible", "tienen", "hay")) {
                 if (!activeProduct.inStock()) {
-                    String reply = "El modelo *" + activeProduct.name() + "* (SKU: "
-                            + activeProduct.sku() + ") se encuentra temporalmente *agotado* 📦.";
+                    String reply = "El modelo " + activeProduct.name()
+                            + " se encuentra temporalmente agotado.";
                     return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
                 }
-                String reply = "¡Sí, lo tenemos disponible! 🎉 *" + activeProduct.name() + "* (SKU: " + activeProduct.sku() + ") — *"
-                        + Money.lempiras(activeProduct.salePrice()) + "* (" + activeProduct.stock() + " disp., envío gratis)."
+                String reply = "Sí, lo tenemos disponible: " + activeProduct.name() + " a "
+                        + Money.lempiras(activeProduct.salePrice()) + " (" + activeProduct.stock() + " disp., envío gratis)."
                         + (session.inCheckout() ? resumeSuffix : " ¿Deseas ordenarlo ahora?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), matchedProduct != null, false,
                         false, null);
@@ -555,6 +608,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         }
 
         // 10. Consultar Reglas, Horarios, Envíos, Ubicación y Preguntas Frecuentes DIRECTO DE BD (bot_rules + tenants.scope_policy)
+
         Optional<String> dbFaqReply = matchRuleFromDb(norm, rules, activeProduct, catalog);
         if (dbFaqReply.isPresent()) {
             String reply = dbFaqReply.get();
@@ -582,21 +636,21 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                     : catalog.stream().filter(Product::inStock).limit(5).toList();
             if (filtered.isEmpty() && requestedFamily != null) {
                 return new AssistantDecision(
-                        "Fíjate que de momento no manejamos *" + requestedFamily + "* en nuestro catálogo 😊 ¿Te gustaría ver nuestras sillas, escritorios o artículos para el hogar disponibles?",
+                        "De momento no manejamos " + requestedFamily + " en nuestro catálogo. ¿Te gustaría ver nuestras sillas, escritorios o artículos para el hogar disponibles?",
                         CheckoutStep.IDLE, session.getSelectedSku(), false, false, false, null);
             }
             StringBuilder list = new StringBuilder();
-            filtered.stream().limit(5).forEach(p -> list.append("• *").append(p.name())
-                    .append("* — *").append(Money.lempiras(p.salePrice())).append("*\n"));
+            filtered.stream().limit(5).forEach(p -> list.append("- ").append(p.name())
+                    .append(" — ").append(Money.lempiras(p.salePrice())).append("\n"));
             String header = requestedFamily != null
-                    ? "¡Con gusto! Estos son nuestros modelos disponibles:\n\n"
-                    : "¡Hola! 👋 Bienvenido a *" + tenant.name() + "*. Algunos de nuestros modelos disponibles:\n\n";
-            String reply = header + list + "\n🚚 Envío gratis a toda Honduras. ¿Cuál te gustaría ver en detalle o pedir?";
+                    ? "Con gusto, estos son nuestros modelos disponibles:\n\n"
+                    : "Hola, bienvenido a " + tenant.name() + ". Algunos de nuestros modelos disponibles:\n\n";
+            String reply = header + list + "\nEnvío gratis a toda Honduras. ¿Cuál te gustaría ver en detalle o pedir?";
             return new AssistantDecision(reply, CheckoutStep.IDLE, session.getSelectedSku(), false, false, false, null);
         }
 
         // 12. No entendido
-        String fallback = "Disculpa, no logré entender bien tu mensajito. 😊 ¿Me indicas qué producto o mueble estás buscando? Con gusto te comparto precios y fotos.";
+        String fallback = "Disculpa, no logré entender bien tu mensaje. ¿Me indicas qué producto o mueble estás buscando? Con gusto te comparto precios y fotos.";
         return new AssistantDecision(fallback, session.getStep(), session.getSelectedSku(), false, false, false, null);
     }
 
@@ -613,8 +667,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             String targetName = explicitFamily != null ? explicitFamily
                     : (activeProduct != null ? activeProduct.category() : "ese tipo de producto");
             return new AssistantDecision(
-                    "Por el momento no nos quedan otros modelos disponibles en la línea de *" + targetName
-                            + "* 📦. ¿Te gustaría apartar el disponible o consultar otra categoría?",
+                    "Por el momento no nos quedan otros modelos disponibles en la línea de " + targetName
+                            + ". ¿Te gustaría apartar el disponible o consultar otra categoría?",
                     CheckoutStep.IDLE,
                     activeProduct != null ? activeProduct.sku() : null,
                     false, false, false, null);
@@ -625,26 +679,26 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         if (wantsList) {
             StringBuilder sb = new StringBuilder();
             String familyLabel = explicitFamily != null ? explicitFamily + "s" : "modelos disponibles";
-            sb.append("¡Con gusto! Aquí tienes nuestras opciones de *").append(familyLabel).append("* disponibles en tienda:\n\n");
+            sb.append("Con gusto, aquí tienes nuestras opciones de ").append(familyLabel).append(" disponibles en tienda:\n\n");
             int count = 0;
             for (Product p : matches) {
                 if (count >= 4) break;
-                sb.append("• *").append(p.name()).append("* — *").append(Money.lempiras(p.salePrice())).append("*")
+                sb.append("- ").append(p.name()).append(" — ").append(Money.lempiras(p.salePrice()))
                         .append(" (").append(p.stock()).append(" disp.")
                         .append(p.colors() != null ? ", " + p.colors() : "").append(")\n");
                 session.addOfferedSku(p.sku());
                 count++;
             }
-            sb.append("\n¿Cuál de estos modelos te gustaría ver o apartar? 😊");
+            sb.append("\n¿Cuál de estos modelos te gustaría ver o apartar?");
             return new AssistantDecision(sb.toString(), CheckoutStep.IDLE, null, false, false, true, false, null);
         }
 
         Product alt = matches.get(0);
         session.addOfferedSku(alt.sku());
-        String txt = "¡Claro! También tenemos disponible en esa misma línea:\n\n"
-                + "• *" + alt.name() + "* — *" + Money.lempiras(alt.salePrice()) + "* (" + alt.stock() + " disp.)\n"
-                + (alt.colors() != null ? "• Colores: " + alt.colors() + "\n" : "")
-                + "\n🚚 Envío gratis a todo el país y pagas al recibir. ¿Te gustaría pedir este modelo?";
+        String txt = "Claro, también tenemos disponible en esa misma línea:\n\n"
+                + "- " + alt.name() + " — " + Money.lempiras(alt.salePrice()) + " (" + alt.stock() + " disp.)\n"
+                + (alt.colors() != null ? "- Colores: " + alt.colors() + "\n" : "")
+                + "\nEnvío gratis a todo el país y pagas al recibir. ¿Te gustaría pedir este modelo?";
         return new AssistantDecision(txt, CheckoutStep.IDLE, alt.sku(), true, false, true, false, null);
     }
 
@@ -664,47 +718,53 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             case NAME -> {
                 if (!HondurasOrderValidator.isValidFullName(raw)) {
                     return new AssistantDecision(
-                            "Para registrar tu guía necesito tu **nombre completo** (nombre y al menos un apellido, ej: *Carlos Mendoza*), por favor 😊:",
+                            "Para registrar tu guía necesito tu nombre completo (nombre y al menos un apellido, ej: Carlos Mendoza), por favor:",
                             CheckoutStep.NAME, c.productSku, false, false, false, null);
                 }
                 String cleanName = HondurasOrderValidator.extractCleanFullName(raw);
                 DraftUpdate du = new DraftUpdate(c.productSku, null, cleanName, null, null, null, null, null, null);
                 if (c.quantityConfirmed) {
                     return new AssistantDecision(
-                            "¡Gracias, *" + cleanName + "*! Anotamos *" + c.effectiveQuantityLabel()
-                                    + "*.\n\n🚚 ¿A qué **dirección en Honduras** te lo enviamos?\n• Ciudad / Municipio\n• Colonia, barrio o residencial\n• Calle, casa y referencia *(o Agencia Cargo Expreso / ubicación 📍)*:",
+                            "Gracias, " + cleanName + ". Anotamos " + c.effectiveQuantityLabel()
+                                    + ".\n\n¿A qué dirección en Honduras te lo enviamos?\n- Ciudad / Municipio\n- Colonia, barrio o residencial\n- Calle, casa y referencia (o Agencia Cargo Expreso / ubicación GPS):",
                             CheckoutStep.ADDRESS, c.productSku, false, false, false, du);
                 }
                 return new AssistantDecision(
-                        "Gracias, *" + cleanName + "*. ¿Cuántas unidades deseas ordenar? (Ejemplo: *1*, *2*):",
+                        "Gracias, " + cleanName + ". ¿Cuántas unidades deseas ordenar? (Ejemplo: 1, 2):",
                         CheckoutStep.QUANTITY, c.productSku, false, false, false, du);
             }
             case QUANTITY -> {
                 int q = extractQuantity(norm, 0);
                 if (q <= 0) {
                     return new AssistantDecision(
-                            "Por favor indícanos en número cuántas unidades de *" + c.productName
-                                    + "* deseas ordenar (ejemplo: *1* o *2*):",
+                            "Por favor indícanos en número cuántas unidades de " + c.productName
+                                    + " deseas ordenar (ejemplo: 1 o 2):",
                             CheckoutStep.QUANTITY, c.productSku, false, false, false, null);
                 }
                 if (activeProduct != null && q > activeProduct.stock()) {
                     if (activeProduct.stock() <= 0) {
                         return new AssistantDecision(
-                                "El modelo *" + activeProduct.name() + "* se encuentra temporalmente *agotado* 📦. ¿Te gustaría ver otro modelo similar disponible?",
+                                "El modelo " + activeProduct.name() + " se encuentra temporalmente agotado. ¿Te gustaría ver otro modelo similar disponible?",
                                 CheckoutStep.IDLE, activeProduct.sku(), false, false, true, false, null);
                     }
                     DraftUpdate du = new DraftUpdate(c.productSku, activeProduct.stock(), null, null, null, null, null, null, null);
                     return new AssistantDecision(
-                            "Fíjate que de momento solo nos quedan *" + activeProduct.stock()
-                                    + (activeProduct.stock() == 1 ? " unidad disponible*" : " unidades disponibles*")
-                                    + " de *" + activeProduct.name() + "* 📦.\n\n¿Te apartamos las *" + activeProduct.stock()
-                                    + "* disponibles?",
+                            "De momento solo nos quedan " + activeProduct.stock()
+                                    + (activeProduct.stock() == 1 ? " unidad disponible" : " unidades disponibles")
+                                    + " de " + activeProduct.name() + ".\n\n¿Te apartamos las " + activeProduct.stock()
+                                    + " disponibles?",
                             CheckoutStep.QUANTITY, c.productSku, false, false, false, du);
+                }
+                int handoverLimit = HondurasDeliveryPolicy.humanHandoverThreshold(activeProduct, catalog);
+                if (activeProduct != null && q >= handoverLimit) {
+                    return new AssistantDecision(
+                            HondurasDeliveryPolicy.buildHumanHandoverForQuantityReply(activeProduct, q),
+                            CheckoutStep.HUMAN, activeProduct.sku(), false, false, true, false, null);
                 }
                 DraftUpdate du = new DraftUpdate(c.productSku, q, null, null, null, null, null, null, null);
                 return new AssistantDecision(
-                        "¡Anotado! *" + q + (q == 1 ? " unidad*" : " unidades*.")
-                                + "\n\n🚚 ¿A qué **dirección en Honduras** te lo enviamos?\n• Ciudad / Municipio\n• Colonia, barrio o residencial\n• Calle, casa y referencia *(o Agencia Cargo Expreso / ubicación 📍)*:",
+                        "Anotado, " + q + (q == 1 ? " unidad." : " unidades.")
+                                + "\n\n¿A qué dirección en Honduras te lo enviamos?\n- Ciudad / Municipio\n- Colonia, barrio o residencial\n- Calle, casa y referencia (o Agencia Cargo Expreso / ubicación GPS):",
                         CheckoutStep.ADDRESS, c.productSku, false, false, false, du);
             }
             case ADDRESS -> {
@@ -713,89 +773,99 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                         : raw;
                 if (!HondurasOrderValidator.isValidHondurasAddress(addr, incomingMessage.location())) {
                     return new AssistantDecision(
-                            "Para que Cargo Expreso entregue sin retrasos, por favor compártenos tu dirección completa en Honduras:\n• **Ciudad / Municipio**\n• **Colonia o barrio**\n• **Calle, casa y referencia**\n*(O indícanos la agencia Cargo Expreso donde deseas retirar, o envía tu ubicación 📍)*:",
+                            "Para que Cargo Expreso entregue sin retrasos, por favor compártenos tu dirección completa en Honduras:\n- Ciudad / Municipio\n- Colonia o barrio\n- Calle, casa y referencia\n(O indícanos la agencia Cargo Expreso donde deseas retirar, o envía tu ubicación GPS):",
                             CheckoutStep.ADDRESS, c.productSku, false, false, false, null);
                 }
                 boolean isAgency = HondurasOrderValidator.isAgencyAddress(addr);
                 DraftUpdate du = new DraftUpdate(c.productSku, null, null, addr, isAgency, null, null, null, null);
                 return new AssistantDecision(
-                        "¡Dirección registrada! 📦\n\n📞 ¿A qué **número telefónico de 8 dígitos en Honduras (que reciba llamadas directas)** te contactará el repartidor de Cargo Expreso?",
+                        "Dirección registrada.\n\n¿A qué número telefónico de 8 dígitos en Honduras (que reciba llamadas directas) te contactará el repartidor de Cargo Expreso?",
                         CheckoutStep.PHONE, c.productSku, false, false, false, du);
             }
             case PHONE -> {
                 Optional<String> validPhone = HondurasOrderValidator.normalizeAndValidatePhone(raw);
                 if (validPhone.isEmpty()) {
                     return new AssistantDecision(
-                            "Por favor compártenos un **número telefónico válido en Honduras de 8 dígitos** que reciba llamadas directas (ejemplo: *9800-8559*):",
+                            "Por favor compártenos un número telefónico válido en Honduras de 8 dígitos que reciba llamadas directas (ejemplo: 9800-8559):",
                             CheckoutStep.PHONE, c.productSku, false, false, false, null);
                 }
-                DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, validPhone.get(), null, null, null);
+                boolean wantsInvoice = c.requiresInvoice || HondurasOrderValidator.explicitInvoiceRequested(raw);
+                if (wantsInvoice) {
+                    DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, validPhone.get(), true, null, null);
+                    return new AssistantDecision(
+                            "Teléfono registrado (" + validPhone.get() + "). Por favor indícanos tu número de RTN de Honduras (14 dígitos numéricos, ejemplo: 08011990123456):",
+                            CheckoutStep.INVOICE_RTN, c.productSku, false, false, false, du);
+                }
+                DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, validPhone.get(), false, null, null);
+                String window = HondurasDeliveryPolicy.estimateDeliveryWindow(c.address);
                 return new AssistantDecision(
-                        "Teléfono registrado para llamadas: *" + validPhone.get()
-                                + "* 📞.\n\n🧾 ¿Requieres **factura con RTN** para tu pedido? (Responde *Sí* o *No*):",
-                        CheckoutStep.REQUIRES_INVOICE, c.productSku, false, false, false, du);
+                        "Resumen de tu pedido listo para confirmar:\n"
+                                + "- Producto: " + c.productName + " (" + c.effectiveQuantityLabel() + ")\n"
+                                + "- Total: " + Money.lempiras(c.total) + " (Envío gratis)\n"
+                                + "- Cliente: " + c.name + " | Tel: " + validPhone.get() + "\n"
+                                + "- Entrega estimada (" + window + "): " + c.address + "\n\n"
+                                + "Escribe Confirmar para registrar tu pedido (o dime si necesitas factura con RTN).",
+                        CheckoutStep.CONFIRM, c.productSku, false, false, false, du);
             }
             case REQUIRES_INVOICE -> {
                 Optional<Boolean> invDecision = HondurasOrderValidator.parseInvoiceDecision(raw);
-                if (invDecision.isEmpty()) {
-                    return new AssistantDecision(
-                            "Por favor indícanos *Sí* o *No*: ¿deseas **factura con RTN** para tu pedido?",
-                            CheckoutStep.REQUIRES_INVOICE, c.productSku, false, false, false, null);
-                }
-                if (Boolean.TRUE.equals(invDecision.get())) {
+                if (invDecision.isPresent() && Boolean.TRUE.equals(invDecision.get())) {
                     DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, null, true, null, null);
                     return new AssistantDecision(
-                            "Por favor indícanos tu número de **RTN de Honduras** (14 dígitos numéricos, ejemplo: *08011990123456*):",
+                            "Por favor indícanos tu número de RTN de Honduras (14 dígitos numéricos, ejemplo: 08011990123456):",
                             CheckoutStep.INVOICE_RTN, c.productSku, false, false, false, du);
                 }
                 DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, null, false, null, null);
+                String window = HondurasDeliveryPolicy.estimateDeliveryWindow(c.address);
                 return new AssistantDecision(
-                        "📋 *Resumen de tu pedido listo para confirmar*:\n"
-                                + "• Producto: *" + c.productName + "*\n"
-                                + "• Cantidad: *" + c.quantity + " unid.*\n"
-                                + "• Total: *" + Money.lempiras(c.total) + "* (Envío gratis)\n"
-                                + "• Cliente: " + c.name + "\n"
-                                + "• Entrega: " + c.address + "\n"
-                                + "• Teléfono: " + c.phone + "\n"
-                                + "• Factura: Consumidor Final\n\n"
-                                + "Escribe *Confirmar* (o presiona el botón ✅) para registrar tu pedido.",
+                        "Resumen de tu pedido listo para confirmar:\n"
+                                + "- Producto: " + c.productName + " (" + c.effectiveQuantityLabel() + ")\n"
+                                + "- Total: " + Money.lempiras(c.total) + " (Envío gratis)\n"
+                                + "- Cliente: " + c.name + " | Tel: " + c.phone + "\n"
+                                + "- Entrega estimada (" + window + "): " + c.address + "\n\n"
+                                + "Escribe Confirmar para registrar tu pedido.",
                         CheckoutStep.CONFIRM, c.productSku, false, false, false, du);
             }
             case INVOICE_RTN -> {
                 Optional<String> validRtn = HondurasOrderValidator.normalizeAndValidateRtn(raw);
                 if (validRtn.isEmpty()) {
                     return new AssistantDecision(
-                            "El **RTN en Honduras** debe tener exactamente **14 dígitos numéricos** (ejemplo: *08011990123456*). ¿Me lo compartes completo?",
+                            "El RTN en Honduras debe tener exactamente 14 dígitos numéricos (ejemplo: 08011990123456). ¿Me lo compartes completo?",
                             CheckoutStep.INVOICE_RTN, c.productSku, false, false, false, null);
                 }
                 DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, null, true, validRtn.get(), null);
                 return new AssistantDecision(
-                        "RTN registrado (*" + validRtn.get() + "*). ¿Cuál es el **Nombre o Razón Social** de la empresa para tu factura?",
+                        "RTN registrado (" + validRtn.get() + "). ¿Cuál es el Nombre o Razón Social de la empresa para tu factura?",
                         CheckoutStep.INVOICE_BUSINESS_NAME, c.productSku, false, false, false, du);
             }
             case INVOICE_BUSINESS_NAME -> {
                 if (!HondurasOrderValidator.isValidBusinessName(raw)) {
                     return new AssistantDecision(
-                            "Por favor indícanos el **Nombre o Razón Social** completo para emitir la factura con RTN:",
+                            "Por favor indícanos el Nombre o Razón Social completo para emitir la factura con RTN:",
                             CheckoutStep.INVOICE_BUSINESS_NAME, c.productSku, false, false, false, null);
                 }
                 String cleanBiz = HondurasOrderValidator.extractCleanBusinessName(raw);
                 DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, null, true, c.rtn, cleanBiz);
+                String window = HondurasDeliveryPolicy.estimateDeliveryWindow(c.address);
                 return new AssistantDecision(
-                        "📋 *Resumen de tu pedido listo para confirmar*:\n"
-                                + "• Producto: *" + c.productName + "*\n"
-                                + "• Cantidad: *" + c.quantity + " unid.*\n"
-                                + "• Total: *" + Money.lempiras(c.total) + "*\n"
-                                + "• Cliente: " + c.name + "\n"
-                                + "• Entrega: " + c.address + "\n"
-                                + "• Teléfono: " + c.phone + "\n"
-                                + "• Factura RTN: " + c.rtn + " (" + cleanBiz + ")\n\n"
-                                + "Escribe *Confirmar* (o presiona el botón ✅) para registrar tu pedido.",
+                        "Resumen de tu pedido listo para confirmar:\n"
+                                + "- Producto: " + c.productName + " (" + c.effectiveQuantityLabel() + ")\n"
+                                + "- Total: " + Money.lempiras(c.total) + " (Envío gratis)\n"
+                                + "- Cliente: " + c.name + " | Tel: " + c.phone + "\n"
+                                + "- Entrega estimada (" + window + "): " + c.address + "\n"
+                                + "- Factura RTN: " + c.rtn + " (" + cleanBiz + ")\n\n"
+                                + "Escribe Confirmar para registrar tu pedido.",
                         CheckoutStep.CONFIRM, c.productSku, false, false, false, du);
             }
             case CONFIRM -> {
-                if (containsAny(norm, "confirmar", "confirmo", "si", "ok", "dale", "listo", "correcto", "mandelo")) {
-                    return new AssistantDecision("¡Pedido confirmado!", CheckoutStep.IDLE, c.productSku, false, false,
+                if (HondurasOrderValidator.explicitInvoiceRequested(raw)) {
+                    DraftUpdate du = new DraftUpdate(c.productSku, null, null, null, null, null, true, null, null);
+                    return new AssistantDecision(
+                            "Con gusto emitimos tu factura. Por favor compárteme tu número de RTN de Honduras (14 dígitos numéricos):",
+                            CheckoutStep.INVOICE_RTN, c.productSku, false, false, false, du);
+                }
+                if (containsAny(norm, "confirmar", "confirmo", "si", "ok", "dale", "listo", "correcto", "mandelo", "la quiero", "lo quiero")) {
+                    return new AssistantDecision("Pedido confirmado.", CheckoutStep.IDLE, c.productSku, false, false,
                             true, null);
                 }
                 if (containsAny(norm, "modificar", "cambiar direccion", "direccion")) {
@@ -803,8 +873,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                             CheckoutStep.ADDRESS, c.productSku, false, false, false, null);
                 }
                 return new AssistantDecision(
-                        "Tu pedido para *" + c.productName
-                                + "* sigue listo. Escribe *Confirmar* para registrarlo o *Cancelar* si deseas anularlo.",
+                        "Tu pedido para " + c.productName
+                                + " sigue listo. Escribe Confirmar para registrarlo o Cancelar si deseas anularlo.",
                         CheckoutStep.CONFIRM, c.productSku, false, false, false, null);
             }
             default -> {
@@ -877,7 +947,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         if (containsAny(norm, "envio", "flete", "entrega", "cargo expreso", "san pedro", "tegucigalpa",
                 "domicilio", "tardan", "horario", "agencia", "roatan", "utila", "isla", "forza",
                 "pago", "transferencia", "tarjeta", "garantia", "ubicacion", "donde estan")) {
-            return Optional.of("📋 *" + tenant.name() + ":* " + tenant.scopePolicy().trim());
+            return Optional.of(tenant.name() + ": " + HondurasDeliveryPolicy.sanitizeCustomerReply(tenant.scopePolicy()));
         }
         return Optional.empty();
     }
@@ -966,14 +1036,13 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         CheckoutDraft c = session.getCheckout();
         if (c == null) return "";
         return switch (session.getStep()) {
-            case NAME -> "Para continuar con tu pedido de *" + c.productName + "*, ¿cuál es tu **nombre completo** (con apellido)?";
-            case QUANTITY -> "Ya tenemos tu nombre (" + c.name + "). ¿Cuántas unidades de *" + c.productName + "* deseas ordenar?";
-            case ADDRESS -> "Para enviártelo gratis por Cargo Expreso, ¿cuál es tu **dirección en Honduras** (Ciudad, Colonia/Barrio, Calle/Referencia o Agencia CAEX)?";
-            case PHONE -> "Solo nos falta tu **número telefónico de 8 dígitos** que reciba llamadas directas de Cargo Expreso:";
-            case REQUIRES_INVOICE -> "¿Requieres **factura con RTN** para tu pedido? (Responde *Sí* o *No*):";
-            case INVOICE_RTN -> "Compárteme por favor tu **RTN de Honduras** (14 dígitos numéricos):";
-            case INVOICE_BUSINESS_NAME -> "RTN registrado (" + c.rtn + "). ¿Cuál es el **Nombre o Razón Social** de la empresa?";
-            case CONFIRM -> "Escribe *Confirmar* cuando estés listo para finalizar tu pedido de *" + c.productName + "*.";
+            case NAME -> "Para continuar con tu pedido de " + c.productName + ", ¿cuál es tu nombre completo (con apellido)?";
+            case QUANTITY -> "Ya tenemos tu nombre (" + c.name + "). ¿Cuántas unidades de " + c.productName + " deseas ordenar?";
+            case ADDRESS -> "Para enviártelo gratis por Cargo Expreso, ¿cuál es tu dirección en Honduras (Ciudad, Colonia/Barrio, Calle/Referencia o Agencia CAEX)?";
+            case PHONE -> "Solo nos falta tu número telefónico de 8 dígitos que reciba llamadas directas de Cargo Expreso:";
+            case INVOICE_RTN -> "Compárteme por favor tu RTN de Honduras (14 dígitos numéricos):";
+            case INVOICE_BUSINESS_NAME -> "RTN registrado (" + c.rtn + "). ¿Cuál es el Nombre o Razón Social de la empresa?";
+            case CONFIRM, REQUIRES_INVOICE -> "Escribe Confirmar cuando estés listo para finalizar tu pedido de " + c.productName + ".";
             default -> "";
         };
     }
@@ -987,7 +1056,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 "hamaca", "carro", "diablo", "bici", "bicicleta", "ruedas", "precio", "cuanto vale", "envio",
                 "cargo expreso", "pago", "contra entrega", "transferencia", "roatan", "guia", "pedido", "orden",
                 "comprar", "apartar", "catalogo", "smak", "garantia", "cuanto mide", "dimension", "colores", "foto",
-                "horario", "horarios", "tienda", "ubicados", "ducha", "carrito")) {
+                "horario", "horarios", "tienda", "ubicados", "ducha", "carrito", "sabado", "fecha", "factura", "rtn")) {
             return false;
         }
         return containsAny(norm,
@@ -998,10 +1067,21 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 "receta de", "pronostico del tiempo", "clima en", "chatgpt", "openai");
     }
 
-    private boolean isInformationalOrFaqQuestion(String norm, List<RuleContext> rules) {
+    private boolean isInformationalOrFaqQuestion(String norm, List<RuleContext> rules, ChatSession session, IncomingMessage incomingMessage) {
+        if (session != null && session.getStep() == CheckoutStep.ADDRESS
+                && HondurasOrderValidator.isValidHondurasAddress(incomingMessage != null ? incomingMessage.text() : null,
+                incomingMessage != null ? incomingMessage.location() : null)) {
+            return false;
+        }
+        if (session != null && session.getStep() == CheckoutStep.PHONE
+                && HondurasOrderValidator.isValidHondurasPhone(incomingMessage != null ? incomingMessage.text() : null)) {
+            return false;
+        }
         if (containsAny(norm, "precio", "cuesta", "vale", "color", "colores", "verde", "azul", "rojo", "medida",
                 "medidas", "mide", "dimension", "peso", "soporta", "aguanta", "foto", "fotos", "garantia", "tarjeta",
-                "transferencia", "roatan", "utila", "isla", "forza", "horario", "horarios", "envio", "flete")) {
+                "transferencia", "roatan", "utila", "isla", "forza", "horario", "horarios", "envio", "flete",
+                "sabado", "sabados", "fecha", "cuando llega", "cuanto tarda", "dias habiles",
+                "descuento", "rebaja", "mejor precio", "mayoreo")) {
             return true;
         }
         if (rules != null) {
@@ -1021,8 +1101,12 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
     private boolean isPurchaseIntent(String norm) {
         if (containsAny(norm, "quiero saber", "quiero ver", "que productos", "catalogo", "otros modelos", "que otros"))
             return false;
+        if (java.util.regex.Pattern.compile("\\b(quiero|dame|necesito|ocupo|manda|enviame)\\s+(\\d+|un|uno|una|dos|tres|cuatro|cinco|seis)\\b")
+                .matcher(norm).find()) {
+            return true;
+        }
         return containsAny(norm, "comprar", "quiero pedir", "quiero ordenar", "hacer pedido", "lo quiero", "la quiero",
-                "me lo llevo", "me la llevo", "apartar", "quiero 1", "quiero 2", "quiero 3", "dame 1", "dame 2",
+                "si la quiero", "si lo quiero", "me lo llevo", "me la llevo", "apartar",
                 "quiero una", "quiero uno", "kiero una", "kiero uno", "quiero esta", "kiero esta", "quiero este", "kiero este",
                 "me interesa", "ordenar", "pedir");
     }
@@ -1087,6 +1171,14 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             return 3;
         if (containsAny(norm, "cuatro"))
             return 4;
+        if (containsAny(norm, "cinco"))
+            return 5;
+        if (containsAny(norm, "seis"))
+            return 6;
+        if (containsAny(norm, "siete"))
+            return 7;
+        if (containsAny(norm, "ocho"))
+            return 8;
         if (containsAny(norm, "un", "uno", "una"))
             return 1;
         return defaultVal;

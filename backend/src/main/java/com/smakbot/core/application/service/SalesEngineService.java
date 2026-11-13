@@ -1,5 +1,6 @@
 package com.smakbot.core.application.service;
 
+import com.smakbot.core.application.engine.HondurasDeliveryPolicy;
 import com.smakbot.core.application.engine.HondurasOrderValidator;
 import com.smakbot.core.application.engine.Money;
 import com.smakbot.core.domain.exception.ResourceNotFoundException;
@@ -136,7 +137,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         // 4. Cancelación simple cuando no hay checkout activo ni orden por cancelar
         if (!session.inCheckout() && ("cancelar".equals(normText) || "cancelar pedido".equals(normText) || "cancelar orden".equals(normText))) {
             session.reset();
-            String cancelReply = "Entendido, he reiniciado tu conversación. 😊 Si deseas consultar algún producto, ver el catálogo o hacer un pedido, escríbeme con confianza.";
+            String cancelReply = "Entendido, he reiniciado tu conversación. Si deseas consultar algún producto, ver el catálogo o hacer un pedido, escríbeme con confianza.";
             session.addTurn("user", rawText);
             session.addTurn("assistant", cancelReply);
             sessionRepo.save(session);
@@ -198,7 +199,8 @@ public class SalesEngineService implements ProcessMessageUseCase {
         }
 
         String validationError = null;
-        if (!decision.cancelCheckout() && !decision.confirmOrderNow()) {
+        boolean customerRequestedInvoiceNow = HondurasOrderValidator.explicitInvoiceRequested(rawText);
+        if (!decision.cancelCheckout() && (!decision.confirmOrderNow() || customerRequestedInvoiceNow)) {
             validationError = applyDraftUpdatesAndValidate(
                     session, prevStep, decision.draftUpdate(), selectedProduct, catalog, tenant, rawText, msg.location()
             );
@@ -212,9 +214,9 @@ public class SalesEngineService implements ProcessMessageUseCase {
         }
 
         String replyText = decision.replyText() != null ? decision.replyText() : "";
-        boolean allowConfirmNow = decision.confirmOrderNow();
+        boolean allowConfirmNow = decision.confirmOrderNow() && !customerRequestedInvoiceNow;
 
-        // Guardrail supremo sobre estado del checkout: impedir saltar teléfono, apellido, RTN o confirmar incompleto
+        // Guardrail supremo sobre estado del checkout: límites de cantidad, stock, entrega y pasos Honduras
         if (!decision.cancelCheckout() && nextStep != CheckoutStep.HUMAN
                 && (session.inCheckout() || allowConfirmNow || session.getCheckout() != null)) {
             CheckoutDraft draft = session.getCheckout();
@@ -223,22 +225,23 @@ public class SalesEngineService implements ProcessMessageUseCase {
             }
             if (draft != null) {
                 Product prodForDraft = resolveProductBySku(draft.productSku, catalog).orElse(selectedProduct);
-                CheckoutStep requiredStep = computeNextPendingStep(draft, prodForDraft);
+                int handoverLimit = HondurasDeliveryPolicy.humanHandoverThreshold(prodForDraft, catalog);
 
-                // Validar inventario en tiempo real
+                // 1. Validar inventario en tiempo real (nunca vender más unidades que el stock real en BD)
                 if (prodForDraft != null && (draft.quantity > prodForDraft.stock() || prodForDraft.stock() <= 0)) {
                     allowConfirmNow = false;
                     if (prodForDraft.stock() <= 0) {
-                        replyText = "Fíjate que el modelo *" + prodForDraft.name()
-                                + "* se encuentra temporalmente *agotado* 📦. ¿Te gustaría que te muestre otro modelo similar disponible?";
+                        replyText = "El modelo " + prodForDraft.name()
+                                + " se encuentra temporalmente agotado. ¿Te gustaría que te muestre otro modelo similar disponible?";
                         session.setStep(CheckoutStep.IDLE);
                         session.setCheckout(null);
                         nextStep = CheckoutStep.IDLE;
                     } else {
-                        replyText = "Fíjate que de momento solo nos quedan *" + prodForDraft.stock()
-                                + (prodForDraft.stock() == 1 ? " unidad disponible*" : " unidades disponibles*")
-                                + " de *" + prodForDraft.name() + "* 📦.\n\n¿Te apartamos las *" + prodForDraft.stock()
-                                + "* disponibles o prefieres ver otro modelo?";
+                        replyText = "De momento solo nos quedan " + prodForDraft.stock()
+                                + (prodForDraft.stock() == 1 ? " unidad disponible" : " unidades disponibles")
+                                + " de " + prodForDraft.name() + ".\n\n¿Te apartamos "
+                                + (prodForDraft.stock() == 1 ? "esa unidad disponible" : "las " + prodForDraft.stock() + " disponibles")
+                                + " o prefieres ver otro modelo?";
                         draft.quantity = prodForDraft.stock();
                         draft.quantityConfirmed = false;
                         draft.quantityLabel = prodForDraft.stock() + (prodForDraft.stock() == 1 ? " unidad" : " unidades");
@@ -246,40 +249,66 @@ public class SalesEngineService implements ProcessMessageUseCase {
                         session.setStep(CheckoutStep.QUANTITY);
                         nextStep = CheckoutStep.QUANTITY;
                     }
-                } else if (requiredStep != CheckoutStep.CONFIRM) {
-                    // Nunca permitir confirmar ni saltar por encima del campo pendiente/inválido
+                } else if (prodForDraft != null && draft.quantityConfirmed && draft.quantity >= handoverLimit) {
+                    // 2. Regla comercial: > 2 unidades en general (o >= 5 en línea Set/Tolix) -> trasladar a asesor humano
                     allowConfirmNow = false;
-                    boolean skippedAhead = stepOrder(nextStep) > stepOrder(requiredStep);
-                    boolean rejectedCurrent = (validationError != null);
-                    boolean isQuestion = isCheckoutQuestion(rawText, normText);
+                    session.setSelectedSku(prodForDraft.sku());
+                    session.setCheckout(null);
+                    session.handoverToHuman();
+                    nextStep = CheckoutStep.HUMAN;
+                    replyText = HondurasDeliveryPolicy.buildHumanHandoverForQuantityReply(prodForDraft, draft.quantity);
+                } else {
+                    CheckoutStep requiredStep = computeNextPendingStep(draft, prodForDraft);
+                    boolean askedSaturday = HondurasDeliveryPolicy.mentionsSaturday(normText);
+                    boolean askedSpecificDate = HondurasDeliveryPolicy.mentionsSpecificDate(normText);
 
-                    if (rejectedCurrent && !isQuestion) {
-                        session.setStep(requiredStep);
-                        nextStep = requiredStep;
-                        replyText = validationError;
-                    } else if (skippedAhead || nextStep == CheckoutStep.IDLE && session.inCheckout()) {
-                        session.setStep(requiredStep);
-                        nextStep = requiredStep;
-                        if (!isQuestion) {
-                            replyText = buildPromptForStep(requiredStep, draft);
-                        } else if (!replyText.contains("?")) {
-                            replyText = replyText + "\n\n" + buildPromptForStep(requiredStep, draft);
+                    if (requiredStep != CheckoutStep.CONFIRM) {
+                        // Nunca permitir confirmar ni saltar por encima del campo pendiente/inválido
+                        allowConfirmNow = false;
+                        boolean skippedAhead = stepOrder(nextStep) > stepOrder(requiredStep);
+                        boolean rejectedCurrent = (validationError != null);
+                        boolean isQuestion = isCheckoutQuestion(rawText, normText, prevStep, msg.location());
+
+                        if (rejectedCurrent && !isQuestion) {
+                            session.setStep(requiredStep);
+                            nextStep = requiredStep;
+                            replyText = validationError;
+                        } else if (skippedAhead || (nextStep == CheckoutStep.IDLE && session.inCheckout())
+                                || nextStep == CheckoutStep.REQUIRES_INVOICE) {
+                            session.setStep(requiredStep);
+                            nextStep = requiredStep;
+                            if (!isQuestion) {
+                                replyText = buildPromptForStep(requiredStep, draft);
+                            } else if (!replyText.contains("?")) {
+                                replyText = replyText + "\n\n" + buildPromptForStep(requiredStep, draft);
+                            }
+                        } else {
+                            session.setStep(requiredStep);
+                            nextStep = requiredStep;
                         }
-                    } else {
-                        session.setStep(requiredStep);
-                        nextStep = requiredStep;
-                    }
-                } else if (prevStep == CheckoutStep.REQUIRES_INVOICE && Boolean.FALSE.equals(draft.requiresInvoice) && !allowConfirmNow) {
-                    session.setStep(CheckoutStep.CONFIRM);
-                    nextStep = CheckoutStep.CONFIRM;
-                    if (!replyText.toLowerCase(Locale.ROOT).contains("confirm")) {
-                        replyText = buildConciseOrderSummary(draft);
-                    }
-                } else if (prevStep == CheckoutStep.INVOICE_BUSINESS_NAME && !allowConfirmNow) {
-                    session.setStep(CheckoutStep.CONFIRM);
-                    nextStep = CheckoutStep.CONFIRM;
-                    if (!replyText.toLowerCase(Locale.ROOT).contains("confirm")) {
-                        replyText = buildConciseOrderSummary(draft);
+
+                        if (askedSaturday && !replyText.toLowerCase(Locale.ROOT).contains("pareja")) {
+                            replyText = HondurasDeliveryPolicy.buildSaturdayReply(
+                                    (draft.address != null && !draft.address.isBlank()) ? draft.address : rawText)
+                                    + "\n\n" + buildPromptForStep(requiredStep, draft);
+                        } else if (askedSpecificDate && !askedSaturday && !replyText.contains("100%")) {
+                            replyText = HondurasDeliveryPolicy.buildSpecificDateReply(
+                                    (draft.address != null && !draft.address.isBlank()) ? draft.address : rawText)
+                                    + "\n\n" + buildPromptForStep(requiredStep, draft);
+                        }
+                    } else if (!allowConfirmNow) {
+                        boolean justEnteredConfirm = prevStep != CheckoutStep.CONFIRM;
+                        session.setStep(CheckoutStep.CONFIRM);
+                        nextStep = CheckoutStep.CONFIRM;
+                        if (askedSaturday) {
+                            replyText = HondurasDeliveryPolicy.buildSaturdayReply(draft.address)
+                                    + "\n\n" + buildConciseOrderSummary(draft);
+                        } else if (askedSpecificDate) {
+                            replyText = HondurasDeliveryPolicy.buildSpecificDateReply(draft.address)
+                                    + "\n\n" + buildConciseOrderSummary(draft);
+                        } else if (justEnteredConfirm || !replyText.toLowerCase(Locale.ROOT).contains("confirm")) {
+                            replyText = buildConciseOrderSummary(draft);
+                        }
                     }
                 }
             }
@@ -291,23 +320,33 @@ public class SalesEngineService implements ProcessMessageUseCase {
             CheckoutDraft draft = session.getCheckout();
             if (draft != null && computeNextPendingStep(draft, selectedProduct) == CheckoutStep.CONFIRM) {
                 Product currentProd = resolveProductBySku(draft.productSku, catalog).orElse(selectedProduct);
+                int handoverLimit = HondurasDeliveryPolicy.humanHandoverThreshold(currentProd, catalog);
                 if (currentProd != null && currentProd.stock() <= 0) {
-                    replyText = "Lo sentimos mucho. El modelo *" + currentProd.name()
-                            + "* se encuentra temporalmente agotado 📦. ¿Te gustaría ver otro modelo similar?";
+                    replyText = "Lo sentimos, el modelo " + currentProd.name()
+                            + " se encuentra temporalmente agotado. ¿Te gustaría ver otro modelo similar?";
                     session.setStep(CheckoutStep.IDLE);
                     session.setCheckout(null);
                     nextStep = CheckoutStep.IDLE;
                 } else if (currentProd != null && draft.quantity > currentProd.stock()) {
-                    replyText = "Fíjate que de momento solo nos quedan *" + currentProd.stock()
-                            + (currentProd.stock() == 1 ? " unidad disponible*" : " unidades disponibles*")
-                            + " de *" + currentProd.name() + "* 📦.\n\n¿Confirmamos tu orden por las *" + currentProd.stock()
-                            + "* unidades disponibles?";
+                    replyText = "De momento solo nos quedan " + currentProd.stock()
+                            + (currentProd.stock() == 1 ? " unidad disponible" : " unidades disponibles")
+                            + " de " + currentProd.name() + ".\n\n¿Confirmamos tu orden por "
+                            + (currentProd.stock() == 1 ? "esa unidad" : "las " + currentProd.stock() + " unidades disponibles") + "?";
                     draft.quantity = currentProd.stock();
                     draft.quantityLabel = currentProd.stock() + (currentProd.stock() == 1 ? " unidad" : " unidades");
                     draft.recalculate();
                     session.setStep(CheckoutStep.CONFIRM);
                     nextStep = CheckoutStep.CONFIRM;
+                } else if (currentProd != null && draft.quantity >= handoverLimit) {
+                    session.setSelectedSku(currentProd.sku());
+                    session.setCheckout(null);
+                    session.handoverToHuman();
+                    nextStep = CheckoutStep.HUMAN;
+                    replyText = HondurasDeliveryPolicy.buildHumanHandoverForQuantityReply(currentProd, draft.quantity);
                 } else {
+                    if (!draft.requiresInvoice && (draft.rtn == null || draft.rtn.isBlank())) {
+                        draft.rtn = "Consumidor Final (Sin RTN)";
+                    }
                     if (draft.orderNumber == null || draft.orderNumber.isBlank() || orderRepo.existsByOrderNumber(draft.orderNumber)) {
                         draft.orderNumber = generateOrderNumber(tenant);
                     }
@@ -329,16 +368,21 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     session.completeCheckout(confirmedOrder.orderNumber());
                     nextStep = CheckoutStep.IDLE;
 
-                    if (!replyText.contains(confirmedOrder.orderNumber())) {
-                        replyText = "¡Muchas gracias, *" + draft.effectiveRecipient() + "*! 🎉 Tu pedido *" + confirmedOrder.orderNumber()
-                                + "* (" + draft.effectiveQuantityLabel() + " de *" + draft.productName + "* — Total: *"
-                                + Money.lempiras(confirmedOrder.total()) + "*) ha quedado registrado en *" + tenant.name() + "*.\n\n"
-                                + "🚚 Lo prepararemos para envío GRATIS por *Cargo Expreso* (1 a 2 días hábiles) y te llamaremos al *"
-                                + confirmedOrder.customerPhone() + "* antes de entregar. ¡Gracias por tu compra!";
-                    }
+                    replyText = HondurasDeliveryPolicy.buildFinalOrderConfirmation(
+                            draft.effectiveRecipient(),
+                            confirmedOrder.orderNumber(),
+                            draft.effectiveQuantityLabel(),
+                            draft.productName,
+                            confirmedOrder.total(),
+                            confirmedOrder.deliveryAddress(),
+                            confirmedOrder.customerPhone()
+                    );
                 }
             }
         }
+
+        // Sanitización suprema: sin emojis, sin negritas/asteriscos, sin "Fíjate que", sin SKUs
+        replyText = HondurasDeliveryPolicy.sanitizeCustomerReply(replyText);
 
         // 11. Registrar turno en historial conversacional (16 turnos)
         String userTurnText = !rawText.isBlank()
@@ -405,9 +449,9 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (activeDbOrder != null) {
             session.setPendingCancelOrderNumber(activeDbOrder.orderNumber());
             session.setStep(CheckoutStep.CANCEL_REASON);
-            String prompt = "Con gusto te ayudo a cancelar tu pedido *" + activeDbOrder.orderNumber()
-                    + "* (" + activeDbOrder.productName() + ").\n\n"
-                    + "Por favor indícame brevemente el **motivo de la cancelación** para registrarlo en nuestro sistema:";
+            String prompt = "Con gusto te ayudo a cancelar tu pedido " + activeDbOrder.orderNumber()
+                    + " (" + activeDbOrder.productName() + ").\n\n"
+                    + "Por favor indícame brevemente el motivo de la cancelación para registrarlo en nuestro sistema:";
             return Optional.of(BotReply.text(prompt).build(CheckoutStep.CANCEL_REASON));
         }
 
@@ -416,9 +460,9 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (prevStep == CheckoutStep.CONFIRM && draft != null && HondurasOrderValidator.isValidHondurasPhone(draft.phone)) {
             session.setPendingCancelOrderNumber(draft.orderNumber);
             session.setStep(CheckoutStep.CANCEL_REASON);
-            String prompt = "Entendido, podemos cancelar tu pedido *" + draft.orderNumber
-                    + "* (" + draft.productName + ").\n\n"
-                    + "¿Me compartes brevemente el **motivo de la cancelación** para dejarlo registrado?";
+            String prompt = "Entendido, podemos cancelar tu pedido " + draft.orderNumber
+                    + " (" + draft.productName + ").\n\n"
+                    + "¿Me compartes brevemente el motivo de la cancelación para dejarlo registrado?";
             return Optional.of(BotReply.text(prompt).build(CheckoutStep.CANCEL_REASON));
         }
 
@@ -437,7 +481,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (containsAny(normText, "no cancelar", "mejor no", "mantener", "no lo canceles", "seguir con el pedido")) {
             session.setPendingCancelOrderNumber(null);
             session.setStep(CheckoutStep.IDLE);
-            String keepReply = "Perfecto 😊 Mantenemos activo tu pedido *" + (targetNum != null ? targetNum : "") + "*. ¿En qué más puedo ayudarte?";
+            String keepReply = "Perfecto. Mantenemos activo tu pedido " + (targetNum != null ? targetNum : "") + ". ¿En qué más puedo ayudarte?";
             session.addTurn("user", rawText);
             session.addTurn("assistant", keepReply);
             sessionRepo.save(session);
@@ -445,7 +489,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         }
 
         if (!HondurasOrderValidator.isValidCancellationReason(rawText)) {
-            String retry = "Para registrar la cancelación en nuestro sistema, por favor indícame el **motivo** (ejemplo: *\"Ya no lo voy a necesitar\"*, *\"Me equivoqué de modelo\"*):";
+            String retry = "Para registrar la cancelación en nuestro sistema, por favor indícame el motivo (ejemplo: \"Ya no lo voy a necesitar\" o \"Me equivoqué de modelo\"):";
             session.addTurn("user", rawText);
             session.addTurn("assistant", retry);
             sessionRepo.save(session);
@@ -495,8 +539,8 @@ public class SalesEngineService implements ProcessMessageUseCase {
         session.setCheckout(null);
         session.setStep(CheckoutStep.IDLE);
 
-        String doneReply = "Tu pedido *" + orderLabel + "* ha quedado **cancelado** y registramos tu motivo (_" + reason + "_). "
-                + "Cuando gustes ordenar nuevamente, aquí estoy para atenderte 😊";
+        String doneReply = "Tu pedido " + orderLabel + " ha quedado cancelado y registramos tu motivo (" + reason + "). "
+                + "Cuando gustes ordenar nuevamente, aquí estoy para atenderte.";
         session.addTurn("user", rawText);
         session.addTurn("assistant", doneReply);
         sessionRepo.save(session);
@@ -550,7 +594,10 @@ public class SalesEngineService implements ProcessMessageUseCase {
         CheckoutDraft draft = session.getCheckout();
         if (draft == null && targetProduct != null && session.getStep().isCheckout()) {
             boolean explicitQty = hasExplicitQuantityInMessage(rawText);
-            int initialQty = (update != null && update.quantity() != null && update.quantity() > 0) ? update.quantity() : 1;
+            Integer parsedQty = parseQuantityFromText(rawText);
+            int initialQty = (update != null && update.quantity() != null && update.quantity() > 0)
+                    ? update.quantity()
+                    : (explicitQty && parsedQty != null ? parsedQty : 1);
             draft = CheckoutDraft.start(targetProduct, initialQty, generateOrderNumber(tenant), explicitQty);
             session.setCheckout(draft);
         }
@@ -563,8 +610,16 @@ public class SalesEngineService implements ProcessMessageUseCase {
             draft.applyProduct(targetProduct);
         }
 
+        // Factura con RTN solo si el cliente la solicita explícitamente
+        final CheckoutDraft currentDraft = draft;
+        if (HondurasOrderValidator.explicitInvoiceRequested(rawText)) {
+            currentDraft.requiresInvoice = true;
+            currentDraft.invoiceAnswered = true;
+            HondurasOrderValidator.normalizeAndValidateRtn(rawText).ifPresent(r -> currentDraft.rtn = r);
+        }
+
         String validationError = null;
-        boolean isQuestion = isCheckoutQuestion(rawText, normalizeCommand(rawText));
+        boolean isQuestion = isCheckoutQuestion(rawText, normalizeCommand(rawText), prevStep, location);
 
         // 1. Validar entrada directa del turno actual según el paso previo (protege contra errores del LLM)
         if (!isQuestion && rawText != null && !rawText.isBlank()) {
@@ -579,7 +634,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                         draft.name = HondurasOrderValidator.extractCleanFullName(rawText);
                         draft.recipientName = draft.name;
                     } else {
-                        validationError = "Para registrar tu guía de Cargo Expreso necesito tu **nombre completo** (nombre y al menos un apellido, por ejemplo: *Carlos Mendoza*) 😊:";
+                        validationError = "Para registrar tu guía de Cargo Expreso necesito tu nombre completo (nombre y al menos un apellido, por ejemplo: Carlos Mendoza):";
                     }
                 }
                 case QUANTITY -> {
@@ -592,7 +647,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                         draft.quantityLabel = qtyVal + (qtyVal == 1 ? " unidad" : " unidades");
                         draft.recalculate();
                     } else {
-                        validationError = "Por favor indícanos en número cuántas unidades de *" + draft.productName + "* deseas ordenar (ejemplo: *1* o *2*):";
+                        validationError = "Por favor indícanos en número cuántas unidades de " + draft.productName + " deseas ordenar (ejemplo: 1 o 2):";
                     }
                 }
                 case ADDRESS -> {
@@ -607,9 +662,9 @@ public class SalesEngineService implements ProcessMessageUseCase {
                             draft.address = candidateAddr.trim();
                             draft.agencyPickup = HondurasOrderValidator.isAgencyAddress(candidateAddr);
                         } else {
-                            validationError = "Para enviar por Cargo Expreso sin retrasos, compártenos tu **dirección completa en Honduras**:\n"
-                                    + "• Ciudad / Municipio\n• Colonia, barrio o residencial\n• Calle, número de casa y referencia\n"
-                                    + "*(O indica una **Agencia Cargo Expreso** con ciudad, o envía tu ubicación 📍)*:";
+                            validationError = "Para enviar por Cargo Expreso sin retrasos, compártenos tu dirección completa en Honduras:\n"
+                                    + "- Ciudad / Municipio\n- Colonia, barrio o residencial\n- Calle, número de casa y referencia\n"
+                                    + "(O indica una Agencia Cargo Expreso con ciudad, o envía tu ubicación GPS):";
                         }
                     }
                 }
@@ -623,7 +678,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     if (validPhone.isPresent()) {
                         draft.phone = validPhone.get();
                     } else {
-                        validationError = "Por favor indícanos un **teléfono válido en Honduras de 8 dígitos que reciba llamadas directas** de Cargo Expreso (ejemplo: *9800-8559*):";
+                        validationError = "Por favor indícanos un teléfono válido en Honduras de 8 dígitos que reciba llamadas directas de Cargo Expreso (ejemplo: 9800-8559):";
                     }
                 }
                 case REQUIRES_INVOICE -> {
@@ -636,7 +691,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                             draft.businessName = null;
                         }
                     } else {
-                        validationError = "Por favor respóndeme **Sí** o **No**: ¿deseas **factura con RTN** para tu pedido?";
+                        validationError = "Si requieres factura con RTN indícanos tu número de RTN de 14 dígitos; si no, escribe Confirmar para finalizar.";
                     }
                 }
                 case INVOICE_RTN -> {
@@ -651,7 +706,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
                         draft.requiresInvoice = true;
                         draft.rtn = validRtn.get();
                     } else {
-                        validationError = "El **RTN en Honduras** debe tener exactamente **14 dígitos numéricos** (ejemplo: *08011990123456*). ¿Me lo compartes completo?";
+                        validationError = "El RTN en Honduras debe tener exactamente 14 dígitos numéricos (ejemplo: 08011990123456). ¿Me lo compartes completo?";
                     }
                 }
                 case INVOICE_BUSINESS_NAME -> {
@@ -662,15 +717,23 @@ public class SalesEngineService implements ProcessMessageUseCase {
                     } else if (HondurasOrderValidator.isValidBusinessName(rawText)) {
                         draft.businessName = HondurasOrderValidator.extractCleanBusinessName(rawText);
                     } else {
-                        validationError = "Por favor compárteme el **Nombre o Razón Social** completo para tu factura con RTN:";
+                        validationError = "Por favor compárteme el Nombre o Razón Social completo para tu factura con RTN:";
                     }
                 }
                 default -> {
                     // Al iniciar compra desde IDLE (prevStep == IDLE): solo aceptar campos explícitos si son válidos
+                    boolean explicitQty = hasExplicitQuantityInMessage(rawText);
+                    Integer parsedQty = parseQuantityFromText(rawText);
+                    if (explicitQty && parsedQty != null && parsedQty > 0) {
+                        draft.quantity = parsedQty;
+                        draft.quantityConfirmed = true;
+                        draft.quantityLabel = draft.quantity + (draft.quantity == 1 ? " unidad" : " unidades");
+                        draft.recalculate();
+                    }
                     if (update != null) {
-                        if (update.quantity() != null && update.quantity() > 0) {
+                        if (update.quantity() != null && update.quantity() > 0 && !(explicitQty && parsedQty != null)) {
                             draft.quantity = update.quantity();
-                            if (hasExplicitQuantityInMessage(rawText)) {
+                            if (explicitQty) {
                                 draft.quantityConfirmed = true;
                                 draft.quantityLabel = draft.quantity + (draft.quantity == 1 ? " unidad" : " unidades");
                             }
@@ -693,15 +756,10 @@ public class SalesEngineService implements ProcessMessageUseCase {
             }
         }
 
-        // Blindaje financiero: precios siempre desde catálogo real en BD
+        // Blindaje financiero: precios fijos siempre desde catálogo real en BD (sin descuentos ni rebajas)
         final CheckoutDraft finalDraft = draft;
         resolveProductBySku(finalDraft.productSku, catalog).ifPresent(dbProd -> {
-            BigDecimal dbPrice = dbProd.salePrice();
-            int qty = finalDraft.quantity > 0 ? finalDraft.quantity : 1;
-            if (qty >= 3) {
-                dbPrice = dbPrice.multiply(new BigDecimal("0.95")).setScale(0, java.math.RoundingMode.HALF_UP);
-            }
-            finalDraft.unitPrice = dbPrice;
+            finalDraft.unitPrice = dbProd.salePrice();
             finalDraft.recalculate();
         });
 
@@ -750,9 +808,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (!HondurasOrderValidator.isValidHondurasPhone(d.phone)) {
             return CheckoutStep.PHONE;
         }
-        if (!d.invoiceAnswered) {
-            return CheckoutStep.REQUIRES_INVOICE;
-        }
+        // Solo pedir datos de factura RTN si el cliente la solicitó por iniciativa propia
         if (d.requiresInvoice) {
             if (!HondurasOrderValidator.isValidHondurasRtn(d.rtn)) {
                 return CheckoutStep.INVOICE_RTN;
@@ -782,29 +838,29 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
     private String buildPromptForStep(CheckoutStep step, CheckoutDraft d) {
         return switch (step) {
-            case NAME -> "Para apartar tu *" + d.productName + "*, ¿cuál es tu **nombre completo** (nombre y apellido)?";
-            case QUANTITY -> "Gracias, *" + d.name + "*. ¿Cuántas unidades de *" + d.productName + "* deseas ordenar? (Ejemplo: *1*, *2*):";
-            case ADDRESS -> "¡Anotado! 🚚 ¿A qué **dirección en Honduras** te lo enviamos?\n• Ciudad / Municipio\n• Colonia, barrio o residencial\n• Calle, casa y referencia *(o Agencia Cargo Expreso / ubicación 📍)*:";
-            case PHONE -> "¡Dirección registrada! 📞 ¿A qué **número telefónico de 8 dígitos en Honduras (que reciba llamadas directas)** te contactará Cargo Expreso?";
-            case REQUIRES_INVOICE -> "Teléfono registrado: *" + d.phone + "* 📞.\n\n🧾 ¿Requieres **factura con RTN** para tu pedido? (Responde *Sí* o *No*):";
-            case INVOICE_RTN -> "Por favor indícanos tu número de **RTN de Honduras** (14 dígitos numéricos, ejemplo: *08011990123456*):";
-            case INVOICE_BUSINESS_NAME -> "RTN registrado (*" + d.rtn + "*). ¿Cuál es el **Nombre o Razón Social** de la empresa para la factura?";
+            case NAME -> "Para apartar tu " + d.productName + ", ¿cuál es tu nombre completo (nombre y apellido)?";
+            case QUANTITY -> "Gracias, " + d.name + ". ¿Cuántas unidades de " + d.productName + " deseas ordenar? (Ejemplo: 1, 2):";
+            case ADDRESS -> "Anotado. ¿A qué dirección en Honduras te lo enviamos?\n- Ciudad / Municipio\n- Colonia, barrio o residencial\n- Calle, casa y referencia (o Agencia Cargo Expreso / ubicación GPS):";
+            case PHONE -> "Dirección registrada. ¿A qué número telefónico de 8 dígitos en Honduras (que reciba llamadas directas) te contactará Cargo Expreso?";
+            case INVOICE_RTN -> "Por favor indícanos tu número de RTN de Honduras (14 dígitos numéricos, ejemplo: 08011990123456):";
+            case INVOICE_BUSINESS_NAME -> "RTN registrado (" + d.rtn + "). ¿Cuál es el Nombre o Razón Social de la empresa para la factura?";
             case CONFIRM -> buildConciseOrderSummary(d);
             default -> "¿En qué puedo ayudarte hoy?";
         };
     }
 
     private String buildConciseOrderSummary(CheckoutDraft d) {
-        String inv = d.requiresInvoice
-                ? "Sí (RTN: " + d.rtn + " · " + d.businessName + ")"
-                : "Consumidor Final";
-        return "📋 *Resumen de tu pedido listo para confirmar*:\n"
-                + "• Producto: *" + d.productName + "* (" + d.effectiveQuantityLabel() + ")\n"
-                + "• Total: *" + Money.lempiras(d.total) + "* (Envío gratis)\n"
-                + "• Cliente: " + d.name + " | Tel: " + d.phone + "\n"
-                + "• Entrega: " + d.address + "\n"
-                + "• Factura: " + inv + "\n\n"
-                + "Escribe *Confirmar* (o presiona ✅) para registrar tu pedido.";
+        String window = HondurasDeliveryPolicy.estimateDeliveryWindow(d.address);
+        String invLine = d.requiresInvoice
+                ? "\n- Factura RTN: " + d.rtn + " (" + d.businessName + ")"
+                : "";
+        return "Resumen de tu pedido listo para confirmar:\n"
+                + "- Producto: " + d.productName + " (" + d.effectiveQuantityLabel() + ")\n"
+                + "- Total: " + Money.lempiras(d.total) + " (Envío gratis)\n"
+                + "- Cliente: " + d.name + " | Tel: " + d.phone + "\n"
+                + "- Entrega estimada (" + window + "): " + d.address
+                + invLine + "\n\n"
+                + "Escribe Confirmar para registrar tu pedido (o dime si necesitas factura con RTN).";
     }
 
     // =========================================================================
@@ -954,20 +1010,20 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         StringBuilder catalogSummary = new StringBuilder();
         for (Product p : featured) {
-            catalogSummary.append("• *").append(p.name()).append("* — *")
-                    .append(Money.lempiras(p.salePrice())).append("*\n");
+            catalogSummary.append("- ").append(p.name()).append(" — ")
+                    .append(Money.lempiras(p.salePrice())).append("\n");
         }
 
         String header = isReset
-                ? "🔄 ¡Conversación reiniciada! 👋 Bienvenido nuevamente a *" + tenant.name() + "*. Con mucho gusto te atiendo.\n\n"
-                : "¡Hola! 👋 Bienvenido a *" + tenant.name() + "*. Con mucho gusto te atiendo.\n\n";
+                ? "Conversación reiniciada. Bienvenido nuevamente a " + tenant.name() + ". Con mucho gusto te atiendo.\n\n"
+                : "Hola, bienvenido a " + tenant.name() + ". Con mucho gusto te atiendo.\n\n";
 
         String text = header
                 + "Te comparto algunos de nuestros modelos destacados:\n"
-                + (catalogSummary.length() > 0 ? catalogSummary.toString() : "• Sillas ergonómicas, gamers y muebles para el hogar.\n")
-                + "\n🚚 Todos con *envío 100% GRATIS* a todo el país vía Cargo Expreso y pago al recibir.\n\n"
+                + (catalogSummary.length() > 0 ? catalogSummary.toString() : "- Sillas ergonómicas, gamers y muebles para el hogar.\n")
+                + "\nTodos cuentan con envío gratis en Honduras vía Cargo Expreso y pago contra entrega.\n\n"
                 + "¿Qué modelo buscas o te gustaría cotizar?";
-        return BotReply.text(text).build(CheckoutStep.IDLE);
+        return BotReply.text(HondurasDeliveryPolicy.sanitizeCustomerReply(text)).build(CheckoutStep.IDLE);
     }
 
     private String generateOrderNumber(Tenant tenant) {
@@ -985,7 +1041,7 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (rawText == null || rawText.isBlank()) return false;
         if (STANDALONE_QTY_DIGITS.matcher(rawText).find()) return true;
         String norm = normalizeCommand(rawText);
-        return containsAny(norm, "dos", "tres", "cuatro", "cinco", "seis");
+        return containsAny(norm, "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho");
     }
 
     private Integer parseQuantityFromText(String rawText) {
@@ -1004,14 +1060,26 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (containsAny(norm, "tres")) return 3;
         if (containsAny(norm, "cuatro")) return 4;
         if (containsAny(norm, "cinco")) return 5;
+        if (containsAny(norm, "seis")) return 6;
+        if (containsAny(norm, "siete")) return 7;
+        if (containsAny(norm, "ocho")) return 8;
         return null;
     }
 
-    private boolean isCheckoutQuestion(String raw, String norm) {
+    private boolean isCheckoutQuestion(String raw, String norm, CheckoutStep prevStep, GeoLocation location) {
         if (raw != null && (raw.contains("?") || raw.contains("¿"))) return true;
+        // Si ya cumplió el dato esperado para el paso actual (ej. envió dirección completa + mencionó sábado),
+        // permitir guardar el dato en lugar de bloquear el paso como pregunta pura.
+        if (prevStep == CheckoutStep.ADDRESS && HondurasOrderValidator.isValidHondurasAddress(raw, location)) {
+            return false;
+        }
+        if (prevStep == CheckoutStep.PHONE && HondurasOrderValidator.isValidHondurasPhone(raw)) {
+            return false;
+        }
         return containsAny(norm, "precio", "cuesta", "vale", "color", "colores", "medida", "medidas",
                 "mide", "peso", "soporta", "foto", "fotos", "garantia", "envio", "horario", "horarios",
-                "roatan", "utila", "transferencia", "tarjeta", "otro modelo", "otros modelos");
+                "roatan", "utila", "transferencia", "tarjeta", "otro modelo", "otros modelos",
+                "sabado", "sabados", "fecha", "cuando llega", "cuanto tarda");
     }
 
     private boolean isMorePhotosQuery(String norm) {

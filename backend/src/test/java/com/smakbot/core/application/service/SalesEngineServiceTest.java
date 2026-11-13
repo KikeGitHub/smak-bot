@@ -1,6 +1,7 @@
 package com.smakbot.core.application.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smakbot.core.application.engine.HondurasDeliveryPolicy;
 import com.smakbot.core.domain.model.*;
 import com.smakbot.core.domain.ports.out.*;
 import com.smakbot.core.infrastructure.adapter.out.openai.OpenAiSalesAssistantAdapter;
@@ -256,19 +257,14 @@ class SalesEngineServiceTest {
         ));
         assertEquals(CheckoutStep.PHONE, r4.step());
 
-        // Paso 5: Proporcionar Teléfono
+        // Paso 5: Proporcionar Teléfono -> pasa directo a CONFIRM sin ofrecer factura proactivamente
         BotReply r5 = salesEngine.process(new IncomingMessage(
                 "tenant-hn-muebles", Channel.WEB, customerId, "9988-7766", null
         ));
-        assertEquals(CheckoutStep.REQUIRES_INVOICE, r5.step());
+        assertEquals(CheckoutStep.CONFIRM, r5.step());
+        assertFalse(r5.text().toLowerCase().contains("requieres factura"), "No debe ofrecer factura proactivamente");
 
-        // Paso 6: Consumidor final sin RTN
-        BotReply r6 = salesEngine.process(new IncomingMessage(
-                "tenant-hn-muebles", Channel.WEB, customerId, "Consumidor final, no necesito RTN", null
-        ));
-        assertEquals(CheckoutStep.CONFIRM, r6.step());
-
-        // Paso 7: Confirmación Definitiva
+        // Paso 6: Confirmación Definitiva (Consumidor Final por defecto)
         BotReply r7 = salesEngine.process(new IncomingMessage(
                 "tenant-hn-muebles", Channel.WEB, customerId, "¡Sí, confirmo el pedido!", null
         ));
@@ -278,6 +274,8 @@ class SalesEngineServiceTest {
         assertEquals("Carlos Mendoza", r7.confirmedOrder().customerName());
         assertEquals(2, r7.confirmedOrder().quantity());
         assertEquals(new BigDecimal("5900.00"), r7.confirmedOrder().total());
+        assertTrue(r7.text().contains("entre 1 y 2 días hábiles, lo más seguro"), "Tegucigalpa usa ventana 1-2 días lo más seguro");
+        assertFalse(r7.text().contains("*"), "Sin negritas ni asteriscos");
 
         verify(orderRepo, times(1)).save(any(Order.class));
 
@@ -496,13 +494,13 @@ class SalesEngineServiceTest {
         ));
         assertEquals(CheckoutStep.PHONE, rPhoneBad.step(), "Debe rechazar teléfono inválido en Honduras");
 
-        // 8. Teléfono válido de 8 dígitos Honduras
+        // 8. Teléfono válido de 8 dígitos Honduras -> va directo a CONFIRM (no pregunta factura proactivamente)
         BotReply rPhoneOk = salesEngine.process(new IncomingMessage(
                 "tenant-hn-muebles", Channel.WHATSAPP, cid, "9988-7766", null
         ));
-        assertEquals(CheckoutStep.REQUIRES_INVOICE, rPhoneOk.step());
+        assertEquals(CheckoutStep.CONFIRM, rPhoneOk.step());
 
-        // 9. Solicita factura -> debe pedir RTN de 14 dígitos
+        // 9. Cliente solicita factura por iniciativa propia -> debe pedir RTN de 14 dígitos
         BotReply rInvYes = salesEngine.process(new IncomingMessage(
                 "tenant-hn-muebles", Channel.WHATSAPP, cid, "Sí quiero factura", null
         ));
@@ -649,5 +647,120 @@ class SalesEngineServiceTest {
                 "tenant-hn-muebles", Channel.WHATSAPP, cid, "más fotos", null
         ));
         assertEquals(3, r2.images().size(), "Solo cuando el cliente pide explícitamente más fotos debe enviar la galería");
+    }
+
+    @Test
+    @DisplayName("Tono limpio y precios fijos: sin emojis, sin negritas, sin 'Fíjate que', sin SKU ni rebajas")
+    void testPlainToneNoEmojisBoldSkuOrPriceDrop() {
+        Product ezriChair = new Product(
+                UUID.randomUUID(), "tenant-hn-muebles", "SKM-935-NE",
+                "Silla Ejecutiva Ezri Smak Office", "Silla ergonómica negra",
+                new BigDecimal("2100.00"), new BigDecimal("1790.00"), 80,
+                "47 × 92 cm", "120 kg", "Negro", "Sillas y Bancos",
+                List.of("silla", "ezri", "skm-935-ne"),
+                List.of("https://img.example.com/ezri-1.jpg"), true
+        );
+        when(productRepo.findActiveByTenant("tenant-hn-muebles")).thenReturn(List.of(ezriChair));
+
+        String cid = "client-clean-" + UUID.randomUUID();
+        BotReply r1 = salesEngine.process(new IncomingMessage("tenant-hn-muebles", Channel.WHATSAPP, cid, "¿Cuánto cuesta la silla Ezri?", null));
+        BotReply rDiscount = salesEngine.process(new IncomingMessage("tenant-hn-muebles", Channel.WHATSAPP, cid, "¿Me hacen descuento o mejor precio?", null));
+
+        for (BotReply r : List.of(r1, rDiscount)) {
+            assertFalse(r.text().contains("*"), "No debe contener asteriscos ni negritas: " + r.text());
+            assertFalse(r.text().toLowerCase().contains("fíjate"), "No debe contener 'Fíjate que': " + r.text());
+            assertFalse(r.text().toLowerCase().contains("fijate"), "No debe contener 'Fijate que': " + r.text());
+            assertFalse(r.text().contains("SKM-935-NE"), "No debe mostrar código SKU al cliente: " + r.text());
+            assertFalse(r.text().contains("2,100") || r.text().contains("2100"), "Solo mostrar precio actual: " + r.text());
+            assertFalse(r.text().codePoints().anyMatch(cp -> cp >= 0x1F300 || (cp >= 0x2600 && cp <= 0x27BF)),
+                    "No debe contener emojis: " + r.text());
+        }
+        assertTrue(rDiscount.text().toLowerCase().contains("fijo") || rDiscount.text().toLowerCase().contains("descuento"),
+                "Debe aclarar que los precios son fijos sin rebajas: " + rDiscount.text());
+
+        String rawWithMorePhotos = "Aquí tienes la información.\n\n📷 *(Tenemos 2 fotos más con más detalles de este modelo. Si deseas verlas, solo dime *más fotos)*";
+        String cleaned = HondurasDeliveryPolicy.sanitizeCustomerReply(rawWithMorePhotos);
+        assertFalse(cleaned.contains("fotos más"), "Debe erradicar aviso de fotos más: " + cleaned);
+        assertFalse(cleaned.contains("solo dime"), "Debe erradicar aviso de solo dime: " + cleaned);
+        assertFalse(cleaned.contains("Tenemos"), "Debe erradicar Tenemos: " + cleaned);
+    }
+
+    @Test
+    @DisplayName("Logística HN: 2-3 días por defecto, 1-2 en las 6 ciudades, fechas aproximadas y protocolo de sábados")
+    void testDeliveryWindowsByCitySpecificDateAndSaturday() {
+        String cidGeneral = "client-city-comayagua";
+        BotReply rComayagua = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, cidGeneral, "¿Cuánto tarda el envío a Comayagua?", null
+        ));
+        assertTrue(rComayagua.text().contains("entre 2 y 3 días hábiles, lo más seguro"), rComayagua.text());
+        assertFalse(rComayagua.text().contains("1 y 2 días"), rComayagua.text());
+
+        for (String city : List.of("El Progreso Yoro", "San Pedro Sula", "Santa Rosa de Copán", "Tegucigalpa", "La Ceiba", "Choloma")) {
+            BotReply rCity = salesEngine.process(new IncomingMessage(
+                    "tenant-hn-muebles", Channel.WEB, "client-fast-" + city, "¿Cuánto tarda el envío a " + city + "?", null
+            ));
+            assertTrue(rCity.text().contains("entre 1 y 2 días hábiles, lo más seguro"),
+                    "Ciudad rápida " + city + " falló: " + rCity.text());
+        }
+
+        BotReply rDate = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, "client-date-001", "Lo necesito para el viernes exactamente", null
+        ));
+        assertTrue(rDate.text().contains("100%") && rDate.text().toLowerCase().contains("aproximadas"),
+                "Debe aclarar que no se compromete 100% a una fecha exacta: " + rDate.text());
+
+        BotReply rSab = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WEB, "client-sab-001", "¿Me lo pueden entregar el sábado?", null
+        ));
+        String low = rSab.text().toLowerCase();
+        assertTrue(low.contains("agencia") && low.contains("no en todos los lugares"), "Debe sugerir agencia y aclarar cobertura limitada: " + rSab.text());
+        assertTrue(low.contains("pareja") || low.contains("alguien"), "Debe preguntar si vive con alguien que reciba y pague: " + rSab.text());
+    }
+
+    @Test
+    @DisplayName("Umbral por cantidad: >2 unidades general pasa a humano; línea Set/Individual Tolix pasa desde 5 unidades y sin rebaja")
+    void testQuantityHumanHandoverGeneralVsSetTolix() {
+        Product tolixSingle = new Product(
+                UUID.randomUUID(), "tenant-hn-muebles", "SKM-941-NE",
+                "Silla Metálica Estilo Tolix Smak - Negro Mate", "Silla Tolix",
+                new BigDecimal("1100.00"), new BigDecimal("890.00"), 60,
+                "45 x 85 cm", "150 kg", "Negro Mate", "Sillas y Bancos",
+                List.of("silla tolix", "tolix", "skm-941-ne"),
+                List.of("https://img.example.com/tolix.jpg"), true
+        );
+        Product tolixSet = new Product(
+                UUID.randomUUID(), "tenant-hn-muebles", "SKM-941-NE-4",
+                "Set de 4 Sillas Metálicas Estilo Tolix Smak - Negro Mate", "Set 4 sillas Tolix",
+                new BigDecimal("3900.00"), new BigDecimal("3490.00"), 25,
+                "45 x 85 cm", "150 kg", "Negro Mate", "Sillas y Bancos",
+                List.of("set 4 sillas tolix", "set tolix", "skm-941-ne-4"),
+                List.of("https://img.example.com/tolix-set.jpg"), true
+        );
+        when(productRepo.findActiveByTenant("tenant-hn-muebles"))
+                .thenReturn(List.of(wynnChair, tolixSingle, tolixSet));
+
+        // 1. Producto general (Silla Wynn, stock 18): pedir 3 unidades traslada a asesor humano
+        BotReply rGeneral3 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-gen3", "Quiero comprar 3 sillas Wynn", null
+        ));
+        assertEquals(CheckoutStep.HUMAN, rGeneral3.step());
+        assertTrue(rGeneral3.human());
+
+        // 2. Línea Set/Individual Tolix (SKM-941-NE con par -4): pedir 4 unidades NO traslada a humano ni baja precio
+        String cidTolix4 = "client-qty-tolix4";
+        BotReply rTolix4 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cidTolix4, "Quiero 4 sillas tolix SKM-941-NE", null
+        ));
+        assertEquals(CheckoutStep.NAME, rTolix4.step());
+        assertFalse(rTolix4.human());
+        assertNotNull(rTolix4.orderDraft());
+        assertEquals(new BigDecimal("3560.00"), rTolix4.orderDraft().total, "No debe aplicar 5% descuento: 4 x 890 = 3560");
+
+        // 3. Línea Set/Individual Tolix: pedir 5 unidades sí traslada a asesor humano
+        BotReply rTolix5 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-tolix5", "Quiero 5 sillas tolix SKM-941-NE", null
+        ));
+        assertEquals(CheckoutStep.HUMAN, rTolix5.step());
+        assertTrue(rTolix5.human());
     }
 }

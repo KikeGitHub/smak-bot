@@ -98,11 +98,10 @@
             <img [src]="msg.product.imageUrl || 'https://images.unsplash.com/photo-1580481077195-c22ae2499175?auto=format&fit=crop&w=400&q=80'" 
                  [alt]="msg.product.name" class="product-thumb">
             <div class="product-info">
-              <span class="product-sku">{{ msg.product.sku }}</span>
               <h4 class="product-name">{{ msg.product.name }}</h4>
               <div class="product-price">L. {{ msg.product.salePrice | number:'1.2-2' }}</div>
-              <div class="product-meta" *ngIf="msg.product.colors">🎨 {{ msg.product.colors }}</div>
-              <div class="product-meta" *ngIf="msg.product.dimensions">📏 {{ msg.product.dimensions }}</div>
+              <div class="product-meta" *ngIf="msg.product.colors">Color: {{ msg.product.colors }}</div>
+              <div class="product-meta" *ngIf="msg.product.dimensions">Medidas: {{ msg.product.dimensions }}</div>
             </div>
           </div>
 

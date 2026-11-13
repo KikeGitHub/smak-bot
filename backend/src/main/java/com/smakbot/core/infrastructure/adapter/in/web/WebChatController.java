@@ -155,7 +155,7 @@ public class WebChatController {
 
         List<ChatMessageResponse.QuickButtonDto> buttonDtos = new java.util.ArrayList<>();
         if (reply.step() == com.smakbot.core.domain.model.CheckoutStep.CONFIRM) {
-            buttonDtos.add(new ChatMessageResponse.QuickButtonDto("btn_confirm", "¡Sí, confirmo el pedido!", "CONFIRM_ORDER"));
+            buttonDtos.add(new ChatMessageResponse.QuickButtonDto("btn_confirm", "Confirmar pedido", "CONFIRM_ORDER"));
             buttonDtos.add(new ChatMessageResponse.QuickButtonDto("btn_modify", "Modificar datos", "MODIFY_ORDER"));
         }
 

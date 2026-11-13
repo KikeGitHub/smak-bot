@@ -256,8 +256,8 @@ public class WhatsAppWebhookController {
             if (isConfirmationStep) {
                 // Enviar botones interactivos nativos de WhatsApp para confirmación táctil
                 java.util.List<NotificationSenderPort.WhatsAppButton> buttons = java.util.List.of(
-                        new NotificationSenderPort.WhatsAppButton("btn_confirm", "✅ Confirmar"),
-                        new NotificationSenderPort.WhatsAppButton("btn_modify", "✏️ Modificar")
+                        new NotificationSenderPort.WhatsAppButton("btn_confirm", "Confirmar"),
+                        new NotificationSenderPort.WhatsAppButton("btn_modify", "Modificar")
                 );
                 notificationSenderPort.sendInteractiveButtons(config, from, reply.text(), buttons);
             } else if (images.size() == 1) {

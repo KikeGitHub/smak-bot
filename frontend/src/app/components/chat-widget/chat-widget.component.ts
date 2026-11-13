@@ -49,11 +49,11 @@ export class ChatWidgetComponent implements OnInit, AfterViewChecked, OnDestroy 
   ngOnInit(): void {
     // Saludo inicial de bienvenida con soporte de audio
     this.addBotMessage(
-      '¡Hola! 👋 Bienvenido a **Muebles Elegancia HN**.\n\n' +
+      'Hola, bienvenido a SMAK Muebles HN.\n\n' +
       'Soy tu asistente de compras. Puedes consultarme por:\n' +
-      '• **Catálogo:** Sillas ergonómicas, escritorios y muebles de oficina.\n' +
-      '• **Logística:** Envíos a todo Honduras con **Cargo Expreso**.\n' +
-      '• **Forma de pago:** Efectivo contra entrega al recibir tu paquete.\n\n' +
+      '- Catálogo: Sillas ergonómicas, escritorios y muebles de oficina.\n' +
+      '- Logística: Envíos a todo Honduras con Cargo Expreso.\n' +
+      '- Forma de pago: Efectivo contra entrega al recibir tu paquete.\n\n' +
       '¿En qué producto estás interesado hoy?'
     );
   }
@@ -264,9 +264,9 @@ export class ChatWidgetComponent implements OnInit, AfterViewChecked, OnDestroy 
     this.sessionId = 'session-web-' + Math.random().toString(36).substring(2, 9);
     this.chatRepo.resetSession(this.tenantId, this.sessionId).subscribe({
       next: () => {
-        const welcome = this.tenantId === 'tenant-hn-muebles'
-          ? '¡Hola! 👋 Bienvenido a **Muebles Elegancia HN**.\n\n¿En qué producto estás interesado hoy?'
-          : '¡Hola! 👟 Bienvenido a **Calzado y Moda HN**.\n\nTenemos tenis deportivos, botas y calzado casual con envío nacional vía Cargo Expreso.\n\n¿Qué talla o estilo buscas?';
+        const welcome = this.tenantId === 'tenant-hn-muebles' || this.tenantId === 'smak'
+          ? 'Hola, bienvenido a SMAK Muebles HN.\n\n¿En qué producto estás interesado hoy?'
+          : 'Hola, bienvenido a Calzado y Moda HN.\n\nTenemos tenis deportivos, botas y calzado casual con envío nacional vía Cargo Expreso.\n\n¿Qué talla o estilo buscas?';
         this.addBotMessage(welcome);
       },
       error: () => {
