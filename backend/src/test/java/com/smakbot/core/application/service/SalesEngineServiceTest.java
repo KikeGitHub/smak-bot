@@ -718,7 +718,7 @@ class SalesEngineServiceTest {
     }
 
     @Test
-    @DisplayName("Umbral por cantidad: >2 unidades general pasa a humano; línea Set/Individual Tolix pasa desde 5 unidades y sin rebaja")
+    @DisplayName("Mayoreo: para transferir por 2 unidades tiene que ser SET; individuales más de 5 (6+) pasa a especialista de mayoreo sin decir asesor humano")
     void testQuantityHumanHandoverGeneralVsSetTolix() {
         Product tolixSingle = new Product(
                 UUID.randomUUID(), "tenant-hn-muebles", "SKM-941-NE",
@@ -729,38 +729,60 @@ class SalesEngineServiceTest {
                 List.of("https://img.example.com/tolix.jpg"), true
         );
         Product tolixSet = new Product(
-                UUID.randomUUID(), "tenant-hn-muebles", "SKM-941-NE-4",
+                UUID.randomUUID(), "tenant-hn-muebles", "SKM-SET-TOLIX-4",
                 "Set de 4 Sillas Metálicas Estilo Tolix Smak - Negro Mate", "Set 4 sillas Tolix",
                 new BigDecimal("3900.00"), new BigDecimal("3490.00"), 25,
                 "45 x 85 cm", "150 kg", "Negro Mate", "Sillas y Bancos",
-                List.of("set 4 sillas tolix", "set tolix", "skm-941-ne-4"),
+                List.of("set 4 sillas tolix", "set tolix", "skm-set-tolix-4"),
                 List.of("https://img.example.com/tolix-set.jpg"), true
         );
         when(productRepo.findActiveByTenant("tenant-hn-muebles"))
                 .thenReturn(List.of(wynnChair, tolixSingle, tolixSet));
 
-        // 1. Producto general (Silla Wynn, stock 18): pedir 3 unidades traslada a asesor humano
-        BotReply rGeneral3 = salesEngine.process(new IncomingMessage(
-                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-gen3", "Quiero comprar 3 sillas Wynn", null
+        // 1. Producto individual (Silla Wynn): pedir 2 unidades NO traslada (venta normal)
+        BotReply rGeneral2 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-gen2", "Quiero comprar 2 sillas Wynn", null
         ));
-        assertEquals(CheckoutStep.HUMAN, rGeneral3.step());
-        assertTrue(rGeneral3.human());
+        assertEquals(CheckoutStep.NAME, rGeneral2.step(), "2 unidades de producto individual deben continuar con NAME normal");
+        assertFalse(rGeneral2.human(), "No debe transferirse por 2 unidades de un producto individual");
 
-        // 2. Línea Set/Individual Tolix (SKM-941-NE con par -4): pedir 4 unidades NO traslada a humano ni baja precio
-        String cidTolix4 = "client-qty-tolix4";
-        BotReply rTolix4 = salesEngine.process(new IncomingMessage(
-                "tenant-hn-muebles", Channel.WHATSAPP, cidTolix4, "Quiero 4 sillas tolix SKM-941-NE", null
+        // 2. Producto individual (Silla Wynn): pedir 5 unidades NO traslada (hasta 5 unidades se venden con el bot)
+        BotReply rGeneral5 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-gen5", "Quiero 5 sillas Wynn", null
         ));
-        assertEquals(CheckoutStep.NAME, rTolix4.step());
-        assertFalse(rTolix4.human());
-        assertNotNull(rTolix4.orderDraft());
-        assertEquals(new BigDecimal("3560.00"), rTolix4.orderDraft().total, "No debe aplicar 5% descuento: 4 x 890 = 3560");
+        assertEquals(CheckoutStep.NAME, rGeneral5.step());
+        assertFalse(rGeneral5.human());
 
-        // 3. Línea Set/Individual Tolix: pedir 5 unidades sí traslada a asesor humano
-        BotReply rTolix5 = salesEngine.process(new IncomingMessage(
-                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-tolix5", "Quiero 5 sillas tolix SKM-941-NE", null
+        // 3. Producto individual: pedir más de 5 (6 unidades) SÍ traslada a especialista de mayoreo
+        BotReply rGeneral6 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-gen6", "Quiero 6 sillas Wynn", null
         ));
-        assertEquals(CheckoutStep.HUMAN, rTolix5.step());
-        assertTrue(rTolix5.human());
+        assertEquals(CheckoutStep.HUMAN, rGeneral6.step());
+        assertTrue(rGeneral6.human());
+        assertTrue(rGeneral6.text().toLowerCase().contains("especialista de mayoreo"), "Debe mencionar especialista de mayoreo: " + rGeneral6.text());
+        assertFalse(rGeneral6.text().toLowerCase().contains("asesor humano"), "PROHIBIDO decir asesor humano: " + rGeneral6.text());
+
+        // 4. Producto SET (SKU con SET): pedir 1 set NO traslada
+        BotReply rSet1 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-set1", "Quiero 1 set de 4 sillas tolix", null
+        ));
+        assertEquals(CheckoutStep.NAME, rSet1.step());
+        assertFalse(rSet1.human());
+
+        // 5. Producto SET (SKU con SET): pedir 2 unidades (o más) SÍ traslada a especialista de mayoreo
+        BotReply rSet2 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-set2", "Quiero 2 set de 4 sillas tolix", null
+        ));
+        assertEquals(CheckoutStep.HUMAN, rSet2.step());
+        assertTrue(rSet2.human());
+        assertTrue(rSet2.text().toLowerCase().contains("especialista de mayoreo"), "Debe mencionar especialista de mayoreo en set: " + rSet2.text());
+        assertFalse(rSet2.text().toLowerCase().contains("asesor humano"), "PROHIBIDO decir asesor humano: " + rSet2.text());
+
+        // 6. Sanitizador: Erradicación estricta de 'asesor humano' y 'supera el límite'
+        String screenshotMsg = "Para la Silla Ejecutiva Ezri Smak Office, el pedido de 2 unidades requiere que te transfiera a un asesor humano, ya que se supera el límite de 2 unidades. Voy a proceder con eso. Un momento, por favor.";
+        String sanitized = HondurasDeliveryPolicy.sanitizeCustomerReply(screenshotMsg);
+        assertFalse(sanitized.toLowerCase().contains("asesor humano"));
+        assertFalse(sanitized.toLowerCase().contains("supera el límite"));
+        assertTrue(sanitized.toLowerCase().contains("especialista de mayoreo"));
     }
 }

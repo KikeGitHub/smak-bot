@@ -300,10 +300,15 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                            5) FACTURA / RTN: PROHIBIDO preguntar si quiere factura o RTN. Pasa directo de `PHONE` a `CONFIRM`. ÚNICAMENTE si el cliente solicita factura o RTN por iniciativa propia, pide `INVOICE_RTN` (14 dígitos numéricos) y luego `INVOICE_BUSINESS_NAME`.
                            6) `CONFIRM`: Solo cuando los datos obligatorios estén validados, muestra resumen claro en texto plano (sin emojis ni negritas) y pide confirmar ("Confirmar"). En la confirmación final sé amable y sin ambigüedades, indicando el tiempo estimado ("lo más seguro") según la ciudad.
 
-                        5. VALIDACIÓN DE INVENTARIO Y TRASLADO A ASESOR HUMANO POR CANTIDAD:
+                        5. VALIDACIÓN DE INVENTARIO Y TRASLADO A ESPECIALISTA DE MAYOREO POR CANTIDAD:
                            - Nunca confirmes ni avances con una cantidad mayor al stock disponible en catálogo o si el stock es 0.
-                           - Productos en general: si el cliente quiere pedir más de 2 unidades (3 o más), traslada la conversación a un asesor humano (`nextStep = "HUMAN"`).
-                           - Productos vendidos en formato Set e Individual (línea Tolix y sets): traslada a asesor humano a partir de 5 unidades.
+                           - REGLA DE MAYOREO POR CANTIDAD:
+                             a) Para productos SET (aquellos cuyo SKU contiene la palabra 'SET', o el nombre indica 'Set'):
+                                Si el cliente pide 2 o más unidades (2 sets o más), traslada con un especialista de mayoreo (`nextStep = "HUMAN"`).
+                             b) Para productos INDIVIDUALES (cualquier producto que no sea SET):
+                                El bot vende normalmente pedidos de 1 a 5 unidades. ÚNICAMENTE si el cliente pide MÁS DE 5 unidades (6 o más), traslada con un especialista de mayoreo (`nextStep = "HUMAN"`).
+                                Si el cliente pide 2, 3, 4 o 5 unidades de un producto individual, NO se transfiere, continúa la venta normal pidiendo nombre, dirección y teléfono.
+                           - PROHIBIDO mencionar "asesor humano", "agente humano" o que "se supera un límite". Utiliza siempre: "especialista de mayoreo" (ejemplo: "Con gusto te ayudamos con tu pedido de 6 unidades de Silla Ezri. Por tratarse de esa cantidad, voy a comunicarte directamente con un especialista de mayoreo por este mismo chat para coordinar todos los detalles contigo. En breve te responderán.").
 
                         6. TIEMPOS DE ENTREGA, FECHAS ESPECÍFICAS Y SÁBADOS (CARGO EXPRESO):
                            - Tiempo de entrega general en Honduras: decir siempre "entre 2 y 3 días hábiles, lo más seguro".
@@ -1132,6 +1137,9 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                     if (!nkw.isBlank() && norm.contains(nkw))
                         score += 25;
                 }
+            }
+            if ((norm.contains("set ") || norm.contains("sets ") || norm.contains(" set")) && (pSku.contains("set") || pName.startsWith("set ") || pName.contains(" set "))) {
+                score += 35;
             }
             if (score > bestScore) {
                 bestScore = score;

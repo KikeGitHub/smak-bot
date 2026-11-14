@@ -123,42 +123,45 @@ public final class HondurasDeliveryPolicy {
     }
 
     /**
-     * Regla de negocio por cantidad:
-     * - Productos vendidos en formato Set e Individual (línea Tolix y sets con par -4): pasar a asesor desde 5 unidades.
-     * - Resto del catálogo: más de 2 unidades (a partir de 3) pasa a asesor humano.
+     * Regla de negocio por volumen:
+     * - Para transferir por 2 unidades tienen que ser SET (los SKUs incluirán la palabra SET, o el nombre 'Set').
+     *   Umbral: a partir de 2 unidades (2 sets o más) -> transferir a especialista de mayoreo.
+     * - Para productos individuales tiene que ser MÁS DE 5 unidades (a partir de 6) para cambiar a especialista de mayoreo.
+     *   1 a 5 unidades individuales las procesa el bot sin transferir.
      */
-    public static int humanHandoverThreshold(Product product, List<Product> catalog) {
-        return isSetOrDualIndividualProduct(product, catalog) ? 5 : 3;
+    public static int humanHandoverThreshold(Product product) {
+        return humanHandoverThreshold(product, null);
     }
 
-    public static boolean isSetOrDualIndividualProduct(Product product, List<Product> catalog) {
+    public static int humanHandoverThreshold(Product product, List<Product> catalog) {
+        return isSetProduct(product) ? 2 : 6;
+    }
+
+    public static boolean isSetProduct(Product product) {
         if (product == null) {
             return false;
         }
-        String normName = normalize(product.name());
         String upperSku = product.sku() != null ? product.sku().toUpperCase(Locale.ROOT).trim() : "";
-        if (normName.contains("tolix")
-                || normName.startsWith("set ")
-                || normName.contains(" set ")
-                || normName.startsWith("kit ")
-                || upperSku.endsWith("-4")) {
+        if (upperSku.contains("SET")) {
             return true;
         }
-        if (catalog != null && !upperSku.isBlank()) {
-            String pairedSetSku = upperSku + "-4";
-            for (Product p : catalog) {
-                if (p != null && p.sku() != null && pairedSetSku.equalsIgnoreCase(p.sku().trim())) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        String normName = normalize(product.name());
+        return normName.startsWith("set ")
+                || normName.contains(" set ")
+                || normName.startsWith("kit ")
+                || normName.contains(" kit ");
+    }
+
+    public static boolean isSetOrDualIndividualProduct(Product product, List<Product> catalog) {
+        return isSetProduct(product);
     }
 
     public static String buildHumanHandoverForQuantityReply(Product product, int requestedQty) {
         String prodName = product != null ? product.name() : "este producto";
-        return "Con gusto te ayudamos con tu pedido de " + requestedQty + " unidades de " + prodName + ". "
-                + "Por tratarse de esa cantidad, voy a trasladar tu conversación directamente con un asesor de nuestro equipo por este mismo chat para coordinar todos los detalles contigo. "
+        boolean isSet = isSetProduct(product);
+        String unitWord = isSet ? (requestedQty == 1 ? "set" : "sets") : (requestedQty == 1 ? "unidad" : "unidades");
+        return "Con gusto te ayudamos con tu pedido de " + requestedQty + " " + unitWord + " de " + prodName + ". "
+                + "Por tratarse de esa cantidad, voy a comunicarte directamente con un especialista de mayoreo por este mismo chat para coordinar todos los detalles contigo. "
                 + "En breve te responderán.";
     }
 
@@ -214,6 +217,12 @@ public final class HondurasDeliveryPolicy {
         text = SKU_LABEL_PATTERN.matcher(text).replaceAll("");
         text = OLD_PRICE_PATTERN.matcher(text).replaceAll("");
         text = MORE_PHOTOS_HINT_PATTERN.matcher(text).replaceAll("");
+
+        // 4b. Quitar terminología de 'asesor humano' / 'humano' y cambiar por 'especialista de mayoreo'
+        text = text.replaceAll("(?i)\\b(?:un\\s+)?asesor\\s+humano\\b", "un especialista de mayoreo");
+        text = text.replaceAll("(?i)\\b(?:un\\s+)?agente\\s+humano\\b", "un especialista de mayoreo");
+        text = text.replaceAll("(?i)\\btransferir\\s+a\\s+un\\s+humano\\b", "comunicarte con un especialista de mayoreo");
+        text = text.replaceAll("(?i),?\\s*ya\\s+que\\s+se\\s+supera\\s+el\\s+l[ií]mite\\s+de\\s+\\d+\\s+unidades?\\.?", ".");
 
         // 5. Normalizar espacios huérfanos por la limpieza sin destruir saltos de línea
         text = text.replaceAll("[ \\t]{2,}", " ");
