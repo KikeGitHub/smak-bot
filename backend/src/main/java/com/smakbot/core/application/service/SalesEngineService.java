@@ -192,8 +192,14 @@ public class SalesEngineService implements ProcessMessageUseCase {
             }
         }
 
+        String replyText = decision.replyText() != null ? decision.replyText() : "";
         if (nextStep == CheckoutStep.HUMAN) {
             session.handoverToHuman();
+            if (selectedProduct != null && (replyText.isBlank() || replyText.toLowerCase().contains("límite") || replyText.toLowerCase().contains("limite"))) {
+                int qty = (decision.draftUpdate() != null && decision.draftUpdate().quantity() != null)
+                        ? decision.draftUpdate().quantity() : 2;
+                replyText = HondurasDeliveryPolicy.buildHumanHandoverForQuantityReply(selectedProduct, qty);
+            }
         } else {
             session.setStep(nextStep);
         }
@@ -213,7 +219,6 @@ public class SalesEngineService implements ProcessMessageUseCase {
             session.getCheckout().location = msg.location();
         }
 
-        String replyText = decision.replyText() != null ? decision.replyText() : "";
         boolean allowConfirmNow = decision.confirmOrderNow() && !customerRequestedInvoiceNow;
 
         // Guardrail supremo sobre estado del checkout: límites de cantidad, stock, entrega y pasos Honduras

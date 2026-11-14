@@ -218,11 +218,13 @@ public final class HondurasDeliveryPolicy {
         text = OLD_PRICE_PATTERN.matcher(text).replaceAll("");
         text = MORE_PHOTOS_HINT_PATTERN.matcher(text).replaceAll("");
 
-        // 4b. Quitar terminología de 'asesor humano' / 'humano' y cambiar por 'especialista de mayoreo'
+        // 4b. Quitar terminología de 'asesor humano' / 'humano', límites numéricos y cambiar por 'especialista de mayoreo'
         text = text.replaceAll("(?i)\\b(?:un\\s+)?asesor\\s+humano\\b", "un especialista de mayoreo");
         text = text.replaceAll("(?i)\\b(?:un\\s+)?agente\\s+humano\\b", "un especialista de mayoreo");
         text = text.replaceAll("(?i)\\btransferir\\s+a\\s+un\\s+humano\\b", "comunicarte con un especialista de mayoreo");
+        text = text.replaceAll("(?i)\\b(?:el\\s+l[ií]mite\\s+de\\s+traslado|el\\s+l[ií]mite)\\s+es\\s+de\\s+[^.]*\\.?\\s*", "");
         text = text.replaceAll("(?i),?\\s*ya\\s+que\\s+se\\s+supera\\s+el\\s+l[ií]mite\\s+de\\s+\\d+\\s+unidades?\\.?", ".");
+        text = text.replaceAll("(?i)\\bpor\\s+lo\\s+tanto\\s*,?\\s*voy\\s+a\\s+comunicarte", "Voy a comunicarte");
 
         // 5. Normalizar espacios huérfanos por la limpieza sin destruir saltos de línea
         text = text.replaceAll("[ \\t]{2,}", " ");
