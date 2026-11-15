@@ -440,13 +440,20 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         boolean hasImages = selectedProduct != null && selectedProduct.images() != null && !selectedProduct.images().isEmpty();
 
-        if ((clientAskedForPhotos || botMentionsSendingPhoto) && !hasImages) {
-            String prodLabel = selectedProduct != null ? selectedProduct.name() : "este modelo";
-            String noPhotosNotice = "De momento no contamos con fotos disponibles de " + prodLabel + ".";
-            if (botMentionsSendingPhoto) {
-                replyText = replyText.replaceAll("(?i)(?:aqu[ií]\\s+tienes\\s+la\\s+foto|te\\s+comparto\\s+la\\s+foto|aqu[ií]\\s+est[aá]n\\s+las\\s+fotos|aqu[ií]\\s+te\\s+muestro\\s+la\\s+foto)\\s*(?:de\\s+[^.,!\\n]+)?", noPhotosNotice);
-            } else if (!replyText.toLowerCase().contains("no contamos con fotos") && !replyText.toLowerCase().contains("no hay fotos")) {
-                replyText = noPhotosNotice + "\n\n" + replyText;
+        if (clientAskedForPhotos || botMentionsSendingPhoto) {
+            if (!hasImages) {
+                String prodLabel = selectedProduct != null ? selectedProduct.name() : "este modelo";
+                String noPhotosNotice = "De momento no contamos con fotos disponibles de " + prodLabel + ".";
+                if (botMentionsSendingPhoto) {
+                    replyText = replyText.replaceAll("(?i)(?:aqu[ií]\\s+tienes\\s+la\\s+foto|te\\s+comparto\\s+la\\s+foto|aqu[ií]\\s+est[aá]n\\s+las\\s+fotos|aqu[ií]\\s+te\\s+muestro\\s+la\\s+foto)\\s*(?:de\\s+[^.,!\\n]+)?", noPhotosNotice);
+                } else if (!replyText.toLowerCase().contains("no contamos con fotos") && !replyText.toLowerCase().contains("no hay fotos")) {
+                    replyText = noPhotosNotice + "\n\n" + replyText;
+                }
+            } else {
+                if (replyText.toLowerCase().contains("no contamos con fotos") || replyText.toLowerCase().contains("no hay fotos")) {
+                    String prodLabel = selectedProduct.name();
+                    replyText = replyText.replaceAll("(?i)(?:de momento )?no contamos con fotos disponibles de [^.,!\\n]+(?:,\\s*pero viene con sus especificaciones de f[aá]brica garantizadas)?\\.?", "Con gusto te comparto la foto de " + prodLabel + ".");
+                }
             }
         }
 

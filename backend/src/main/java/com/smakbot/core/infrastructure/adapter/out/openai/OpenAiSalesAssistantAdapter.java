@@ -188,6 +188,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
         sb.append("PROHIBIDO inventar productos, precios, colores, medidas o stock. PROHIBIDO mencionar el código SKU interno o precios anteriores al cliente:\n");
         for (Product p : catalog) {
             boolean setLine = HondurasDeliveryPolicy.isSetOrDualIndividualProduct(p, catalog);
+            boolean hasPics = p.images() != null && !p.images().isEmpty();
             sb.append("- [ID_INTERNO_NO_MOSTRAR_AL_CLIENTE: ").append(p.sku()).append("]")
                     .append(" | Nombre: ").append(p.name())
                     .append(" | Precio Actual Fijo: ").append(currency).append(p.salePrice())
@@ -197,6 +198,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                     .append(" | Medidas: ").append(p.dimensions() != null ? p.dimensions() : "Estándar")
                     .append(" | Soporte/Peso: ").append(p.weightLimit() != null ? p.weightLimit() : "N/A")
                     .append(" | Categoría: ").append(p.category() != null ? p.category() : "General")
+                    .append(" | Fotos en BD: ").append(hasPics ? p.images().size() + " fotos disponibles" : "SIN FOTOS (0)")
                     .append("\n");
         }
         sb.append("\n");
@@ -282,9 +284,10 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                            - Si un producto no existe en el catálogo real de BD (por ejemplo bicicletas o sofás), indícalo con calidez en 2 líneas y pregunta qué artículo del catálogo busca.
 
                         3. FOTOS DEL PRODUCTO Y DISPONIBILIDAD DE FOTOS:
+                           - Cada producto en el catálogo indica claramente si tiene 'X fotos disponibles' o 'SIN FOTOS (0)'.
                            - Si el cliente pide fotos ("mande foto", "manda foto", "mandame fotos", "fotos", "galería", etc.):
-                             a) Si el producto TIENE fotos en el catálogo de BD: pon SIEMPRE `sendProductPhotos = true` (y `sendAllPhotos = true` si pide plural o galería). Esto aplica INCLUSO si en el mismo mensaje estás pidiendo el siguiente dato de checkout (`NAME`, `ADDRESS`, etc.).
-                             b) Si el producto NO TIENE fotos registradas en el catálogo de BD: aclara con total transparencia: "De momento no contamos con fotos disponibles de este modelo, pero viene con sus especificaciones de fábrica garantizadas...". PROHIBIDO TERMINANTEMENTE decir "Aquí tienes la foto..." si no hay fotos. Pon `sendProductPhotos = false` y `sendAllPhotos = false`.
+                             a) Si el producto indica 'fotos disponibles' en el catálogo: di con amabilidad por ejemplo "Con gusto te comparto la foto de [Nombre del producto]..." y pon SIEMPRE `sendProductPhotos = true` (y `sendAllPhotos = true` si pide varias o galería). Esto aplica INCLUSO si en el mismo mensaje estás pidiendo el siguiente dato de checkout (`NAME`, `ADDRESS`, etc.). PROHIBIDO decir que no hay fotos si el producto indica fotos disponibles.
+                             b) Si el producto indica 'SIN FOTOS (0)' en el catálogo: aclara con total transparencia: "De momento no contamos con fotos disponibles de este modelo, pero viene con sus especificaciones de fábrica garantizadas...". PROHIBIDO TERMINANTEMENTE decir "Aquí tienes la foto..." o "Con gusto te comparto la foto..." si no hay fotos. Pon `sendProductPhotos = false` y `sendAllPhotos = false`.
                            - Al presentar por primera vez un producto específico o si el cliente elige uno nuevo, pon `sendProductPhotos = true` y `sendAllPhotos = false`.
                            - PROHIBIDO ofrecer, mencionar o avisar cuántas fotos adicionales hay o pedirle al cliente que diga "más fotos". Si desea ver más fotos, el cliente las pedirá por iniciativa propia.
                            - Durante el checkout normal, cuando el cliente solo responde su nombre, dirección o teléfono (sin pedir fotos), pon `sendProductPhotos = false` y `sendAllPhotos = false`.
