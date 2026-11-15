@@ -397,13 +397,33 @@ public class SalesEngineService implements ProcessMessageUseCase {
         session.addTurn("assistant", replyText);
         sessionRepo.save(session);
 
-        // 12. Selección de imágenes del producto
+        // 12. Selección de imágenes del producto y manejo transparente si no hay fotos
+        boolean clientAskedForPhotos = isPhotoQuery(normText);
+        boolean botMentionsSendingPhoto = replyText.toLowerCase().contains("aqui tienes la foto")
+                || replyText.toLowerCase().contains("aquí tienes la foto")
+                || replyText.toLowerCase().contains("te comparto la foto")
+                || replyText.toLowerCase().contains("aqui estan las fotos")
+                || replyText.toLowerCase().contains("aquí están las fotos")
+                || replyText.toLowerCase().contains("aqui te muestro la foto")
+                || replyText.toLowerCase().contains("aquí te muestro la foto");
+
+        boolean hasImages = selectedProduct != null && selectedProduct.images() != null && !selectedProduct.images().isEmpty();
+
+        if ((clientAskedForPhotos || botMentionsSendingPhoto) && !hasImages && selectedProduct != null) {
+            String noPhotosNotice = "De momento no contamos con fotos disponibles de " + selectedProduct.name() + ".";
+            if (botMentionsSendingPhoto) {
+                replyText = replyText.replaceAll("(?i)(?:aqu[ií]\\s+tienes\\s+la\\s+foto|te\\s+comparto\\s+la\\s+foto|aqu[ií]\\s+est[aá]n\\s+las\\s+fotos|aqu[ií]\\s+te\\s+muestro\\s+la\\s+foto)\\s*(?:de\\s+[^.,!\\n]+)?", noPhotosNotice);
+            } else if (!replyText.toLowerCase().contains("no contamos con fotos") && !replyText.toLowerCase().contains("no hay fotos")) {
+                replyText = noPhotosNotice + "\n\n" + replyText;
+            }
+        }
+
         List<String> imagesToSend = Collections.emptyList();
-        if (selectedProduct != null && selectedProduct.images() != null && !selectedProduct.images().isEmpty()) {
+        if (hasImages) {
             boolean userAskedMorePhotos = isMorePhotosQuery(normText);
             if (decision.sendAllPhotos() || userAskedMorePhotos) {
                 imagesToSend = selectedProduct.firstImages(5);
-            } else if (decision.sendProductPhotos()) {
+            } else if (decision.sendProductPhotos() || clientAskedForPhotos || botMentionsSendingPhoto) {
                 imagesToSend = selectedProduct.firstImages(1);
             }
         }
@@ -1087,15 +1107,26 @@ public class SalesEngineService implements ProcessMessageUseCase {
                 "sabado", "sabados", "fecha", "cuando llega", "cuanto tarda");
     }
 
+    private boolean isPhotoQuery(String norm) {
+        if (norm == null || norm.isBlank()) return false;
+        return norm.contains("foto") || norm.contains("fotos")
+                || norm.contains("imagen") || norm.contains("imagenes")
+                || norm.contains("imágenes") || norm.contains("galeria")
+                || norm.contains("galería") || norm.contains("verlo")
+                || norm.contains("verla") || norm.contains("fotografia")
+                || norm.contains("fotografias");
+    }
+
     private boolean isMorePhotosQuery(String norm) {
         if (norm == null || norm.isBlank()) return false;
         return norm.contains("mas foto") || norm.contains("más foto")
                 || norm.contains("mas fotos") || norm.contains("más fotos")
                 || norm.contains("otras fotos") || norm.contains("otra foto")
                 || norm.contains("galeria") || norm.contains("galería")
-                || norm.contains("ver foto") || norm.contains("ver fotos")
-                || norm.contains("todas las fotos") || norm.contains("mas imagenes")
-                || norm.contains("más imagenes");
+                || norm.contains("ver fotos") || norm.contains("todas las fotos")
+                || norm.contains("mas imagenes") || norm.contains("más imagenes")
+                || norm.contains("mande fotos") || norm.contains("manda fotos")
+                || norm.contains("mandame fotos") || norm.contains("enviar fotos");
     }
 
     private String normalizeCommand(String raw) {

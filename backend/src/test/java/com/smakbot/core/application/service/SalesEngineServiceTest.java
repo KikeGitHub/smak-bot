@@ -647,6 +647,39 @@ class SalesEngineServiceTest {
                 "tenant-hn-muebles", Channel.WHATSAPP, cid, "más fotos", null
         ));
         assertEquals(3, r2.images().size(), "Solo cuando el cliente pide explícitamente más fotos debe enviar la galería");
+
+        // 3. Cuando el cliente escribe 'Mande foto', debe adjuntar la foto del producto
+        String cidMande = "client-mande-" + UUID.randomUUID();
+        salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cidMande, "Quiero información de la silla Ezri", null
+        ));
+        BotReply rMande = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cidMande, "Mande foto", null
+        ));
+        assertEquals(1, rMande.images().size(), "Debe enviar la foto cuando el cliente dice 'Mande foto'");
+
+        // 4. Cuando el producto NO tiene fotos registradas y piden foto, debe aclarar que de momento no hay fotos
+        Product noPhotoProduct = new Product(
+                UUID.randomUUID(), "tenant-hn-muebles", "SKM-NOPIC-01",
+                "Estante Metálico Minimalista", "Estante sin fotos",
+                new BigDecimal("1500.00"), new BigDecimal("1200.00"), 10,
+                "80 x 30 cm", "50 kg", "Negro", "Estantes",
+                List.of("estante", "skm-nopic-01"),
+                List.of(), true
+        );
+        when(productRepo.findActiveByTenant("tenant-hn-muebles")).thenReturn(List.of(noPhotoProduct));
+        String cidNoPic = "client-nopic-" + UUID.randomUUID();
+        salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cidNoPic, "Precio del estante", null
+        ));
+        BotReply rNoPic = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, cidNoPic, "Mande foto", null
+        ));
+        assertEquals(0, rNoPic.images().size(), "No debe adjuntar imágenes si el producto no tiene");
+        assertTrue(rNoPic.text().toLowerCase().contains("no contamos con fotos") || rNoPic.text().toLowerCase().contains("no hay fotos"),
+                "Debe informar explícitamente que no hay fotos de momento: " + rNoPic.text());
+        assertFalse(rNoPic.text().toLowerCase().contains("aquí tienes la foto"),
+                "PROHIBIDO decir 'aquí tienes la foto' si no hay fotos: " + rNoPic.text());
     }
 
     @Test

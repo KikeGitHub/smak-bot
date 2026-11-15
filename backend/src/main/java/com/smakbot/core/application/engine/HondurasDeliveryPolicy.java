@@ -165,6 +165,12 @@ public final class HondurasDeliveryPolicy {
                 + "En breve te responderán.";
     }
 
+    public static String buildNoPhotosAvailableReply(Product product) {
+        String name = product != null ? product.name() : "este modelo";
+        return "De momento no contamos con fotos disponibles de " + name + ". "
+                + "Sin embargo, viene con sus especificaciones y acabados de fábrica garantizados. ¿Te gustaría realizar tu pedido o prefieres consultar otro modelo?";
+    }
+
     public static String buildFinalOrderConfirmation(
             String recipientName,
             String orderNumber,

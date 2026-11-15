@@ -281,11 +281,13 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                            - Cuando pida "otros modelos de [tipo]" en plural, enumera de forma concisa 3 o 4 opciones disponibles de ese mismo tipo con su precio actual en Lempiras (sin SKU) y pregúntale cuál le interesa ver (pon `cancelCheckout = true`, `nextStep = "IDLE"` y `selectedSku = null`).
                            - Si un producto no existe en el catálogo real de BD (por ejemplo bicicletas o sofás), indícalo con calidez en 2 líneas y pregunta qué artículo del catálogo busca.
 
-                        3. FOTOS DEL PRODUCTO:
+                        3. FOTOS DEL PRODUCTO Y DISPONIBILIDAD DE FOTOS:
+                           - Si el cliente pide fotos ("mande foto", "manda foto", "mandame fotos", "fotos", "galería", etc.):
+                             a) Si el producto TIENE fotos en el catálogo de BD: pon SIEMPRE `sendProductPhotos = true` (y `sendAllPhotos = true` si pide plural o galería). Esto aplica INCLUSO si en el mismo mensaje estás pidiendo el siguiente dato de checkout (`NAME`, `ADDRESS`, etc.).
+                             b) Si el producto NO TIENE fotos registradas en el catálogo de BD: aclara con total transparencia: "De momento no contamos con fotos disponibles de este modelo, pero viene con sus especificaciones de fábrica garantizadas...". PROHIBIDO TERMINANTEMENTE decir "Aquí tienes la foto..." si no hay fotos. Pon `sendProductPhotos = false` y `sendAllPhotos = false`.
                            - Al presentar por primera vez un producto específico o si el cliente elige uno nuevo, pon `sendProductPhotos = true` y `sendAllPhotos = false`.
-                           - Si el cliente pide expresamente más fotos o galería por su cuenta, pon `sendAllPhotos = true` y `sendProductPhotos = true`.
                            - PROHIBIDO ofrecer, mencionar o avisar cuántas fotos adicionales hay o pedirle al cliente que diga "más fotos". Si desea ver más fotos, el cliente las pedirá por iniciativa propia.
-                           - Al listar varios modelos a elegir o pedir datos de envío (`NAME`, `ADDRESS`, `PHONE`, etc.), pon `sendProductPhotos = false` y `sendAllPhotos = false`.
+                           - Durante el checkout normal, cuando el cliente solo responde su nombre, dirección o teléfono (sin pedir fotos), pon `sendProductPhotos = false` y `sendAllPhotos = false`.
 
                         4. FLUJO ESTRICTO DATO POR DATO PARA HONDURAS (SIN OFRECER FACTURA PROACTIVAMENTE):
                            Recopila y valida OBLIGATORIAMENTE en este orden exacto, 1 dato por turno:
@@ -587,11 +589,21 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, null);
             }
             if (containsAny(norm, "mas fotos", "más fotos", "todas las fotos", "galeria", "galería", "otras fotos")) {
+                if (activeProduct.images() == null || activeProduct.images().isEmpty()) {
+                    String reply = "De momento no contamos con fotos disponibles de " + activeProduct.name() + "."
+                            + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría ordenarlo?");
+                    return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, false, null);
+                }
                 String reply = "Con mucho gusto, aquí tienes las fotos de " + activeProduct.name() + "."
                         + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría ordenarlo?");
                 return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), true, true, false, false, null);
             }
             if (containsAny(norm, "foto", "fotos", "imagen", "imagenes")) {
+                if (activeProduct.images() == null || activeProduct.images().isEmpty()) {
+                    String reply = "De momento no contamos con fotos disponibles de " + activeProduct.name() + "."
+                            + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría ordenarlo?");
+                    return new AssistantDecision(reply, stepToKeep, activeProduct.sku(), false, false, false, false, null);
+                }
                 String reply = "Aquí tienes la foto de " + activeProduct.name() + " ("
                         + Money.lempiras(activeProduct.salePrice()) + " con envío gratis)."
                         + (session.inCheckout() ? resumeSuffix : " ¿Te gustaría ordenarlo?");
