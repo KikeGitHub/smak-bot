@@ -818,4 +818,52 @@ class SalesEngineServiceTest {
         assertFalse(sanitized.toLowerCase().contains("supera el límite"));
         assertTrue(sanitized.toLowerCase().contains("especialista de mayoreo"));
     }
+
+    @Test
+    @DisplayName("Fotos: 'Mande foto' entrega 1 foto cuando existen; si no hay fotos aclara de inmediato y no envía imagen")
+    void testPhotoRequestWithAndWithoutImages() {
+        Product arrimeWithPhotos = new Product(
+                UUID.randomUUID(), "tenant-hn-muebles", "ZGM-030-NE-NE",
+                "Mesa Auxiliar de Arrime Smak - Acabado Símil Mármol Negro", "Mesa Auxiliar",
+                new BigDecimal("1800.00"), new BigDecimal("1490.00"), 10,
+                "45 x 30 x 60 cm", "50 kg", "Negro", "Mesas",
+                List.of("mesa de arrime", "mesa auxiliar", "arrime", "zgm-030"),
+                List.of("https://static.wixstatic.com/media/arrime1.png", "https://static.wixstatic.com/media/arrime2.png"),
+                true
+        );
+        Product noPhotosProd = new Product(
+                UUID.randomUUID(), "tenant-hn-muebles", "SKM-NO-PICS",
+                "Mesa Especial Sin Fotos", "Mesa Sin Fotos",
+                new BigDecimal("2000.00"), new BigDecimal("1700.00"), 5,
+                "50 x 50 cm", "40 kg", "Blanco", "Mesas",
+                List.of("mesa especial", "mesa sin fotos"),
+                Collections.emptyList(),
+                true
+        );
+        when(productRepo.findActiveByTenant("tenant-hn-muebles"))
+                .thenReturn(List.of(wynnChair, arrimeWithPhotos, noPhotosProd));
+
+        // 1. Caso con fotos: el cliente pregunta por medidas y luego pide 'Mande foto'
+        salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-arrime-photo", "medidas de la mesa de arrime", null
+        ));
+        BotReply rFoto = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-arrime-photo", "Mande foto", null
+        ));
+        assertFalse(rFoto.images().isEmpty(), "Debe adjuntar al menos una foto cuando el producto las tiene");
+        assertEquals("https://static.wixstatic.com/media/arrime1.png", rFoto.images().get(0));
+
+        // 2. Caso sin fotos: el cliente pide fotos de un producto sin imágenes registradas
+        salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-nopic", "precio de la mesa especial sin fotos", null
+        ));
+        BotReply rNoPic = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-nopic", "Mande foto", null
+        ));
+        assertTrue(rNoPic.images().isEmpty(), "No debe incluir imágenes si el producto no tiene fotos");
+        assertTrue(rNoPic.text().toLowerCase().contains("no contamos con fotos disponibles"),
+                "Debe indicar transparentemente que no cuenta con fotos disponibles: " + rNoPic.text());
+        assertFalse(rNoPic.text().toLowerCase().contains("aquí tienes la foto") || rNoPic.text().toLowerCase().contains("aqui tienes la foto"),
+                "PROHIBIDO prometer 'aquí tienes la foto' si no hay fotos: " + rNoPic.text());
+    }
 }

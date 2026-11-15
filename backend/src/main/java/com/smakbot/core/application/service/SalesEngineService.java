@@ -174,6 +174,37 @@ public class SalesEngineService implements ProcessMessageUseCase {
         } else {
             selectedProduct = resolveProductBySku(decision.selectedSku(), catalog)
                     .orElseGet(() -> resolveProductBySku(session.getSelectedSku(), catalog).orElse(null));
+            if (selectedProduct == null && session.getCheckout() != null) {
+                selectedProduct = resolveProductBySku(session.getCheckout().productSku, catalog).orElse(null);
+            }
+            if (selectedProduct == null) {
+                selectedProduct = matchProductFromCatalog(normText, catalog).orElse(null);
+            }
+            if (selectedProduct == null && decision.replyText() != null) {
+                selectedProduct = matchProductFromCatalog(normalizeCommand(decision.replyText()), catalog).orElse(null);
+            }
+            if (selectedProduct == null && session.getOfferedSkus() != null && !session.getOfferedSkus().isEmpty()) {
+                for (int i = session.getOfferedSkus().size() - 1; i >= 0; i--) {
+                    String lastSku = session.getOfferedSkus().get(i);
+                    Optional<Product> p = resolveProductBySku(lastSku, catalog);
+                    if (p.isPresent()) {
+                        selectedProduct = p.get();
+                        break;
+                    }
+                }
+            }
+            if (selectedProduct == null && session.getHistory() != null && !session.getHistory().isEmpty()) {
+                for (int i = session.getHistory().size() - 1; i >= 0; i--) {
+                    ConversationTurn turn = session.getHistory().get(i);
+                    if (turn.content() != null) {
+                        Optional<Product> p = matchProductFromCatalog(normalizeCommand(turn.content()), catalog);
+                        if (p.isPresent()) {
+                            selectedProduct = p.get();
+                            break;
+                        }
+                    }
+                }
+            }
             if (selectedProduct != null) {
                 session.setSelectedSku(selectedProduct.sku());
                 session.addOfferedSku(selectedProduct.sku());
@@ -409,8 +440,9 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         boolean hasImages = selectedProduct != null && selectedProduct.images() != null && !selectedProduct.images().isEmpty();
 
-        if ((clientAskedForPhotos || botMentionsSendingPhoto) && !hasImages && selectedProduct != null) {
-            String noPhotosNotice = "De momento no contamos con fotos disponibles de " + selectedProduct.name() + ".";
+        if ((clientAskedForPhotos || botMentionsSendingPhoto) && !hasImages) {
+            String prodLabel = selectedProduct != null ? selectedProduct.name() : "este modelo";
+            String noPhotosNotice = "De momento no contamos con fotos disponibles de " + prodLabel + ".";
             if (botMentionsSendingPhoto) {
                 replyText = replyText.replaceAll("(?i)(?:aqu[ií]\\s+tienes\\s+la\\s+foto|te\\s+comparto\\s+la\\s+foto|aqu[ií]\\s+est[aá]n\\s+las\\s+fotos|aqu[ií]\\s+te\\s+muestro\\s+la\\s+foto)\\s*(?:de\\s+[^.,!\\n]+)?", noPhotosNotice);
             } else if (!replyText.toLowerCase().contains("no contamos con fotos") && !replyText.toLowerCase().contains("no hay fotos")) {
@@ -1127,6 +1159,43 @@ public class SalesEngineService implements ProcessMessageUseCase {
                 || norm.contains("mas imagenes") || norm.contains("más imagenes")
                 || norm.contains("mande fotos") || norm.contains("manda fotos")
                 || norm.contains("mandame fotos") || norm.contains("enviar fotos");
+    }
+
+    private Optional<Product> matchProductFromCatalog(String norm, List<Product> catalog) {
+        if (norm == null || norm.isBlank() || catalog == null || catalog.isEmpty()) {
+            return Optional.empty();
+        }
+        Product best = null;
+        int bestScore = 0;
+        for (Product p : catalog) {
+            int score = 0;
+            String pSku = normalizeCommand(p.sku());
+            String pName = normalizeCommand(p.name());
+            if (!pSku.isBlank() && norm.contains(pSku)) {
+                score += 100;
+            }
+            for (String token : pName.split("\\s+")) {
+                if (token.length() >= 4 && norm.contains(token)) {
+                    score += 15;
+                }
+            }
+            if (p.keywords() != null) {
+                for (String kw : p.keywords()) {
+                    String nkw = normalizeCommand(kw);
+                    if (!nkw.isBlank() && norm.contains(nkw)) {
+                        score += 25;
+                    }
+                }
+            }
+            if ((norm.contains("set ") || norm.contains("sets ") || norm.contains(" set")) && (pSku.contains("set") || pName.startsWith("set ") || pName.contains(" set "))) {
+                score += 35;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                best = p;
+            }
+        }
+        return bestScore >= 15 ? Optional.of(best) : Optional.empty();
     }
 
     private String normalizeCommand(String raw) {
