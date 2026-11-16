@@ -158,3 +158,4 @@ sequenceDiagram
    - La directiva `AfterViewChecked` supervisa la carga asíncrona de imágenes y ajusta el `scrollTop` suavemente sin generar parpadeos en pantalla.
 3. **Resiliencia ante Errores de Red:**
    - Si la llamada HTTP falla o retorna `500`/`502`, el widget captura el error y despliega un mensaje amigable: *"Tuvimos un inconveniente de conexión. Por favor reintenta tu mensaje o contáctanos por WhatsApp."*
+

@@ -80,3 +80,4 @@ Para mitigar quejas por demoras de la paquetería:
 
 ### Neutras/Monitoreo:
 - El clasificador geográfico debe mantenerse actualizado con las variantes ortográficas y abreviaturas de las 6 ciudades prioritarias de Honduras.
+

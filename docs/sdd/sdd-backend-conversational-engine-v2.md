@@ -214,3 +214,4 @@ La suite de pruebas en [SalesEngineServiceTest.java](file:///c:/Users/kike2/OneD
 - `testHondurasDeliverySLAWindows`: Valida SLA de 1-2 días en las 6 ciudades y 2-3 días en el resto.
 - `testSaturdayDeliveryPolicy`: Valida protocolo de sábado con retiro en agencia y pregunta sobre quién recibe.
 - `testInvoiceSuppressionAndDirectConfirmation`: Valida transición directa de teléfono a confirmación sin RTN.
+

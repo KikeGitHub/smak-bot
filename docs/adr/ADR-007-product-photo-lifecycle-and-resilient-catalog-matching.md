@@ -66,3 +66,4 @@ En [WhatsAppWebhookController.java](file:///c:/Users/kike2/OneDrive/Escritorio/S
 - **Robustez Conversacional:** Aunque el usuario responda con mensajes cortos como *"Mande foto"*, *"fotos"* o *"la imagen"*, el bot nunca pierde el producto de referencia.
 - **Transparencia Comercial:** Si un producto no tiene fotos, el cliente es notificado con claridad sin falsas expectativas.
 - **Desempeño en WhatsApp:** El uso de *caption* en imagen única reduce el número de llamadas a la API de WhatsApp y mejora la experiencia en redes móviles lentas.
+

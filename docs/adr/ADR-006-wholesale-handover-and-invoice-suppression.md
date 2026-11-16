@@ -56,3 +56,4 @@ Se desacopla la política de volumen en dos reglas claras evaluadas en [Honduras
 - **Reducción del Churn en Checkout:** La eliminación de la pregunta proactiva del RTN acorta el embudo de compra en 1 turno conversacional crítico.
 - **Mayor Autonomía del Bot:** Hasta 5 unidades de productos individuales se cierran de forma automática sin intervención humana.
 - **Percepción de Servicio VIP:** El cliente siente que recibe atención preferencial de un experto en volumen, no que chocó contra una barrera técnica del bot.
+
