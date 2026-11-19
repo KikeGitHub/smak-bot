@@ -751,7 +751,7 @@ class SalesEngineServiceTest {
     }
 
     @Test
-    @DisplayName("Mayoreo: para transferir por 2 unidades tiene que ser SET; individuales más de 5 (6+) pasa a especialista de mayoreo sin decir asesor humano")
+    @DisplayName("Mayoreo: para transferir por 2 unidades tiene que ser SET; individuales mismo precio hasta 4 piezas, a partir de 5 pasa a especialista de mayoreo")
     void testQuantityHumanHandoverGeneralVsSetTolix() {
         Product tolixSingle = new Product(
                 UUID.randomUUID(), "tenant-hn-muebles", "SKM-941-NE",
@@ -779,21 +779,21 @@ class SalesEngineServiceTest {
         assertEquals(CheckoutStep.NAME, rGeneral2.step(), "2 unidades de producto individual deben continuar con NAME normal");
         assertFalse(rGeneral2.human(), "No debe transferirse por 2 unidades de un producto individual");
 
-        // 2. Producto individual (Silla Wynn): pedir 5 unidades NO traslada (hasta 5 unidades se venden con el bot)
+        // 2. Producto individual (Silla Wynn): pedir 4 unidades NO traslada (mismo precio regular hasta 4 piezas)
+        BotReply rGeneral4 = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-gen4", "Quiero 4 sillas Wynn", null
+        ));
+        assertEquals(CheckoutStep.NAME, rGeneral4.step());
+        assertFalse(rGeneral4.human(), "4 unidades de producto individual se venden al precio regular");
+
+        // 3. Producto individual: a partir de 5 piezas (5 sillas) SÍ traslada a especialista de mayoreo
         BotReply rGeneral5 = salesEngine.process(new IncomingMessage(
                 "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-gen5", "Quiero 5 sillas Wynn", null
         ));
-        assertEquals(CheckoutStep.NAME, rGeneral5.step());
-        assertFalse(rGeneral5.human());
-
-        // 3. Producto individual: pedir más de 5 (6 unidades) SÍ traslada a especialista de mayoreo
-        BotReply rGeneral6 = salesEngine.process(new IncomingMessage(
-                "tenant-hn-muebles", Channel.WHATSAPP, "client-qty-gen6", "Quiero 6 sillas Wynn", null
-        ));
-        assertEquals(CheckoutStep.HUMAN, rGeneral6.step());
-        assertTrue(rGeneral6.human());
-        assertTrue(rGeneral6.text().toLowerCase().contains("especialista de mayoreo"), "Debe mencionar especialista de mayoreo: " + rGeneral6.text());
-        assertFalse(rGeneral6.text().toLowerCase().contains("asesor humano"), "PROHIBIDO decir asesor humano: " + rGeneral6.text());
+        assertEquals(CheckoutStep.HUMAN, rGeneral5.step());
+        assertTrue(rGeneral5.human());
+        assertTrue(rGeneral5.text().toLowerCase().contains("especialista de mayoreo"), "Debe mencionar especialista de mayoreo: " + rGeneral5.text());
+        assertFalse(rGeneral5.text().toLowerCase().contains("asesor humano"), "PROHIBIDO decir asesor humano: " + rGeneral5.text());
 
         // 4. Producto SET (SKU con SET): pedir 1 set NO traslada
         BotReply rSet1 = salesEngine.process(new IncomingMessage(
@@ -811,12 +811,67 @@ class SalesEngineServiceTest {
         assertTrue(rSet2.text().toLowerCase().contains("especialista de mayoreo"), "Debe mencionar especialista de mayoreo en set: " + rSet2.text());
         assertFalse(rSet2.text().toLowerCase().contains("asesor humano"), "PROHIBIDO decir asesor humano: " + rSet2.text());
 
-        // 6. Sanitizador: Erradicación estricta de 'asesor humano' y 'supera el límite'
+        // 6. Sanitizador: Erradicación estricta de 'asesor humano', 'supera el límite' y ofertas erróneas para 1-4 piezas
         String screenshotMsg = "Para la Silla Ejecutiva Ezri Smak Office, el pedido de 2 unidades requiere que te transfiera a un asesor humano, ya que se supera el límite de 2 unidades. Voy a proceder con eso. Un momento, por favor.";
         String sanitized = HondurasDeliveryPolicy.sanitizeCustomerReply(screenshotMsg);
         assertFalse(sanitized.toLowerCase().contains("asesor humano"));
         assertFalse(sanitized.toLowerCase().contains("supera el límite"));
         assertTrue(sanitized.toLowerCase().contains("especialista de mayoreo"));
+
+        String screenshotDiscount = "Los precios publicados en nuestro catálogo son fijos y finales; no realizamos rebajas ni descuentos adicionales. Si deseas, puedo ayudarte a conectar con un especialista de mayoreo para coordinar tu pedido de 3 sillas. ¿Te gustaría proceder?";
+        String sanitizedDiscount = HondurasDeliveryPolicy.sanitizeCustomerReply(screenshotDiscount);
+        assertFalse(sanitizedDiscount.toLowerCase().contains("especialista de mayoreo"), "No debe ofrecer mayoreo para 3 sillas: " + sanitizedDiscount);
+        assertFalse(sanitizedDiscount.toLowerCase().contains("proceder"), "No debe dejar huérfano 'proceder': " + sanitizedDiscount);
+    }
+
+    @Test
+    @DisplayName("Precios fijos: 'no mejoras precio?' responde con precio fijo sin ofrecer mayoreo para <= 4 unidades")
+    void testPriceDiscountInquiryDoesNotOfferWholesale() {
+        when(productRepo.findActiveByTenant("tenant-hn-muebles"))
+                .thenReturn(List.of(wynnChair));
+
+        salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-discount-test", "precio de la silla wynn", null
+        ));
+
+        BotReply rDiscount = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-discount-test", "no mejoras precio?", null
+        ));
+
+        assertFalse(rDiscount.human(), "No debe trasladar a humano ante consulta de rebaja");
+        assertFalse(rDiscount.text().toLowerCase().contains("especialista de mayoreo"), "PROHIBIDO ofrecer especialista de mayoreo para pocas piezas: " + rDiscount.text());
+        assertTrue(rDiscount.text().toLowerCase().contains("fijos y finales"), "Debe aclarar que los precios son fijos y finales: " + rDiscount.text());
+    }
+
+    @Test
+    @DisplayName("Soporte: Garantías, piezas dañadas/rotas/faltantes y dudas de armado direccionan a Moisés (+504 3306-2631)")
+    void testWarrantyAndAssemblyRoutingToMoises() {
+        when(productRepo.findActiveByTenant("tenant-hn-muebles"))
+                .thenReturn(List.of(wynnChair));
+
+        // 1. Consulta de garantía por piezas rotas o dañadas
+        BotReply rWarranty = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-support-1", "Se me dañó una pieza de la silla, tienen garantía por piezas rotas?", null
+        ));
+        assertTrue(rWarranty.text().contains("3306-2631"), "Debe incluir el número de Moisés: " + rWarranty.text());
+        assertTrue(rWarranty.text().contains("Moisés"), "Debe mencionar a Moisés: " + rWarranty.text());
+        assertTrue(rWarranty.text().contains("https://wa.me/50433062631"), "Debe incluir link directo de WhatsApp: " + rWarranty.text());
+
+        // 2. Consulta de dudas de armado / instructivo
+        BotReply rArmado = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-support-2", "Cómo se arma la silla? Tienen instructivo de armado?", null
+        ));
+        assertTrue(rArmado.text().contains("3306-2631"), "Debe incluir el teléfono de Moisés: " + rArmado.text());
+        assertTrue(rArmado.text().contains("Moisés"), "Debe mencionar a Moisés: " + rArmado.text());
+
+        // 3. Consulta de piezas faltantes durante checkout
+        salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-support-3", "Quiero la silla Wynn", null
+        ));
+        BotReply rDuringCheckout = salesEngine.process(new IncomingMessage(
+                "tenant-hn-muebles", Channel.WHATSAPP, "client-support-3", "y si me viene una pieza rota qué garantía dan?", null
+        ));
+        assertTrue(rDuringCheckout.text().contains("3306-2631"), "Debe resolver con el contacto de Moisés aún en checkout: " + rDuringCheckout.text());
     }
 
     @Test

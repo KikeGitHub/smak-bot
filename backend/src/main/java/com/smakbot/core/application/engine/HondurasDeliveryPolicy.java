@@ -122,19 +122,60 @@ public final class HondurasDeliveryPolicy {
                 + ", y el motorista siempre llama antes de llegar.";
     }
 
+    public static final String SUPPORT_MOISES_NAME = "Moisés";
+    public static final String SUPPORT_MOISES_PHONE = "+504 3306-2631";
+    public static final String SUPPORT_MOISES_WA_LINK = "https://wa.me/50433062631";
+
+    public static boolean mentionsWarrantyOrDamage(String normText) {
+        if (normText == null || normText.isBlank()) return false;
+        String padded = " " + normText + " ";
+        return padded.contains(" garantia ") || padded.contains(" garantia")
+                || padded.contains(" pieza rota ") || padded.contains(" piezas rotas ")
+                || padded.contains(" pieza danada ") || padded.contains(" piezas danadas ")
+                || padded.contains(" pieza dañada ") || padded.contains(" piezas dañadas ")
+                || padded.contains(" pieza faltante ") || padded.contains(" piezas faltantes ")
+                || padded.contains(" falta una pieza ") || padded.contains(" faltan piezas ")
+                || padded.contains(" vino quebrado ") || padded.contains(" vino rota ")
+                || padded.contains(" vino roto ") || padded.contains(" vino defectuoso ")
+                || padded.contains(" defecto de fabrica ") || padded.contains(" repuesto ")
+                || padded.contains(" reclamo ") || padded.contains(" danada ")
+                || padded.contains(" rota ") || padded.contains(" quebrada ")
+                || padded.contains(" defectuosa ");
+    }
+
+    public static boolean mentionsAssemblyOrManual(String normText) {
+        if (normText == null || normText.isBlank()) return false;
+        String padded = " " + normText + " ";
+        return padded.contains(" armado ") || padded.contains(" como se arma ")
+                || padded.contains(" instructivo ") || padded.contains(" manual ")
+                || padded.contains(" indicaciones de armado ") || padded.contains(" indicacion de armado ")
+                || padded.contains(" dudas de armado ") || padded.contains(" duda de armado ")
+                || padded.contains(" como armar ") || padded.contains(" ensamble ")
+                || padded.contains(" ensamblado ") || padded.contains(" instrucciones de armado ")
+                || padded.contains(" indicaciones ") || padded.contains(" ensamblar ");
+    }
+
+    public static String buildWarrantyAndAssemblyReply() {
+        return "Para atención de garantías por piezas rotas, dañadas o faltantes, así como dudas de armado de productos, instructivos o indicaciones de ensamble, por favor comunícate directamente con nuestro encargado de soporte y armado, "
+                + SUPPORT_MOISES_NAME + ", al " + SUPPORT_MOISES_PHONE + " (" + SUPPORT_MOISES_WA_LINK + "). "
+                + "Con gusto te atenderá para resolver cualquier detalle de inmediato.";
+    }
+
     /**
      * Regla de negocio por volumen:
-     * - Para transferir por 2 unidades tienen que ser SET (los SKUs incluirán la palabra SET, o el nombre 'Set').
+     * - Para productos SET (los SKUs incluirán la palabra SET, o el nombre 'Set'):
      *   Umbral: a partir de 2 unidades (2 sets o más) -> transferir a especialista de mayoreo.
-     * - Para productos individuales tiene que ser MÁS DE 5 unidades (a partir de 6) para cambiar a especialista de mayoreo.
-     *   1 a 5 unidades individuales las procesa el bot sin transferir.
+     * - Para productos individuales (cualquier SKU que no incluya la palabra SET):
+     *   Mismo precio fijo hasta 4 piezas (1 a 4 piezas).
+     *   Umbral de mayoreo: a partir de 5 piezas (5 sillas o más) -> transferir a especialista de mayoreo.
+     *   1 a 4 unidades individuales se venden al mismo precio regular sin transferir a mayoreo.
      */
     public static int humanHandoverThreshold(Product product) {
         return humanHandoverThreshold(product, null);
     }
 
     public static int humanHandoverThreshold(Product product, List<Product> catalog) {
-        return isSetProduct(product) ? 2 : 6;
+        return isSetProduct(product) ? 2 : 5;
     }
 
     public static boolean isSetProduct(Product product) {
@@ -231,6 +272,10 @@ public final class HondurasDeliveryPolicy {
         text = text.replaceAll("(?i)\\b(?:el\\s+l[ií]mite\\s+de\\s+traslado|el\\s+l[ií]mite)\\s+es\\s+de\\s+[^.]*\\.?\\s*", "");
         text = text.replaceAll("(?i),?\\s*ya\\s+que\\s+se\\s+supera\\s+el\\s+l[ií]mite\\s+de\\s+\\d+\\s+unidades?\\.?", ".");
         text = text.replaceAll("(?i)\\bpor\\s+lo\\s+tanto\\s*,?\\s*voy\\s+a\\s+comunicarte", "Voy a comunicarte");
+
+        // 4c. Erradicar ofertas erróneas de especialista de mayoreo para pedidos de 1 a 4 piezas (mismo precio hasta 4 piezas)
+        text = text.replaceAll("(?i)(?:si\\s+(?:deseas|gustas|quieres),?\\s*)?(?:puedo\\s+(?:ayudarte\\s+a\\s+|te\\s+puedo\\s+)?|voy\\s+a\\s+)?(?:conectar|conectarte|canalizar|canalizarte|comunicar|comunicarte)(?:\\s+con)?\\s+(?:un\\s+)?especialista\\s+de\\s+mayoreo\\s+para[^.!?]*[1-4]\\s+(?:sillas?|unidades?|piezas?|sets?)[^.!?]*[.!?]?(?:\\s*¿(?:te\\s+gustar[ií]a|deseas)\\s+proceder\\?)?", "");
+        text = text.replaceAll("(?i)(?:si deseas,?\\s*)?(?:puedo ayudarte a\\s+)?canalizar(?:te)? a mayoreo para [1-4]\\s+(?:sillas?|unidades?|piezas?)\\.?\\s*(?:¿te gustar[ií]a proceder\\?)?", "");
 
         // 5. Normalizar espacios huérfanos por la limpieza sin destruir saltos de línea
         text = text.replaceAll("[ \\t]{2,}", " ");

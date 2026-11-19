@@ -225,11 +225,24 @@ public class SalesEngineService implements ProcessMessageUseCase {
 
         String replyText = decision.replyText() != null ? decision.replyText() : "";
         if (nextStep == CheckoutStep.HUMAN) {
-            session.handoverToHuman();
-            if (selectedProduct != null && (replyText.isBlank() || replyText.toLowerCase().contains("límite") || replyText.toLowerCase().contains("limite"))) {
-                int qty = (decision.draftUpdate() != null && decision.draftUpdate().quantity() != null)
-                        ? decision.draftUpdate().quantity() : 2;
-                replyText = HondurasDeliveryPolicy.buildHumanHandoverForQuantityReply(selectedProduct, qty);
+            boolean isExplicitHuman = containsAny(normText, "asesor", "asesora", "humano", "humana", "hablar con alguien", "con una persona", "persona real");
+            int candidateQty = (decision.draftUpdate() != null && decision.draftUpdate().quantity() != null)
+                    ? decision.draftUpdate().quantity()
+                    : (session.getCheckout() != null ? session.getCheckout().quantity : 1);
+            int handoverLimit = HondurasDeliveryPolicy.humanHandoverThreshold(selectedProduct, catalog);
+
+            if (!isExplicitHuman && selectedProduct != null && candidateQty < handoverLimit) {
+                // No trasladar: precio fijo hasta 4 piezas para individuales (o 1 para SET)
+                nextStep = prevStep.isCheckout() ? prevStep : CheckoutStep.NAME;
+                session.setStep(nextStep);
+                replyText = "Los precios publicados en nuestro catálogo son fijos y finales para pedidos de hasta 4 piezas; no realizamos rebajas ni descuentos adicionales. Todos cuentan con envío gratis en Honduras vía Cargo Expreso y pago contra entrega.\n\n"
+                        + "¿Deseas ordenar? Por favor compárteme tu nombre completo (nombre y apellido) para apartar tu pedido:";
+            } else {
+                session.handoverToHuman();
+                if (selectedProduct != null && (replyText.isBlank() || replyText.toLowerCase().contains("límite") || replyText.toLowerCase().contains("limite"))) {
+                    int qty = candidateQty >= handoverLimit ? candidateQty : handoverLimit;
+                    replyText = HondurasDeliveryPolicy.buildHumanHandoverForQuantityReply(selectedProduct, qty);
+                }
             }
         } else {
             session.setStep(nextStep);
@@ -323,7 +336,12 @@ public class SalesEngineService implements ProcessMessageUseCase {
                             nextStep = requiredStep;
                         }
 
-                        if (askedSaturday && !replyText.toLowerCase(Locale.ROOT).contains("pareja")) {
+                        if (HondurasDeliveryPolicy.mentionsWarrantyOrDamage(normText) || HondurasDeliveryPolicy.mentionsAssemblyOrManual(normText)) {
+                            if (!replyText.contains("3306-2631")) {
+                                replyText = HondurasDeliveryPolicy.buildWarrantyAndAssemblyReply()
+                                        + "\n\n" + buildPromptForStep(requiredStep, draft);
+                            }
+                        } else if (askedSaturday && !replyText.toLowerCase(Locale.ROOT).contains("pareja")) {
                             replyText = HondurasDeliveryPolicy.buildSaturdayReply(
                                     (draft.address != null && !draft.address.isBlank()) ? draft.address : rawText)
                                     + "\n\n" + buildPromptForStep(requiredStep, draft);
@@ -413,6 +431,25 @@ public class SalesEngineService implements ProcessMessageUseCase {
                             confirmedOrder.deliveryAddress(),
                             confirmedOrder.customerPhone()
                     );
+                }
+            }
+        }
+
+        // 10b. Guardrail determinista: Garantías, piezas dañadas/rotas/faltantes y dudas de armado -> Moisés
+        if ((HondurasDeliveryPolicy.mentionsWarrantyOrDamage(normText) || HondurasDeliveryPolicy.mentionsAssemblyOrManual(normText))
+                && !session.inCheckout() && !replyText.contains("3306-2631")) {
+            replyText = HondurasDeliveryPolicy.buildWarrantyAndAssemblyReply();
+            nextStep = CheckoutStep.IDLE;
+            session.setStep(CheckoutStep.IDLE);
+        }
+
+        // 10c. Guardrail determinista: Consultas de descuento/rebaja para pedidos <= 4 piezas de no-SET
+        if (containsAny(normText, "mejoras precio", "mejora precio", "mejorar precio", "descuento", "rebaja", "rebajas", "descuentos", "por mayor", "mayoreo")
+                && (session.getCheckout() == null || session.getCheckout().quantity < HondurasDeliveryPolicy.humanHandoverThreshold(selectedProduct, catalog))) {
+            if (replyText.toLowerCase().contains("mayoreo") || replyText.toLowerCase().contains("especialista")) {
+                replyText = "Los precios publicados en nuestro catálogo son fijos y finales para pedidos de hasta 4 piezas; no realizamos rebajas ni descuentos adicionales. Todos nuestros modelos cuentan con envío gratis en Honduras vía Cargo Expreso y pago contra entrega.";
+                if (session.inCheckout()) {
+                    replyText += "\n\n" + buildPromptForStep(nextStep, session.getCheckout());
                 }
             }
         }
@@ -1140,10 +1177,14 @@ public class SalesEngineService implements ProcessMessageUseCase {
         if (prevStep == CheckoutStep.PHONE && HondurasOrderValidator.isValidHondurasPhone(raw)) {
             return false;
         }
+        if (HondurasDeliveryPolicy.mentionsWarrantyOrDamage(norm) || HondurasDeliveryPolicy.mentionsAssemblyOrManual(norm)) {
+            return true;
+        }
         return containsAny(norm, "precio", "cuesta", "vale", "color", "colores", "medida", "medidas",
                 "mide", "peso", "soporta", "foto", "fotos", "garantia", "envio", "horario", "horarios",
                 "roatan", "utila", "transferencia", "tarjeta", "otro modelo", "otros modelos",
-                "sabado", "sabados", "fecha", "cuando llega", "cuanto tarda");
+                "sabado", "sabados", "fecha", "cuando llega", "cuanto tarda", "armado", "instructivo", "manual",
+                "descuento", "rebaja", "mejor precio", "mejoras precio", "mejora precio", "rebajas", "descuentos");
     }
 
     private boolean isPhotoQuery(String norm) {

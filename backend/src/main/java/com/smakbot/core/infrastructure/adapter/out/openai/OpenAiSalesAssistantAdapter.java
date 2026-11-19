@@ -193,7 +193,7 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                     .append(" | Nombre: ").append(p.name())
                     .append(" | Precio Actual Fijo: ").append(currency).append(p.salePrice())
                     .append(" | Stock: ").append(p.stock() > 0 ? p.stock() + " disponibles" : "AGOTADO (0 uds)")
-                    .append(" | Límite traslado asesor: ").append(setLine ? "5 o más unidades (línea Set/Tolix)" : "más de 2 unidades (3 o más)")
+                    .append(" | Límite mayoreo: ").append(setLine ? "2 o más unidades (línea SET)" : "a partir de 5 piezas (individuales)")
                     .append(" | Colores: ").append(p.colors() != null ? p.colors() : "Único")
                     .append(" | Medidas: ").append(p.dimensions() != null ? p.dimensions() : "Estándar")
                     .append(" | Soporte/Peso: ").append(p.weightLimit() != null ? p.weightLimit() : "N/A")
@@ -271,7 +271,8 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                         1. TONO DIRECTO, AMABLE, PLANO (PROHIBIDO EMOJIS, NEGRITAS, "FÍJATE QUE" Y SKU):
                            - Escribe en texto plano limpio: PROHIBIDO usar emojis de cualquier tipo y PROHIBIDO usar asteriscos/negritas (*texto* o **texto**).
                            - PROHIBIDO usar la frase "Fíjate que" y PROHIBIDO mostrar el código SKU al cliente (úsalos solo en el campo JSON selectedSku/productSku).
-                           - Solo muestra el precio actual fijo. NUNCA menciones precios anteriores ("Antes: ...") ni ofrezcas rebajas o descuentos: los precios no se bajan.
+                           - PRECIOS FIJOS HASTA 4 PIEZAS: Los precios publicados en nuestro catálogo son fijos y finales para pedidos de hasta 4 piezas de cualquier producto individual (que no sea SET). NUNCA menciones precios anteriores ("Antes: ...") ni ofrezcas rebajas o descuentos: los precios no se bajan.
+                           - PROHIBIDO TERMINANTEMENTE ofrecer, sugerir o conectar con un especialista de mayoreo si el cliente consulta por descuentos o pide rebaja para 1, 2, 3 o 4 piezas. Responde amablemente que los precios son fijos y finales para pedidos de hasta 4 piezas ya que incluyen envío gratis por Cargo Expreso y pago contra entrega en todo Honduras.
                            - Mensajes breves y directos (2 a 4 líneas). PROHIBIDO pedir varios datos a la vez: pide ÚNICAMENTE 1 dato por turno.
                            - Si el cliente envía una imagen o pregunta por un producto disponible ("kiero esta", "sí la quiero", "precio"):
                              Confirma disponibilidad con amabilidad + precio actual con envío gratis + pide su nombre completo para apartar el pedido.
@@ -310,10 +311,11 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
                            - REGLA DE MAYOREO POR CANTIDAD:
                              a) Para productos SET (aquellos cuyo SKU contiene la palabra 'SET', o el nombre indica 'Set'):
                                 Si el cliente pide 2 o más unidades (2 sets o más), traslada con un especialista de mayoreo (`nextStep = "HUMAN"`).
-                             b) Para productos INDIVIDUALES (cualquier producto que no sea SET):
-                                El bot vende normalmente pedidos de 1 a 5 unidades. ÚNICAMENTE si el cliente pide MÁS DE 5 unidades (6 o más), traslada con un especialista de mayoreo (`nextStep = "HUMAN"`).
-                                Si el cliente pide 2, 3, 4 o 5 unidades de un producto individual, NO se transfiere, continúa la venta normal pidiendo nombre, dirección y teléfono.
-                           - PROHIBIDO mencionar "asesor humano", "agente humano" o que "se supera un límite". Utiliza siempre: "especialista de mayoreo" (ejemplo: "Con gusto te ayudamos con tu pedido de 6 unidades de Silla Ezri. Por tratarse de esa cantidad, voy a comunicarte directamente con un especialista de mayoreo por este mismo chat para coordinar todos los detalles contigo. En breve te responderán.").
+                             b) Para productos INDIVIDUALES (cualquier SKU que no incluya la palabra SET):
+                                El bot procesa normalmente pedidos de 1 a 4 piezas al mismo precio fijo regular de catálogo (PROHIBIDO ofrecer rebajas y PROHIBIDO ofrecer especialista de mayoreo).
+                                ÚNICAMENTE a partir de 5 piezas (5 sillas o más), traslada con un especialista de mayoreo (`nextStep = "HUMAN"`).
+                                Si el cliente pide 1, 2, 3 o 4 piezas de un producto individual, continúa la venta normal pidiendo nombre, dirección y teléfono sin transferir.
+                           - PROHIBIDO TERMINANTEMENTE mencionar "asesor humano", "agente humano" o que "se supera un límite". Utiliza siempre: "especialista de mayoreo" (ejemplo: "Con gusto te ayudamos con tu pedido de 5 unidades de Silla Ezri. Por tratarse de esa cantidad, voy a comunicarte directamente con un especialista de mayoreo por este mismo chat para coordinar todos los detalles contigo. En breve te responderán.").
 
                         6. TIEMPOS DE ENTREGA, FECHAS ESPECÍFICAS Y SÁBADOS (CARGO EXPRESO):
                            - Tiempo de entrega general en Honduras: decir siempre "entre 2 y 3 días hábiles, lo más seguro".
@@ -323,6 +325,11 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
 
                         7. RASTREO DE PEDIDOS Y CONSULTAS DESDE BD:
                            - Si pregunta por su pedido o guía de rastreo, consulta los datos de "PEDIDOS Y RASTREO EN BD PERTENECIENTES A ESTE CLIENTE" e informa en texto plano el estado exacto, guía CAEX (si ya fue asignada manualmente) o motivo de cancelación.
+
+                        8. SOPORTE DE GARANTÍAS Y ARMADO DE PRODUCTOS (MOISÉS):
+                           - Si el cliente consulta por atención de garantías por piezas rotas, dañadas o faltantes.
+                           - O si tiene dudas sobre armado de productos, instructivos o indicaciones de ensamble.
+                           - Direcciona amablemente y en texto plano con Moisés al número +504 3306-2631 (https://wa.me/50433062631) para que le atienda de inmediato.
                         """);
 
         return sb.toString();
@@ -524,7 +531,17 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             return new AssistantDecision(txt, CheckoutStep.NAME, activeProduct.sku(), false, false, false, du);
         }
 
-        // 8b. Reglas específicas de entrega (sábado, fechas concretas, ciudades 1-2 vs 2-3, precios fijos)
+        // 8b. Soporte de garantías y armado (Moisés)
+        if (HondurasDeliveryPolicy.mentionsWarrantyOrDamage(norm) || HondurasDeliveryPolicy.mentionsAssemblyOrManual(norm)) {
+            String reply = HondurasDeliveryPolicy.buildWarrantyAndAssemblyReply();
+            if (session.inCheckout()) {
+                reply += "\n\n" + buildCheckoutResumePrompt(session);
+                return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
+            }
+            return new AssistantDecision(reply, CheckoutStep.IDLE, session.getSelectedSku(), false, false, false, null);
+        }
+
+        // 8c. Reglas específicas de entrega (sábado, fechas concretas, ciudades 1-2 vs 2-3, precios fijos)
         String addrCtx = (session.getCheckout() != null && session.getCheckout().address != null && !session.getCheckout().address.isBlank())
                 ? session.getCheckout().address + " " + raw
                 : raw;
@@ -542,8 +559,9 @@ public class OpenAiSalesAssistantAdapter implements AiSalesAssistantPort {
             }
             return new AssistantDecision(reply, session.getStep(), session.getSelectedSku(), false, false, false, null);
         }
-        if (containsAny(norm, "descuento", "rebaja", "mejor precio", "por mayor", "mayoreo", "lo menos", "ultimo precio")) {
-            String reply = "Los precios publicados en nuestro catálogo son fijos y finales; no realizamos rebajas ni descuentos adicionales. Todos incluyen envío gratis en Honduras.";
+        if (containsAny(norm, "descuento", "rebaja", "mejor precio", "por mayor", "mayoreo", "lo menos", "ultimo precio",
+                "mejoras precio", "mejora precio", "mejorar precio", "rebajas", "descuentos", "menos precio")) {
+            String reply = "Los precios publicados en nuestro catálogo son fijos y finales para pedidos de hasta 4 piezas; no realizamos rebajas ni descuentos adicionales. Todos cuentan con envío gratis en Honduras vía Cargo Expreso y pago contra entrega.";
             if (session.inCheckout()) {
                 reply += "\n\n" + buildCheckoutResumePrompt(session);
             }
