@@ -35,16 +35,16 @@ SET response = 'Los precios publicados en nuestro catálogo son fijos y finales 
 WHERE id IN ('rule-mejor-precio', 'tenant-hn-muebles-rule-mejor-precio');
 
 -- 3. Crear / actualizar regla de soporte para garantías y armado direccionando a Moisés
-INSERT INTO bot_rules (id, tenant_id, category, training_phrases, response, is_active, created_at, updated_at)
+INSERT INTO bot_rules (id, tenant_id, name, category, type, enabled, training_phrases, response, created_at, updated_at)
 VALUES 
-    ('rule-garantia-armado', 'smak', 'soporte', 
+    ('rule-garantia-armado', 'smak', 'Soporte Garantía y Armado', 'soporte', 'FAQ', true,
      '["garantia","garantía","pieza rota","piezas rotas","pieza danada","piezas dañadas","pieza dañada","piezas danadas","pieza faltante","piezas faltantes","falta una pieza","faltan piezas","vino quebrado","vino rota","vino roto","vino defectuoso","defecto de fabrica","repuesto","reclamo","armado","como se arma","instructivo","manual","indicaciones de armado","dudas de armado","como armar","ensamble","ensamblado","instrucciones de armado"]'::jsonb,
      'Para atención de garantías por piezas rotas, dañadas o faltantes, así como dudas de armado de productos, instructivos o indicaciones de ensamble, por favor comunícate directamente con nuestro encargado de soporte y armado, Moisés, al +504 3306-2631 (https://wa.me/50433062631). Con gusto te atenderá para resolver cualquier detalle de inmediato.',
-     true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('tenant-hn-muebles-rule-garantia-armado', 'tenant-hn-muebles', 'soporte', 
+     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('tenant-hn-muebles-rule-garantia-armado', 'tenant-hn-muebles', 'Soporte Garantía y Armado', 'soporte', 'FAQ', true,
      '["garantia","garantía","pieza rota","piezas rotas","pieza danada","piezas dañadas","pieza dañada","piezas danadas","pieza faltante","piezas faltantes","falta una pieza","faltan piezas","vino quebrado","vino rota","vino roto","vino defectuoso","defecto de fabrica","repuesto","reclamo","armado","como se arma","instructivo","manual","indicaciones de armado","dudas de armado","como armar","ensamble","ensamblado","instrucciones de armado"]'::jsonb,
      'Para atención de garantías por piezas rotas, dañadas o faltantes, así como dudas de armado de productos, instructivos o indicaciones de ensamble, por favor comunícate directamente con nuestro encargado de soporte y armado, Moisés, al +504 3306-2631 (https://wa.me/50433062631). Con gusto te atenderá para resolver cualquier detalle de inmediato.',
-     true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO UPDATE
 SET response = EXCLUDED.response,
     training_phrases = EXCLUDED.training_phrases,
